@@ -12,8 +12,10 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/IterativeLinearSolvers>
-
-
+#include <Eigen/SVD>
+#include <igl/cat.h>
+#include <igl/min_quad_with_fixed.h>
+#include <Eigen/SparseLU>
 #include <algorithm>
 namespace DEFILLET {
 
@@ -383,10 +385,14 @@ namespace DEFILLET {
     void geodesic_post_processing(const std::vector<Point>& points,
                                   const std::vector<std::vector<size_t>>& faces,
                                   const std::vector<int>& ancestor,
-                                  std::vector<Vector_3>& target_normals) {
+                                  std::vector<Vector_3>& target_normals,
+                                  std::vector<int>& fixed_points,
+                                  std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector,
+                                  double angle_thr) {
         std::vector<int> new_ancestor = ancestor;
         int nb_points = points.size();
         int nb_faces = faces.size();
+
 
         for(int i = 0; i < nb_faces; i++) {
             new_ancestor[i] -= nb_points;
@@ -411,19 +417,89 @@ namespace DEFILLET {
             int id = new_ancestor[i];
             target_normals[i] = fnormals[face_descriptor(id)];
         }
+        edge_vector.clear();
+        std::set<int> fixed_faces_set;
+        for (const Edge_index& edge : mesh.edges()) {
+
+            // 获取边的两个半边
+            Halfedge_index he1 = mesh.halfedge(edge, 0);
+            Halfedge_index he2 = mesh.halfedge(edge, 1);
+//            std::cout << "ASD1" << std::endl;
+            Face_index f1 = mesh.face(he1);
+            Face_index f2 = mesh.face(he2);
+            if(f1.idx() >= nb_faces || f2.idx() >= nb_faces) {
+                if(f1.idx() < nb_faces) {
+                    fixed_faces_set.insert(f1.idx());
+                }
+                if(f2.idx() < nb_faces) {
+                    fixed_faces_set.insert(f2.idx());
+                }
+                continue;
+            }
+            Eigen::Vector3d tnf1 = Eigen::Vector3d(target_normals[f1.idx()].x(),
+                                                  target_normals[f1.idx()].y(), target_normals[f1.idx()].z()).normalized();
+            Eigen::Vector3d tnf2 = Eigen::Vector3d(target_normals[f2.idx()].x(),
+                                                  target_normals[f2.idx()].y(), target_normals[f2.idx()].z()).normalized();
+
+            double dot_product = tnf1.dot(tnf2);
+
+            // 计算夹角（弧度）
+
+            double angle_radians = std::acos(dot_product);
+//            std::cout << angle_radians << std::endl;
+            // 将弧度转换为角度
+            double angle_degrees = angle_radians * 180.0 / M_PI;
+
+            if(angle_degrees < angle_thr) {
+                Eigen::Vector3d onf1 = Eigen::Vector3d(fnormals[f1].x(),
+                                                       fnormals[f1].y(), fnormals[f1].z()).normalized();
+
+                int id1 = mesh.source(he1).idx();
+                int id2 = mesh.target(he1).idx();
+
+                // 计算旋转四元数
+                Eigen::Quaterniond quaternion;
+                quaternion.setFromTwoVectors(onf1, tnf1);
+
+                // 将四元数转换为旋转矩阵
+                Eigen::Matrix3d R = quaternion.toRotationMatrix();
+                Vector_3 cgal_v = points[id1] - points[id2];
+                Eigen::Vector3d v = Eigen::Vector3d(cgal_v.x(), cgal_v.y(), cgal_v.z());
+                v = R * v;
+
+                edge_vector.emplace_back(std::make_pair(id1, std::make_pair(id2, Vector_3(v.x(), v.y(), v.z()))));
+            }
+
+
+        }
+
+        fixed_points.clear();
+        std::set<int> fixed_points_set;
+        for(auto f : fixed_faces_set) {
+            int num = faces[f].size();
+            for(int i = 0; i < num; i++) {
+                fixed_points_set.insert(faces[f][i]);
+            }
+        }
+        fixed_points.insert(fixed_points.end(), fixed_points_set.begin(), fixed_points_set.end());
     }
 
-    void optimize(const std::vector<Point>& points,
+    bool optimize(const std::vector<Point>& points,
                   const std::vector<std::vector<size_t>>& faces,
                   std::vector<Vector_3>& normals,
-                  std::vector<Point>& new_points) {
+                  std::vector<Point>& new_points,
+                  std::vector<int>& fixed_points,
+                  std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector) {
 
         int nb_faces = faces.size();
         int nb_points = points.size();
-
-        Eigen::SparseMatrix<double> A(nb_faces * 2, nb_points * 3);
-        std::cout << "ASD" << std::endl;
-        Eigen::VectorXd b = Eigen::VectorXd::Zero(nb_points * 3);
+        int nb_fixed_points = fixed_points.size();
+        int nb_edges = edge_vector.size();
+        std::cout << "run optimize..." << std::endl;
+        // normals constraint
+        std::cout << "add normals constraint" << std::endl;
+        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
+        Eigen::VectorXd b = Eigen::VectorXd::Zero(nb_faces * 2 + nb_fixed_points * 3 + nb_edges);
         std::vector<Eigen::Triplet<double>> triplets;
         for(int i = 0; i < nb_faces; i++) {
             double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
@@ -442,32 +518,80 @@ namespace DEFILLET {
             triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2 + 1, -n1));
             triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2 + 2, -n2));
         }
-        A.setFromTriplets(triplets.begin(), triplets.end());
+        NC.setFromTriplets(triplets.begin(), triplets.end());
+
+        // fixed points constraint
+        std::cout << "add fixed points constraint" << std::endl;
+
+        std::cout << nb_fixed_points << std::endl;
+        triplets.clear();
+        Eigen::SparseMatrix<double> FPC(nb_fixed_points * 3, nb_points * 3);
+        std::cout << nb_points << std::endl;
+        for(int i = 0; i < nb_fixed_points; i++) {
+            int id = fixed_points[i];
+//            if(id > nb_points) {
+//                std::cout <<"ASD" <<  id << std::endl;
+//            }
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  3 * id, 1.0)); b[nb_faces * 2 + 3 * i] = points[id].x();
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  3 * id + 1, 1.0)); b[nb_faces * 2 + 3 * i + 1] = points[id].y();
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  3 * id + 2, 1.0)); b[nb_faces * 2 + 3 * i + 2] = points[id].z();
+        }
+        FPC.setFromTriplets(triplets.begin(), triplets.end());
+
+        // edges vector constraint
+        std::cout << "add edges vector constraint" << std::endl;
+
+        Eigen::SparseMatrix<double> EVC(nb_edges, nb_points * 3);
+        triplets.clear();
+        for(int i = 0; i < nb_edges; i++) {
+            int id1 = edge_vector[i].first;
+            int id2 = edge_vector[i].second.first;
+            const Vector_3& v = edge_vector[i].second.second;
+            double c1 = v.x(), c2 = v.y(), c3 = v.z();
+            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1, (-c2 + c3)));
+            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2, (c2 - c3)));
+
+            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1 + 1, (c1 - c3)));
+            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2 + 1, (-c1 + c3)));
+
+            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1 + 2, (-c1 + c2)));
+            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2 + 2, (c1 - c2)));
+        }
+        std::cout << "run solver..." << std::endl;
+        EVC.setFromTriplets(triplets.begin(), triplets.end());
+        Eigen::SparseMatrix<double> tempMat;
+        Eigen::SparseMatrix<double> A;
+        igl::cat(1, NC, FPC, tempMat);
+        igl::cat(1, tempMat, EVC, A);
+        std::cout << "complete cat.."  << std::endl;
+        Eigen::SparseMatrix<double> AT = A.transpose();
+        Eigen::SparseMatrix<double> Q = AT * A;
+        std::cout << "complete Q"  << std::endl;
+        std::cout << "AT " <<  AT.rows() << ' ' << AT.cols() << std::endl;
+        std::cout << "b " << b.rows() << ' '<< b.cols() << std::endl;
+        Eigen::VectorXd lsrhs = AT * b;
+        std::cout << "complete lsrhs"  << std::endl;
+        igl::min_quad_with_fixed_data<double> solver_data;
         std::cout << "ASD" << std::endl;
-
-        Eigen::VectorXd init(3 * nb_points);
+        if(min_quad_with_fixed_precompute(Q,Eigen::VectorXi(),Eigen::SparseMatrix<double>(),true, solver_data)) {
+            return false;
+        }
+        Eigen::MatrixXd Y(0,3), Beq(0,3);
+        Eigen::VectorXd x(nb_points * 3);
         for(int i = 0; i < nb_points; i++) {
-            init[3 * i] = points[i].x();
-            init[3 * i + 1] = points[i].y();
-            init[3 * i + 2] = points[i].z();
+            x[3 * i] = points[i].x();
+            x[3 * i + 1] = points[i].y();
+            x[3 * i + 2] = points[i].z();
+//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
         }
+        std::cout << "dsa" << std::endl;
+        igl::min_quad_with_fixed_solve(solver_data, lsrhs, Y, Beq, x);
 
-        Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> solver;
-        solver.setMaxIterations(10); // 设置最大迭代次数
-        solver.setTolerance(1e-3);    // 设置迭代收敛容许误差
-        std::cout << "solove" <<std::endl;
-        Eigen::VectorXd x = solver.compute(A).solveWithGuess(b, init);
-        std::cout << "solove" <<std::endl;
-        if (solver.info() != Eigen::Success) {
-            // 求解失败
-            std::cout << "Eigen CG solver failed to converge." << std::endl;
-            return;
-        } else {
-            std::cout << "Eigen CG solver success to converge." << std::endl;
-        }
         new_points.resize(nb_points);
         for(int i = 0; i < nb_points; i++) {
             new_points[i] = Point(x[3 * i], x[3 * i + 1], x[3 * i + 2]);
+            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
         }
+        std::cout << "done." << std::endl;
     }
 }

@@ -37,7 +37,6 @@ int main() {
     std::vector<std::vector<int>> sites_regions;
     vor.cal(vertices, sites_regions);
 
-    std::cout << "ASD" <<std::endl;
     std::vector<Point> selected_vertices;
     std::vector<std::vector<int>>  selected_regions;
 
@@ -114,18 +113,21 @@ int main() {
                            centroid_label, ancestor, distance);
 
     std::vector<Vector_3> target_normals;
-    DEFILLET::geodesic_post_processing(fillet_points, fillet_faces, ancestor, target_normals);
+    std::vector<int> fixed_points;
+    std::vector<std::pair<int,std::pair<int,Vector_3>>> edge_vector;
+
+    DEFILLET::geodesic_post_processing(fillet_points, fillet_faces, ancestor, target_normals,
+                                       fixed_points, edge_vector, 10.0);
+
     double_vector1D_data_normalize(distance);
-    mesh_field_visualization(fillet_points, fillet_faces, distance);
-//    std::vector<Point> new_fillet_points;
-//    std::cout << "run optimize..." << std::endl;
-//    DEFILLET::optimize(fillet_points, fillet_faces, target_normals, new_fillet_points);
-//    std::cout << "done." << std::endl;
-//    std::cout << fillet_points.size() << std::endl;
-//    std::cout << fillet_faces.size() << std::endl;
-//    std::cout << dense_points.size() << ' ' << fillet_points.size() + fillet_faces.size() << std::endl;
-//    mesh_visualization(dense_points, dense_faces);
-//    mesh_field_visualization(dense_points, dense_faces, distance);
-//    mesh_visualization(new_fillet_points, fillet_faces);
+
+    std::vector<Point> new_fillet_points;
+
+    if(DEFILLET::optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
+
+        mesh_visualization(new_fillet_points, fillet_faces);
+    }
+
+
     return 0;
 }

@@ -20,13 +20,15 @@ find_package(OpenCV CONFIG REQUIRED)
 #set(Easy3D_DIR "D:\\software\\Easy3D-2.5.2\\build")
 find_package(Easy3D CONFIG REQUIRED)
 
+find_package(libigl CONFIG REQUIRED)
+
 add_subdirectory(gcp)
 add_subdirectory(geodesic)
 
 add_executable(defillet main.cpp knn.cpp voronoi.cpp defillet.cpp)
 target_link_libraries(defillet PUBLIC CGAL::CGAL
         nlohmann_json::nlohmann_json easy3d::renderer
-        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen)
+        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen igl::igl_core)
 
 add_executable(test test.cpp)
 target_link_libraries(test PUBLIC Eigen3::Eigen CGAL::CGAL)

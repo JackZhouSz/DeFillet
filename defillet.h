@@ -110,12 +110,18 @@ namespace DEFILLET {
     void geodesic_post_processing(const std::vector<Point>& points,
                                   const std::vector<std::vector<size_t>>& faces,
                                   const std::vector<int>& ancestor,
-                                  std::vector<Vector_3>& target_normals);
+                                  std::vector<Vector_3>& target_normals,
+                                  std::vector<int>& fixed_points,
+                                  std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector,
+                                  double angle_thr);
 
-    void optimize(const std::vector<Point>& points,
+
+    bool optimize(const std::vector<Point>& points,
                   const std::vector<std::vector<size_t>>& faces,
                   std::vector<Vector_3>& normals,
-                  std::vector<Point>& new_points);
+                  std::vector<Point>& new_points,
+                  std::vector<int>& fixed_points,
+                  std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector);
 
 
 

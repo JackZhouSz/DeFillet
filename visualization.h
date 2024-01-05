@@ -11,6 +11,7 @@
 #include <easy3d/renderer/renderer.h>
 #include <easy3d/renderer/drawable_points.h>
 #include <easy3d/renderer/drawable_triangles.h>
+#include <easy3d/renderer/drawable_lines.h>
 #include <easy3d/renderer/texture_manager.h>
 #include <easy3d/fileio/surface_mesh_io.h>
 #include <easy3d/util/resource.h>
@@ -187,5 +188,71 @@ inline void mesh_field_visualization(const std::vector<Point>& points,
 
     // Run the viewer
     viewer.run();
+}
+
+
+inline void mesh_face_normals_vector_field(const std::vector<Point>& points,
+                                           const std::vector<std::vector<std::size_t>>& faces,
+                                           const std::vector<Vector_3>& vector_field) {
+    using namespace easy3d;
+    easy3d::initialize();
+    easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
+    int nb_points = points.size();
+    for(int i = 0; i < nb_points; i++) {
+        mesh->add_vertex(easy3d::vec3(points[i].x(),
+                                      points[i].y(), points[i].z()));
+    }
+
+    int nb_faces = faces.size();
+    for(int i = 0; i < nb_faces; i++) {
+        auto v1 = easy3d::SurfaceMesh::Vertex(faces[i][0]);
+        auto v2 = easy3d::SurfaceMesh::Vertex(faces[i][1]);
+        auto v3 = easy3d::SurfaceMesh::Vertex(faces[i][2]);
+        mesh->add_triangle(v1, v2, v3);
+    }
+
+    const Box3 &box = mesh->bounding_box();
+    float length = norm(box.max_point() - box.min_point()) * 0.05f;
+    mesh->update_face_normals();
+    auto normals = mesh->get_face_property<vec3>("f:normal");
+    std::vector<vec3> tmp;
+    int ct = 0;
+    for (auto f : mesh->faces()) {
+        if(ct++ % 10 != 0) {
+            continue;
+        }
+        vec3 center(0, 0, 0); // face center
+        int count = 0;
+        for (auto v : mesh->vertices(f)) {
+            center += mesh->position(v);
+            ++count;
+        }
+
+        const vec3 s = center / count;
+        vec3 v(vector_field[f.idx()].x(), vector_field[f.idx()].y(), vector_field[f.idx()].z());
+//        v = normals[f];
+        const vec3 t = s + v * length;
+        tmp.push_back(s);
+        tmp.push_back(t);
+    }
+    Viewer viewer("vector_field");
+    viewer.add_model(mesh);
+    // Create a drawable for rendering the normal vectors.
+    auto drawable = mesh->renderer()->add_lines_drawable("normals");
+    // Upload the data to the GPU.
+    drawable->update_vertex_buffer(tmp);
+
+    // We will draw the normal vectors in a uniform green color
+    drawable->set_uniform_coloring(vec4(0.0f, 1.0f, 0.0f, 1.0f));
+
+    // Set the line width
+    drawable->set_line_width(3.0f);
+
+    // Also show the standard "edges"
+    mesh->renderer()->get_lines_drawable("edges")->set_visible(true);
+
+    // Run the viewer
+    viewer.run();
+
 }
 #endif //DEFILLET_VISUALIZATION_H

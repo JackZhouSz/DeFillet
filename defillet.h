@@ -116,13 +116,19 @@ namespace DEFILLET {
                                   double angle_thr);
 
 
-    bool optimize(const std::vector<Point>& points,
+    bool optimize_with_fixed_solve(const std::vector<Point>& points,
                   const std::vector<std::vector<size_t>>& faces,
                   std::vector<Vector_3>& normals,
                   std::vector<Point>& new_points,
                   std::vector<int>& fixed_points,
                   std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector);
 
+    bool optimize_sparseLU(const std::vector<Point>& points,
+                           const std::vector<std::vector<size_t>>& faces,
+                           std::vector<Vector_3>& normals,
+                           std::vector<Point>& new_points,
+                           std::vector<int>& fixed_points,
+                           std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector);
 
 
 }

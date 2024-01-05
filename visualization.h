@@ -213,8 +213,6 @@ inline void mesh_face_normals_vector_field(const std::vector<Point>& points,
 
     const Box3 &box = mesh->bounding_box();
     float length = norm(box.max_point() - box.min_point()) * 0.05f;
-    mesh->update_face_normals();
-    auto normals = mesh->get_face_property<vec3>("f:normal");
     std::vector<vec3> tmp;
     int ct = 0;
     for (auto f : mesh->faces()) {
@@ -230,7 +228,6 @@ inline void mesh_face_normals_vector_field(const std::vector<Point>& points,
 
         const vec3 s = center / count;
         vec3 v(vector_field[f.idx()].x(), vector_field[f.idx()].y(), vector_field[f.idx()].z());
-//        v = normals[f];
         const vec3 t = s + v * length;
         tmp.push_back(s);
         tmp.push_back(t);

@@ -25,7 +25,7 @@ using namespace std;
 
 
 int main() {
-    std::string file_path = "D:\\code\\defillet\\data\\bottle_fillet_remeshed.ply";
+    std::string file_path = "../data/bottle_fillet_remeshed.ply";
     std::vector<std::array<double, 3>> v_pos;
     std::vector<std::vector<size_t>> f_ind;
     read_ply_mesh(file_path,v_pos, f_ind);
@@ -112,6 +112,19 @@ int main() {
     DEFILLET::run_geodesic(dense_points, dense_faces, centroid,
                            centroid_label, ancestor, distance);
 
+//    std::set<int> tmp;
+//
+//    for(size_t i = 0; i < ancestor.size(); i++) {
+//        int xx = ancestor[i] - fillet_points.size();
+//        tmp.insert(xx);
+//    }
+//    std::vector<bool> bin(fillet_faces.size(), false);
+//
+//    for(auto i : tmp) {
+//        bin[i] = true;
+//    }
+//    binary_mesh_segmentation_visualization(fillet_points, fillet_faces, bin);
+//    return 0;
     std::vector<Vector_3> target_normals;
     std::vector<int> fixed_points;
     std::vector<std::pair<int,std::pair<int,Vector_3>>> edge_vector;
@@ -120,14 +133,18 @@ int main() {
                                        fixed_points, edge_vector, 10.0);
 
     double_vector1D_data_normalize(distance);
-    mesh_face_normals_vector_field(fillet_points, fillet_faces, target_normals);
-    return 0;
+//    mesh_face_normals_vector_field(fillet_points, fillet_faces, target_normals);
+//    return 0;
     std::vector<Point> new_fillet_points;
 
-    if(DEFILLET::optimize_sparseLU(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
+//    if(DEFILLET::optimize_sparseLU(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
+//        std::vector<std::array<double, 3>> my_points;
+//        cgal_points_convert_to_my_points(new_fillet_points, my_points);
+//        write_ply_points("../data/all.ply", my_points);
+////        mesh_visualization(new_fillet_points, fillet_faces);
+//    }
+    if(DEFILLET::optimize_with_fixed_solve(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
         std::vector<std::array<double, 3>> my_points;
-        std::cout << new_fillet_points.size() << std::endl;
-        std::vector<Point> tmp(new_fillet_points.begin(), new_fillet_points.begin() + 9000);
         cgal_points_convert_to_my_points(new_fillet_points, my_points);
         write_ply_points("../data/all.ply", my_points);
 //        mesh_visualization(new_fillet_points, fillet_faces);

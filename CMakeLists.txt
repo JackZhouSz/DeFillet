@@ -46,4 +46,8 @@ target_link_libraries(test_cgal_surface_mesh PUBLIC CGAL::CGAL easy3d::renderer
 add_executable(test_cg_solver test_cg_solver.cpp)
 target_link_libraries(test_cg_solver PUBLIC Eigen3::Eigen)
 
+add_executable(test_optimize test_optimize.cpp knn.cpp voronoi.cpp defillet.cpp)
+target_link_libraries(test_optimize PUBLIC CGAL::CGAL Eigen3::Eigen igl::igl_core easy3d::renderer
+        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic)
+
 

@@ -216,9 +216,9 @@ inline void mesh_face_normals_vector_field(const std::vector<Point>& points,
     std::vector<vec3> tmp;
     int ct = 0;
     for (auto f : mesh->faces()) {
-        if(ct++ % 10 != 0) {
-            continue;
-        }
+//        if(ct++ % 10 != 0) {
+//            continue;
+//        }
         vec3 center(0, 0, 0); // face center
         int count = 0;
         for (auto v : mesh->vertices(f)) {

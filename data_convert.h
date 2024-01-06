@@ -7,7 +7,6 @@
 
 #include "common.h"
 #include "knn.h"
-#include <RichModel.h>
 
 inline void my_points_convert_to_cgal_points(const std::vector<std::array<double, 3>>& my_points, std::vector<Point>& cgal_points) {
     cgal_points.clear();

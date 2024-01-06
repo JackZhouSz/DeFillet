@@ -25,7 +25,7 @@ using namespace std;
 
 
 int main() {
-    std::string file_path = "../data/bottle_fillet_remeshed.ply";
+    std::string file_path = "../data/bottle_fillet_remeshed_49k.ply";
     std::vector<std::array<double, 3>> v_pos;
     std::vector<std::vector<size_t>> f_ind;
     read_ply_mesh(file_path,v_pos, f_ind);
@@ -79,14 +79,17 @@ int main() {
 
     std::vector<std::vector<std::pair<int,double>>> mesh_graph;
     extract_vertex_graph_from_mesh(sites, f_ind, mesh_graph);
+    double thr = 0.18;
     std::vector<int> island;
     do {
-        DEFILLET::find_island(mesh_graph, density_over_radius, island, 0.25, 150);
-        DEFILLET::corrosion_island(sites, island, 1.0, 0.25, density_over_radius);
+
+        DEFILLET::find_island(mesh_graph, density_over_radius, island, thr, 150);
+        std::cout << "island size = " << island.size() << std::endl;
+        DEFILLET::corrosion_island(sites, island, 1.0, thr, density_over_radius);
     } while(island.size() > 0);
 
     std::vector<bool> is_fillet;
-    DEFILLET::classify_defillet_triangle_via_vertices_voting(f_ind, density_over_radius, 0.25, is_fillet);
+    DEFILLET::classify_defillet_triangle_via_vertices_voting(f_ind, density_over_radius, thr, is_fillet);
 //    binary_mesh_segmentation_visualization(sites, f_ind, is_fillet);
 //    return 0;
     std::vector<Point> fillet_points;
@@ -133,22 +136,22 @@ int main() {
                                        fixed_points, edge_vector, 10.0);
 
     double_vector1D_data_normalize(distance);
-//    mesh_face_normals_vector_field(fillet_points, fillet_faces, target_normals);
+    mesh_face_normals_vector_field(fillet_points, fillet_faces, target_normals);
 //    return 0;
     std::vector<Point> new_fillet_points;
 
-//    if(DEFILLET::optimize_sparseLU(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
+    if(DEFILLET::optimize_sparseLU(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
+        std::vector<std::array<double, 3>> my_points;
+        cgal_points_convert_to_my_points(new_fillet_points, my_points);
+        write_ply_points("../data/all1.ply", my_points);
+//        mesh_visualization(new_fillet_points, fillet_faces);
+    }
+//    if(DEFILLET::optimize_with_fixed_solve(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
 //        std::vector<std::array<double, 3>> my_points;
 //        cgal_points_convert_to_my_points(new_fillet_points, my_points);
 //        write_ply_points("../data/all.ply", my_points);
 ////        mesh_visualization(new_fillet_points, fillet_faces);
 //    }
-    if(DEFILLET::optimize_with_fixed_solve(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
-        std::vector<std::array<double, 3>> my_points;
-        cgal_points_convert_to_my_points(new_fillet_points, my_points);
-        write_ply_points("../data/all.ply", my_points);
-//        mesh_visualization(new_fillet_points, fillet_faces);
-    }
 
 
     return 0;

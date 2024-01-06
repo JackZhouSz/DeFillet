@@ -10,6 +10,7 @@
 #include <CGAL/squared_distance_3.h>
 
 
+
 #include <opencv2/opencv.hpp>
 
 inline void select_points_inside_bounding_box(std::vector<Point>& sites, const std::vector<Point>& points, std::vector<Point>& inside_points) {

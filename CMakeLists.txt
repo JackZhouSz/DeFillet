@@ -50,4 +50,8 @@ add_executable(test_optimize test_optimize.cpp knn.cpp voronoi.cpp defillet.cpp)
 target_link_libraries(test_optimize PUBLIC CGAL::CGAL Eigen3::Eigen igl::igl_core easy3d::renderer
         easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic)
 
+add_executable(test_KroneckerProduct test_KroneckerProduct.cpp)
+target_link_libraries(test_KroneckerProduct PUBLIC Eigen3::Eigen)
+
+
 

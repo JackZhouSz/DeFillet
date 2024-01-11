@@ -132,7 +132,7 @@ int main() {
     std::vector<int> fixed_points;
     std::vector<std::pair<int,std::pair<int,Vector_3>>> edge_vector;
 
-    DEFILLET::geodesic_post_processing(fillet_points, fillet_faces, ancestor, target_normals,
+    DEFILLET::geodesic_post_processing(fillet_points, fillet_faces, ancestor, face_labels,target_normals,
                                        fixed_points, edge_vector, 10.0);
 
     double_vector1D_data_normalize(distance);
@@ -140,11 +140,11 @@ int main() {
 //    return 0;
     std::vector<Point> new_fillet_points;
 
-    if(DEFILLET::optimize_sparseLU(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
+    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, 1e-5, 10)) {
         std::vector<std::array<double, 3>> my_points;
         cgal_points_convert_to_my_points(new_fillet_points, my_points);
         write_ply_points("../data/all1.ply", my_points);
-//        mesh_visualization(new_fillet_points, fillet_faces);
+        mesh_visualization(new_fillet_points, fillet_faces);
     }
 //    if(DEFILLET::optimize_with_fixed_solve(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
 //        std::vector<std::array<double, 3>> my_points;

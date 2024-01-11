@@ -248,7 +248,6 @@ bool optimize_sparseLU3(const std::vector<Eigen::Vector3d>& points,
     }
     Eigen::SparseMatrix<double> C,M,Minv,L,LC;
     igl::cotmatrix(V,F, C);
-//    std::cout << "ASD" << std::endl;
     igl::massmatrix(V,F,igl::MASSMATRIX_TYPE_VORONOI,M);
     igl::invert_diag(M,Minv);
     L = Minv * C;
@@ -297,7 +296,7 @@ bool optimize_sparseLU3(const std::vector<Eigen::Vector3d>& points,
 
     std::cout << "run solver..." << std::endl;
 
-    Eigen::SparseMatrix<double> LTL = 0.0000001 * LC.transpose() * LC;
+    Eigen::SparseMatrix<double> LTL = 0.00001 * LC.transpose() * LC;
 
 
     Eigen::SparseMatrix<double> A = NC;
@@ -494,9 +493,13 @@ void test_data3(int num,
 
     std::vector<std::pair<int,std::pair<int,Vector_3>>> asd;
 
-    DEFILLET::geodesic_post_processing(pp, faces, ancestor, target_normals,
+    DEFILLET::geodesic_post_processing(pp, faces, ancestor, face_labels, target_normals,
                                        fixed_points, asd, 10.0);
-    fixed_points = {0, 1, 2, 3, nb_points - 1, nb_points - 2, nb_points - 3, nb_points - 4};
+    for(int i = 0; i < fixed_points.size(); i++) {
+        std::cout << fixed_points[i] << ' ';
+    }
+    std::cout << std::endl;
+//    fixed_points = {0, 1, 2, 3, nb_points - 1, nb_points - 2, nb_points - 3, nb_points - 4};
     int evf = asd.size();
     for(int i = 0; i < nb_faces; i++) {
         normals.emplace_back(Eigen::Vector3d(target_normals[i].x(), target_normals[i].y(),target_normals[i].z()));
@@ -520,11 +523,15 @@ int main() {
     std::vector<std::pair<int,std::pair<int, Eigen::Vector3d>>> edge_vector;
 //    test_data1( points,faces,normals,fixed_points,edge_vector);
 //    test_data2( points,faces,normals,fixed_points,edge_vector);
-    test_data3(20, points,faces,normals,fixed_points,edge_vector);
+    test_data3(10, points,faces,normals,fixed_points,edge_vector);
 //    return 0;
     std::vector<Eigen::Vector3d> new_points;
 //    optimize_sparseLU(points, faces, normals, new_points, fixed_points, edge_vector);
-    optimize_sparseLU3(points, faces, normals, new_points, fixed_points);
+    for(int i = 0 ; i < 50; i++) {
+        if(i > 0) points = new_points;
+        new_points.clear();
+        optimize_sparseLU3(points, faces, normals, new_points, fixed_points);
+    }
     for(int i = 0; i < new_points.size(); i++) {
         std::cout << points[i].x() << ' '<< points[i].y() << ' ' << points[i].z() << std::endl;
     }

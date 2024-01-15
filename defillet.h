@@ -138,6 +138,13 @@ namespace DEFILLET {
                           std::vector<int>& fixed_points,
                           double beta);
 
+    bool optimize_SimplicialLDLT(const std::vector<Point>& points,
+                          const std::vector<std::vector<size_t>>& faces,
+                          std::vector<Vector_3>& normals,
+                          std::vector<Point>& new_points,
+                          std::vector<int>& fixed_points,
+                          double beta);
+
     bool iterative_optimize(const std::vector<Point>& points,
                             const std::vector<std::vector<size_t>>& faces,
                             std::vector<Vector_3>& normals,

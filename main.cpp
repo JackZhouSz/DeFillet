@@ -140,11 +140,15 @@ int main() {
 //    return 0;
     std::vector<Point> new_fillet_points;
 
-    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, 1e-5, 10)) {
+    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, 1e-3, 1)) {
         std::vector<std::array<double, 3>> my_points;
         cgal_points_convert_to_my_points(new_fillet_points, my_points);
-        write_ply_points("../data/all1.ply", my_points);
-        mesh_visualization(new_fillet_points, fillet_faces);
+        write_ply_points("../data/all2.ply", my_points);
+        for(int i = 0; i < new_fillet_points.size(); i++) {
+            int id = point_map_table[i];
+            sites[id] = new_fillet_points[i];
+        }
+        mesh_visualization(sites, f_ind);
     }
 //    if(DEFILLET::optimize_with_fixed_solve(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
 //        std::vector<std::array<double, 3>> my_points;

@@ -829,6 +829,131 @@ namespace DEFILLET {
         return true;
     }
 
+    Eigen::VectorXd solve_ldlt(const Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > &ldlt,
+                               const Eigen::VectorXd& right,
+                               double pinvtoler) {
+        Eigen::VectorXd X_0 = ldlt.permutationP() * right;
+        Eigen::VectorXd X_1 = ldlt.matrixL().solve(X_0);
+        Eigen::VectorXd X_2(ldlt.vectorD().size());
+        X_2.setZero();
+        for (int i = 0; i < ldlt.vectorD().size(); ++i)
+            if (abs(ldlt.vectorD()(i)) > pinvtoler)
+                X_2[i] = X_1[i] / ldlt.vectorD()(i);
+        Eigen::VectorXd X_3 = ldlt.matrixU().solve(X_2);
+        return ldlt.permutationPinv() * X_3;
+    }
+
+    Eigen::VectorXd solve_ldlt(const Eigen::SparseMatrix<double>& CoeffMat,
+                               const Eigen::VectorXd& right,
+                               double pinvtoler) {
+        std::cout << "begin run.." << std::endl;
+        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > ldlt(CoeffMat);
+        std::cout << "run done.." << std::endl;
+        return solve_ldlt(ldlt, right, pinvtoler);
+    }
+
+
+    bool optimize_SimplicialLDLT(const std::vector<Point>& points,
+                                 const std::vector<std::vector<size_t>>& faces,
+                                 std::vector<Vector_3>& normals,
+                                 std::vector<Point>& new_points,
+                                 std::vector<int>& fixed_points,
+                                 double beta) {
+        int nb_faces = faces.size();
+        int nb_points = points.size();
+        int nb_fixed_points = fixed_points.size();
+        Eigen::MatrixXd V;
+        Eigen::MatrixXi F;
+        V.resize(nb_points, 3);
+        for(int i = 0; i < nb_points; i++) {
+            V(i, 0) = points[i].x();V(i, 1) = points[i].y();V(i, 2) = points[i].z();
+        }
+        F.resize(nb_faces, 3);
+        for(int i = 0; i < nb_faces; i++) {
+            F(i, 0) = faces[i][0]; F(i, 1) = faces[i][1]; F(i, 2) = faces[i][2];
+        }
+
+        Eigen::SparseMatrix<double> C,M,Minv,L,LC;
+        igl::cotmatrix(V,F, C);
+        igl::massmatrix(V,F,igl::MASSMATRIX_TYPE_VORONOI,M);
+        igl::invert_diag(M,Minv);
+        L = Minv * C;
+
+        LC = Eigen::KroneckerProductSparse<Eigen::MatrixXd, Eigen::SparseMatrix<double>>(Eigen::MatrixXd::Identity(3, 3), L);
+
+
+        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
+        Eigen::VectorXd c = Eigen::VectorXd::Zero(nb_faces * 2);
+        std::vector<Eigen::Triplet<double>> triplets;
+        for(int i = 0; i < nb_faces; i++) {
+            double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
+            int v0 = faces[i][0], v1 = faces[i][1], v2 = faces[i][2];
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0, n0));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points, n1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points * 2, n2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1, -n0));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points, -n1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points * 2, -n2));
+
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0, n0));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points, n1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points * 2, n2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2, -n0));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points, -n1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points * 2, -n2));
+        }
+        NC.setFromTriplets(triplets.begin(), triplets.end());
+
+        // fixed points constraint
+        std::cout << "add fixed points constraint" << std::endl;
+        Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
+        triplets.clear();
+        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
+        for(int i = 0; i < nb_fixed_points; i++) {
+            int id = fixed_points[i];
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  id, 1.0)); d[ 3 * i] = points[id].x();
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  id + nb_points, 1.0)); d[3 * i + 1] = points[id].y();
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0)); d[3 * i + 2] = points[id].z();
+        }
+        E.setFromTriplets(triplets.begin(), triplets.end());
+
+        Eigen::SparseMatrix<double> LTL = beta * LC.transpose() * LC;
+
+
+        Eigen::SparseMatrix<double> A = NC;
+        Eigen::SparseMatrix<double> AT = A.transpose();
+        Eigen::SparseMatrix<double> ATA = AT * A;
+        Eigen::SparseMatrix<double> Q = LTL + ATA;
+        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
+        Eigen::SparseMatrix<double> ET = E.transpose();
+        Eigen::SparseMatrix<double> tempMat1;
+        Eigen::SparseMatrix<double> tempMat2;
+        Eigen::SparseMatrix<double> S;
+        igl::cat(1, Q, E, tempMat1);
+        igl::cat(1, ET, zero, tempMat2);
+        igl::cat(0, tempMat1, tempMat2, S);
+        Eigen::VectorXd ab = Eigen::VectorXd::Zero(nb_points * 3);
+        Eigen::VectorXd p(nb_points * 3);
+        for(int i = 0; i < nb_points; i++) {
+            p[i] = points[i].x();
+            p[i + nb_points] = points[i].y();
+            p[i + 2 * nb_points] = points[i].z();
+        }
+        Eigen::VectorXd lb = LTL  * p;
+        Eigen::VectorXd b(nb_points * 3 + d.size());
+        b << ab + lb, d;
+//        Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver; // 创建SparseQR求解器
+        Eigen::VectorXd x = solve_ldlt(S, b, 1e-6);
+
+        new_points.resize(nb_points);
+        for(int i = 0; i < nb_points; i++) {
+            new_points[i] = Point(x[i], x[i + nb_points], x[i + 2 * nb_points]);
+//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
+        }
+        std::cout << "done." << std::endl;
+        return true;
+    }
+
     bool iterative_optimize(const std::vector<Point>& points,
                             const std::vector<std::vector<size_t>>& faces,
                             std::vector<Vector_3>& normals,
@@ -840,7 +965,7 @@ namespace DEFILLET {
         double zz = beta;
         for(int i = 0; i < nb_optimize; i++) {
 
-            optimize_spareQR(old_points, faces, normals, new_points, fixed_points, zz);
+            optimize_SimplicialLDLT(old_points, faces, normals, new_points, fixed_points, zz);
             old_points = new_points;
             zz /= 10;
 //            new_points.clear();

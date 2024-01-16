@@ -140,9 +140,8 @@ int main() {
 //    return 0;
     std::vector<Point> new_fillet_points;
     auto start_time = std::chrono::high_resolution_clock::now();
-    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, 1e-3, 1)) {
-        auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, 2, 5)) {
+
         std::vector<std::array<double, 3>> my_points;
         cgal_points_convert_to_my_points(new_fillet_points, my_points);
         write_ply_points("../data/all3.ply", my_points);
@@ -150,8 +149,13 @@ int main() {
             int id = point_map_table[i];
             sites[id] = new_fillet_points[i];
         }
-        mesh_visualization(sites, f_ind);
+
+    } else {
+        return 0;
     }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    mesh_visualization(sites, f_ind);
 //    if(DEFILLET::optimize_with_fixed_solve(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, edge_vector)) {
 //        std::vector<std::array<double, 3>> my_points;
 //        cgal_points_convert_to_my_points(new_fillet_points, my_points);

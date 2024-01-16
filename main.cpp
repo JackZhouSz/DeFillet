@@ -25,7 +25,7 @@ using namespace std;
 
 
 int main() {
-    std::string file_path = "../data/bottle_fillet_remeshed_49k.ply";
+    std::string file_path = "../data/bottle_fillet_remeshed.ply";
     std::vector<std::array<double, 3>> v_pos;
     std::vector<std::vector<size_t>> f_ind;
     read_ply_mesh(file_path,v_pos, f_ind);
@@ -79,7 +79,7 @@ int main() {
 
     std::vector<std::vector<std::pair<int,double>>> mesh_graph;
     extract_vertex_graph_from_mesh(sites, f_ind, mesh_graph);
-    double thr = 0.18;
+    double thr = 0.25;
     std::vector<int> island;
     do {
 
@@ -90,7 +90,7 @@ int main() {
 
     std::vector<bool> is_fillet;
     DEFILLET::classify_defillet_triangle_via_vertices_voting(f_ind, density_over_radius, thr, is_fillet);
-//    binary_mesh_segmentation_visualization(sites, f_ind, is_fillet);
+    binary_mesh_segmentation_visualization(sites, f_ind, is_fillet);
 //    return 0;
     std::vector<Point> fillet_points;
     std::vector<std::vector<size_t>> fillet_faces;
@@ -139,11 +139,13 @@ int main() {
     mesh_face_normals_vector_field(fillet_points, fillet_faces, target_normals);
 //    return 0;
     std::vector<Point> new_fillet_points;
-
+    auto start_time = std::chrono::high_resolution_clock::now();
     if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, target_normals, new_fillet_points, fixed_points, 1e-3, 1)) {
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         std::vector<std::array<double, 3>> my_points;
         cgal_points_convert_to_my_points(new_fillet_points, my_points);
-        write_ply_points("../data/all2.ply", my_points);
+        write_ply_points("../data/all3.ply", my_points);
         for(int i = 0; i < new_fillet_points.size(); i++) {
             int id = point_map_table[i];
             sites[id] = new_fillet_points[i];

@@ -939,7 +939,8 @@ namespace DEFILLET {
             p[i + nb_points] = points[i].y();
             p[i + 2 * nb_points] = points[i].z();
         }
-        Eigen::VectorXd lb = LTL  * p;
+//        Eigen::VectorXd lb = -2 * LTL  * p;
+        Eigen::VectorXd lb = Eigen::VectorXd::Zero(nb_points * 3);
         Eigen::VectorXd b(nb_points * 3 + d.size());
         b << ab + lb, d;
 //        Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver; // 创建SparseQR求解器

@@ -54,4 +54,7 @@ add_executable(test_KroneckerProduct test_KroneckerProduct.cpp)
 target_link_libraries(test_KroneckerProduct PUBLIC Eigen3::Eigen)
 
 
+add_executable(test_igl_cot_matrix test_igl_cot_matrix.cpp)
+target_link_libraries(test_igl_cot_matrix PUBLIC Eigen3::Eigen igl::igl_core)
+
 

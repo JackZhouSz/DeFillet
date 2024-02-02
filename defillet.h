@@ -67,6 +67,14 @@ namespace DEFILLET {
                                          std::vector<double>& site_density_field,
                                          std::vector<double>& site_pole_radius_field);
 
+    void compute_sites_pole_radius_field1(const std::vector<Point>& sites,
+                                         const std::vector<Point>& vertices,
+                                         const std::vector<std::vector<int>>& site_regions,
+                                         const std::vector<double>& density_field,
+                                         std::vector<double>& site_density_field,
+                                         std::vector<double>& site_pole_radius_field,
+                                         std::vector<int>& site_to_vertices);
+
 
     void run_graph_cut(const std::vector<double>& node_weight,
                        const std::vector<std::pair<int,int>>& edges,

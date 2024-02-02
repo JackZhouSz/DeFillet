@@ -90,7 +90,16 @@ namespace DEFILLET {
                 max_value = max_value1;
             }
             else {
-                if(vertices_density_field[pole_id1] > vertices_density_field[pole_id2]) {
+//                if(vertices_density_field[pole_id1] > vertices_density_field[pole_id2]) {
+//                    id = pole_id1;
+//                    max_value = max_value1;
+//                }
+//                else {
+//                    id = pole_id2;
+//                    max_value = max_value2;
+//                }
+
+                if(vertices_density_field[pole_id1] / max_value1 > vertices_density_field[pole_id2] / max_value2) {
                     id = pole_id1;
                     max_value = max_value1;
                 }
@@ -102,6 +111,79 @@ namespace DEFILLET {
 
             site_pole_radius_field[i] = max_value;
             site_density_field[i] = vertices_density_field[id];
+        }
+
+    }
+
+    void compute_sites_pole_radius_field1(const std::vector<Point>& sites,
+                                         const std::vector<Point>& vertices,
+                                         const std::vector<std::vector<int>>& site_regions,
+                                         const std::vector<double>& vertices_density_field,
+                                         std::vector<double>& site_density_field,
+                                         std::vector<double>& site_pole_radius_field,
+                                         std::vector<int>& site_to_vertices) {
+        int nb_sites = sites.size();
+        int nb_vertices = vertices.size();
+
+        site_density_field.resize(nb_sites);
+        site_pole_radius_field.resize(nb_sites);
+        site_to_vertices.resize(nb_sites);
+
+        for(int i = 0; i < nb_sites; i++) {
+            const Point& s = sites[i];
+            const std::vector<int>& region = site_regions[i];
+            int nb_region = region.size();
+            int pole_id1 = 0;
+            double max_value1 = std::numeric_limits<double>::min();
+            for(int j = 0; j < nb_region; j++) {
+                double len = std::sqrt(CGAL::squared_distance(vertices[region[j]], s));
+                if(max_value1 < len) {
+                    max_value1 = len;
+                    pole_id1 = region[j];
+                }
+            }
+
+            int pole_id2 = -1;
+            double max_value2 = std::numeric_limits<double>::min();
+            for(int j = 0; j < nb_region; j++) {
+                double len = std::sqrt(CGAL::squared_distance(vertices[region[j]], s));
+                auto v1 = vertices[pole_id1] - s;
+                auto v2 =  vertices[region[j]] - s;
+                double dot_value = v1.x() * v2.x() + v1.y() * v2.y() + v1.z() * v2.z();
+
+                if(dot_value < 0 && max_value2 < len) {
+                    max_value2 = len;
+                    pole_id2 = region[j];
+                }
+            }
+            double max_value = 0;
+            int id = pole_id1;
+            if(pole_id2 == -1) {
+                id = pole_id1;
+                max_value = max_value1;
+            }
+            else {
+//                if(vertices_density_field[pole_id1] > vertices_density_field[pole_id2]) {
+//                    id = pole_id1;
+//                    max_value = max_value1;
+//                }
+//                else {
+//                    id = pole_id2;
+//                    max_value = max_value2;
+//                }
+                if(vertices_density_field[pole_id1] / max_value1 > vertices_density_field[pole_id2] / max_value2) {
+                    id = pole_id1;
+                    max_value = max_value1;
+                }
+                else {
+                    id = pole_id2;
+                    max_value = max_value2;
+                }
+            }
+
+            site_pole_radius_field[i] = max_value;
+            site_density_field[i] = vertices_density_field[id];
+            site_to_vertices[i] = id;
         }
 
     }
@@ -118,20 +200,42 @@ namespace DEFILLET {
 
         std::vector<double> data_cost(2 * nb_node);
         for(int i = 0; i < nb_node; i++) {
-            data_cost[i] = node_weight[i] / (nb_node);
-            data_cost[i + nb_node] = (1.0 - node_weight[i]) / (nb_node);
+//            data_cost[i] = node_weight[i] / (nb_node);
+//            data_cost[i + nb_node] = (1.0 - node_weight[i]) / (nb_node);
+            if(node_weight[i] > 0.15) {
+                data_cost[i] = 1.0 / (nb_node);
+                data_cost[i + nb_node] = 0;
+            }
+            else  {
+                data_cost[i] = 0;
+                data_cost[i + nb_node] = 1.0 / (nb_node);
+            }
+
         }
 
         std::vector<double> final_edge_weight(nb_edges);
         double sum_edge_weight = 0;
-        for(int i = 0; i < nb_edges; i++) {
-            sum_edge_weight += edge_weight[i];
-        }
+//        for(int i = 0; i < nb_edges; i++) {
+//            sum_edge_weight += edge_weight[i];
+//        }
 
         for(int i = 0; i < nb_edges; i++) {
-            final_edge_weight[i] = alpha * edge_weight[i] / sum_edge_weight;
+            final_edge_weight[i] = alpha * edge_weight[i];
+            sum_edge_weight += alpha * edge_weight[i];
         }
-
+        double tmp_sum = 0;
+//        for(int i = 0; i < nb_edges; i++) {
+//            int x = edges[i].first;
+//            int y = edges[i].second;
+//            double z = std::abs(node_weight[x] - node_weight[y]) * alpha;
+////            final_edge_weight[i] = alpha * edge_weight[i] / sum_edge_weight;
+//            final_edge_weight[i] += z;
+//            tmp_sum += z;
+//        }
+        for(int i = 0; i < final_edge_weight.size(); i++) {
+//            if(tmp_sum > 0)
+                final_edge_weight[i] /= (tmp_sum + sum_edge_weight);
+        }
         DataCost data_item(data_cost, nb_node, nb_labels);
         SmoothCost smooth_item(edges, final_edge_weight);
 
@@ -604,6 +708,7 @@ namespace DEFILLET {
 //            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
         }
         std::cout << "done." << std::endl;
+        return true;
     }
 
     bool optimize_sparseLU(const std::vector<Point>& points,
@@ -714,6 +819,7 @@ namespace DEFILLET {
 //            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
         }
         std::cout << "done." << std::endl;
+        return true;
     }
 
     bool optimize_spareQR(const std::vector<Point>& points,
@@ -1084,9 +1190,10 @@ namespace DEFILLET {
 
             optimize_SimplicialLDLT2(old_points, faces, normals, new_points, fixed_points, zz);
             old_points = new_points;
-            zz /= 2;
+            zz *= 0.8;
 //            new_points.clear();
         }
         std::cout << "ASD"<<std::endl;
+        return true;
     }
 }

@@ -30,8 +30,10 @@ target_link_libraries(defillet PUBLIC CGAL::CGAL
         nlohmann_json::nlohmann_json easy3d::renderer
         easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen igl::igl_core)
 
-add_executable(test test.cpp)
-target_link_libraries(test PUBLIC Eigen3::Eigen CGAL::CGAL)
+add_executable(test test.cpp knn.cpp voronoi.cpp defillet.cpp)
+target_link_libraries(test PUBLIC CGAL::CGAL
+        nlohmann_json::nlohmann_json easy3d::renderer
+        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen igl::igl_core)
 
 add_executable(test_knn test_knn.cpp knn.cpp)
 target_link_libraries(test_knn PUBLIC Eigen3::Eigen CGAL::CGAL)
@@ -57,4 +59,10 @@ target_link_libraries(test_KroneckerProduct PUBLIC Eigen3::Eigen)
 add_executable(test_igl_cot_matrix test_igl_cot_matrix.cpp)
 target_link_libraries(test_igl_cot_matrix PUBLIC Eigen3::Eigen igl::igl_core)
 
+find_path(MATPLOTLIB_CPP_INCLUDE_DIRS "matplotlibcpp.h")
+
+
+add_executable(test_matplotlib test_matplotlib.cpp)
+#target_link_libraries(test_matplotlib PUBLIC Eigen3::Eigen igl::igl_core)
+target_include_directories(test_matplotlib PRIVATE ${MATPLOTLIB_CPP_INCLUDE_DIRS})
 

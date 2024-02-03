@@ -23,6 +23,44 @@ using json = nlohmann::json;
 
 using namespace std;
 
+double threshold_otsu(std::vector<double>& data, int nb_bin) {
+    std::vector<double> dh = data;
+    double_vector1D_data_normalize(dh);
+    double thresh = -1;
+
+    int nb_data = data.size();
+    std::vector<double> bins(nb_bin + 1, 0);
+    double u = 0;
+
+    for(int i = 0; i < nb_data; i++) {
+        int id = int(dh[i] * nb_bin);
+        bins[id] += 1;
+    }
+    double p = 1.0 / nb_data;
+    for(int i = 0 ; i < nb_bin + 1; i++) {
+        bins[i] *= p;
+        u += i * bins[i];
+    }
+    std::cout << "ASD" <<std::endl;
+    double wk = 0, uk = 0, gmax = std::numeric_limits<double>::min();
+//    std::cout << "ASD" <<std::endl;
+    std::cout << nb_bin <<std::endl;
+    for(int i = 0; i < nb_bin + 1; i++) {
+//        std::cout << i <<std::endl;
+        wk += bins[i];
+        uk += i * bins[i];
+        double tmp = uk - u * wk;
+        double sigma = tmp * tmp / (wk * (1.0 - wk) + 1e-6);
+        if(sigma >= gmax) {
+            thresh = i;
+            gmax = sigma;
+        }
+    }
+
+    std::cout << thresh <<std::endl;
+    return thresh / nb_bin;
+}
+
 
 int main() {
     std::string file_path = "../data/bottle_fillet_remeshed.ply";
@@ -46,64 +84,41 @@ int main() {
 
     std::vector<double> vertices_density_field;
     DEFILLET::computes_vertices_density_field(selected_vertices,1.0, vertices_density_field);
+    double_vector1D_data_normalize(vertices_density_field);
+//    points_field_visualization(selected_vertices, vertices_density_field);
+//    return 0;
 
     std::vector<double> site_density_field;
     std::vector<double> site_pole_radius_field;
     std::vector<int> site_to_vertives;
+    std::vector<std::vector<int>> das;
     DEFILLET::compute_sites_pole_radius_field1(sites, selected_vertices,
                                               selected_regions, vertices_density_field,
                                               site_density_field, site_pole_radius_field,
-                                              site_to_vertives);
+                                              site_to_vertives,das);
 
-    int nb_site = sites.size();
-    std::vector<double> density_over_radius(nb_site);
-    for(int i = 0; i < nb_site; i++) {
-        density_over_radius[i] = site_density_field[i] / site_pole_radius_field[i];
+//    int nb_site = sites.size();
+//    std::vector<double> density_over_radius(nb_site);
+//    for(int i = 0; i < nb_site; i++) {
+//        density_over_radius[i] = site_density_field[i] / site_pole_radius_field[i];
+//    }
+    double_vector1D_data_normalize(vertices_density_field);
+    std::vector<double>sss(selected_vertices.size(), 0);
+    for(int i = 0; i < das.size(); i++) {
+        double len = 0;
+        for(int j = 0; j < das[i].size(); j++) {
+            len += std::sqrt(CGAL::squared_distance(sites[das[i][j]], selected_vertices[i]));
+        }
+        if(das[i].size() > 0) {
+            len /= das[i].size();
+        }
+        sss[i] = len;
+
     }
-    double_vector1D_data_normalize(density_over_radius);
-//    points_field_visualization(sites, density_over_radius);
-//    return 0;
-
-    // 打开文件流
-
-    std::vector<std::vector<std::pair<int,double>>> mesh_graph;
-    extract_vertex_graph_from_mesh(sites, f_ind, mesh_graph);
-    double thr = 0.25;
-    std::vector<int> island;
-    std::vector<int> asd;
-    do {
-
-        DEFILLET::find_island(mesh_graph, density_over_radius, island, thr, 150);
-        std::cout << "island size = " << island.size() << std::endl;
-        asd.insert(asd.end(), island.begin(), island.end());
-        DEFILLET::corrosion_island(sites, island, 1.0, thr, density_over_radius);
-    } while(island.size() > 0);
-    points_field_visualization(sites, density_over_radius);
+    double_vector1D_data_normalize(sss);
+    points_field_visualization(selected_vertices, sss);
     return 0;
-    std::cout << asd.size() <<std::endl;
-    std::vector<easy3d::vec3> pp;
-    for(int i = 0; i < sites.size(); i++) {
-        pp.emplace_back(sites[i].x(), sites[i].y(), sites[i].z());
-    }
-    for(int i = 0; i < selected_vertices.size(); i++) {
-        pp.emplace_back(selected_vertices[i].x(), selected_vertices[i].y(), selected_vertices[i].z());
-    }
-    easy3d::Viewer viewer("scalar_field");
-    easy3d::PointsDrawable* pd = new easy3d::PointsDrawable("pd");
-    pd->update_vertex_buffer(pp);
-    viewer.add_drawable(pd);
 
-    easy3d::LinesDrawable* ld = new easy3d::LinesDrawable("ld");
-    std::vector<easy3d::vec3> b;
-    for(int i = 0; i < asd.size(); i++) {
-        int id = asd[i];
-        b.emplace_back(pp[id]);
-        int id2 = site_to_vertives[id];
-        b.emplace_back(pp[id2 + sites.size()]);
 
-    }
-    ld->update_vertex_buffer(b);
-    viewer.add_drawable(ld);
-    viewer.run();
     return 0;
 }

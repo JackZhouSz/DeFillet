@@ -121,13 +121,16 @@ namespace DEFILLET {
                                          const std::vector<double>& vertices_density_field,
                                          std::vector<double>& site_density_field,
                                          std::vector<double>& site_pole_radius_field,
-                                         std::vector<int>& site_to_vertices) {
+                                         std::vector<int>& site_to_vertices,
+                                         std::vector<std::vector<int>>& dsa) {
         int nb_sites = sites.size();
         int nb_vertices = vertices.size();
-
         site_density_field.resize(nb_sites);
         site_pole_radius_field.resize(nb_sites);
         site_to_vertices.resize(nb_sites);
+
+        dsa.clear();
+        dsa.resize(vertices.size());
 
         for(int i = 0; i < nb_sites; i++) {
             const Point& s = sites[i];
@@ -158,9 +161,11 @@ namespace DEFILLET {
             }
             double max_value = 0;
             int id = pole_id1;
+
             if(pole_id2 == -1) {
                 id = pole_id1;
                 max_value = max_value1;
+                dsa[id].emplace_back(i);
             }
             else {
 //                if(vertices_density_field[pole_id1] > vertices_density_field[pole_id2]) {
@@ -171,9 +176,12 @@ namespace DEFILLET {
 //                    id = pole_id2;
 //                    max_value = max_value2;
 //                }
+                dsa[pole_id1].emplace_back(i);
+                dsa[pole_id2].emplace_back(i);
                 if(vertices_density_field[pole_id1] / max_value1 > vertices_density_field[pole_id2] / max_value2) {
                     id = pole_id1;
                     max_value = max_value1;
+
                 }
                 else {
                     id = pole_id2;
@@ -186,13 +194,15 @@ namespace DEFILLET {
             site_to_vertices[i] = id;
         }
 
+
     }
 
     void run_graph_cut(const std::vector<double>& node_weight,
                        const std::vector<std::pair<int,int>>& edges,
                        const std::vector<double>& edge_weight,
                        std::vector<int>& labels,
-                       double alpha) {
+                       double alpha,
+                       double thr) {
 
         int nb_node = node_weight.size();
         int nb_edges = edges.size();
@@ -202,13 +212,17 @@ namespace DEFILLET {
         for(int i = 0; i < nb_node; i++) {
 //            data_cost[i] = node_weight[i] / (nb_node);
 //            data_cost[i + nb_node] = (1.0 - node_weight[i]) / (nb_node);
-            if(node_weight[i] > 0.15) {
+            if(node_weight[i] > thr) {
                 data_cost[i] = 1.0 / (nb_node);
                 data_cost[i + nb_node] = 0;
+//                  data_cost[i] = (node_weight[i] - thr) / (1.0 - thr);
+//                  data_cost[i + nb_node] = 1.0 - (node_weight[i] - thr) / (1.0 - thr);
             }
             else  {
                 data_cost[i] = 0;
                 data_cost[i + nb_node] = 1.0 / (nb_node);
+//                data_cost[i] = node_weight[i];
+//                data_cost[i + nb_node] = 1.0 - (nb_node);
             }
 
         }

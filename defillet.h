@@ -73,14 +73,16 @@ namespace DEFILLET {
                                          const std::vector<double>& density_field,
                                          std::vector<double>& site_density_field,
                                          std::vector<double>& site_pole_radius_field,
-                                         std::vector<int>& site_to_vertices);
+                                         std::vector<int>& site_to_vertices,
+                                         std::vector<std::vector<int>>& dsa);
 
 
     void run_graph_cut(const std::vector<double>& node_weight,
                        const std::vector<std::pair<int,int>>& edges,
                        const std::vector<double>& edge_weight,
                        std::vector<int>& labels,
-                       double alpha);
+                       double alpha,
+                       double thr);
 
     void find_island(const std::vector<std::vector<std::pair<int,double>>>& mesh_graph,
                           std::vector<double>& scalar_field,

@@ -98,12 +98,11 @@ int main() {
     for(int i = 0; i < nb_site; i++) {
         density_over_radius[i] = site_density_field[i] / site_pole_radius_field[i];
     }
-    std::cout << "sss" <<std::endl;
     double_vector1D_data_normalize(density_over_radius);
-    double thrs = threshold_otsu(density_over_radius, 255);
-    std::cout <<"ASD" <<std::endl;
-    std::cout << thrs << std::endl;
-    return 0;
+    double thr = threshold_otsu(density_over_radius, 255);
+
+//    std::cout << thrs << std::endl;
+//    return 0;
 //
 
 //    std::ofstream outputFile("../output.txt");
@@ -124,7 +123,6 @@ int main() {
 
     std::vector<std::vector<std::pair<int,double>>> mesh_graph;
     extract_vertex_graph_from_mesh(sites, f_ind, mesh_graph);
-    double thr = 0.25;
     std::vector<int> island;
     do {
 
@@ -133,20 +131,20 @@ int main() {
         DEFILLET::corrosion_island(sites, island, 1.0, thr, density_over_radius);
     } while(island.size() > 0);
     
-    points_field_visualization(sites, density_over_radius);
-    return 0;
+//    points_field_visualization(sites, density_over_radius);
+//    return 0;
 
     std::vector<std::pair<int,int>> edge;
     std::vector<double> edge_weight;
     extract_edge_from_mesh(sites, f_ind, edge, edge_weight);
     std::vector<int> labels;
-    DEFILLET::run_graph_cut(density_over_radius, edge, edge_weight, labels, 0.8);
+    DEFILLET::run_graph_cut(density_over_radius, edge, edge_weight, labels, 0.8,thr);
     std::vector<double> ss(labels.size());
     for(int i = 0; i < labels.size(); i++) {
         ss[i] = labels[i];
     }
-    points_field_visualization(sites,ss);
-    return 0;
+//    points_field_visualization(sites,ss);
+//    return 0;
 
 
 

@@ -3,21 +3,21 @@
 #include <limits>
 #include <iostream>
 using namespace std;
-const double DBL_MAX = std::numeric_limits<double>::max();
-const double FLT_MAX = std::numeric_limits<double>::min();
+const double DBL_MAX_ = std::numeric_limits<double>::max();
+const double FLT_MAX_ = std::numeric_limits<double>::min();
 
 CDistanceApproach::CDistanceApproach(const CRichModel& model, int source) : model(model)
 {
 	m_nameOfAlgorithm = "Abstract";
 	m_sources[source] = 0;	
-	m_radius = DBL_MAX;
+	m_radius = DBL_MAX_;
 }
 CDistanceApproach::CDistanceApproach(const CRichModel& model, int source, int destination) : model(model)
 {
 	m_nameOfAlgorithm = "Abstract";
 	m_sources[source] = 0;	
 	m_destinations.insert(destination);
-	m_radius = DBL_MAX;
+	m_radius = DBL_MAX_;
 }
 CDistanceApproach::CDistanceApproach(const CRichModel& model, int source, double R) : model(model), m_radius(R)
 {
@@ -27,19 +27,19 @@ CDistanceApproach::CDistanceApproach(const CRichModel& model, int source, double
 CDistanceApproach::CDistanceApproach(const CRichModel& model, const map<int, double>& sources) : model(model), m_sources(sources)
 {
 	m_nameOfAlgorithm = "Abstract";
-	m_radius = DBL_MAX;
+	m_radius = DBL_MAX_;
 }
 CDistanceApproach::CDistanceApproach(const CRichModel& model, const map<int, double>& sources, const set<int> &destinations) : model(model), m_sources(sources), m_destinations(destinations)
 {
 	m_nameOfAlgorithm = "Abstract";
-	m_radius = DBL_MAX;
+	m_radius = DBL_MAX_;
 }
 CDistanceApproach::CDistanceApproach(const CRichModel& model, const set<int>& sources) : model(model)
 {
 	m_nameOfAlgorithm = "Abstract";
 	for (set<int>::const_iterator it = sources.begin(); it != sources.end(); ++it)
 		m_sources[*it] = 0;
-	m_radius = DBL_MAX;
+	m_radius = DBL_MAX_;
 }
 CDistanceApproach::CDistanceApproach(const CRichModel& model, const set<int>& sources, double R) : model(model), m_radius(R)
 {
@@ -52,7 +52,7 @@ CDistanceApproach::CDistanceApproach(const CRichModel& model, const set<int>& so
 	m_nameOfAlgorithm = "Abstract";
 	for (set<int>::const_iterator it = sources.begin(); it != sources.end(); ++it)
 		m_sources[*it] = 0;
-	m_radius = DBL_MAX;
+	m_radius = DBL_MAX_;
 }
 
 const vector<double>& CDistanceApproach::GetDistanceField() const
@@ -99,8 +99,8 @@ vector<EdgePoint> CDistanceApproach::BacktraceIsoline(double val) const
 	for (int i = 0; i < model.GetNumOfFaces(); ++i)
 	{
 		int high, middle, low, total(0);
-		double highestDis(-DBL_MAX);
-		double lowestDis(DBL_MAX);
+		double highestDis(-DBL_MAX_);
+		double lowestDis(DBL_MAX_);
 	
 		for (int j = 0; j < 3; ++j)
 		{			
@@ -166,7 +166,7 @@ void CDistanceApproach::Execute()
     auto start = chrono::system_clock::now();
 	Propagate();
     auto end = chrono::system_clock::now();
-    auto duration = duration_cast<chrono::microseconds>(end - start);
+    auto duration = std::chrono::duration_cast<chrono::microseconds>(end - start);
 	m_nTotalSeconds = double(duration.count()) * chrono::microseconds::period::num / chrono::microseconds::period::den;
 	CollectExperimentalResults();
 	Dispose();	
@@ -174,7 +174,7 @@ void CDistanceApproach::Execute()
 
 void CDistanceApproach::Initialize()
 {
-	m_scalarField.resize(model.GetNumOfVerts(), DBL_MAX);
+	m_scalarField.resize(model.GetNumOfVerts(), DBL_MAX_);
 	m_maxLenOfQueue = 0;
 	m_depthOfResultingTree = 0;
 	m_maxDisValue = -1;
@@ -187,7 +187,7 @@ void CDistanceApproach::CollectExperimentalResults()
 	m_maxDisValue = -1;	
 	for (int i = 0; i < model.GetNumOfVerts(); ++i)
 		if (m_scalarField[i] > m_maxDisValue
-			&& m_scalarField[i] < FLT_MAX)
+			&& m_scalarField[i] < FLT_MAX_)
 			m_maxDisValue = m_scalarField[i];
 }
 

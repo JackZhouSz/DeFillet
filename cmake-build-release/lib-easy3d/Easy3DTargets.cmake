@@ -7,7 +7,7 @@ if(CMAKE_VERSION VERSION_LESS "2.8.3")
    message(FATAL_ERROR "CMake >= 2.8.3 required")
 endif()
 cmake_policy(PUSH)
-cmake_policy(VERSION 2.8.3...3.22)
+cmake_policy(VERSION 2.8.3...3.25)
 #----------------------------------------------------------------
 # Generated CMake target import file.
 #----------------------------------------------------------------
@@ -50,7 +50,7 @@ unset(_cmake_expected_targets)
 add_library(easy3d::util STATIC IMPORTED)
 
 set_target_properties(easy3d::util PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "3rd_backward;3rd_easyloggingpp"
 )
 
@@ -66,14 +66,14 @@ set_target_properties(3rd_backward PROPERTIES
 add_library(3rd_easyloggingpp STATIC IMPORTED)
 
 set_target_properties(3rd_easyloggingpp PROPERTIES
-  INTERFACE_COMPILE_DEFINITIONS "ELPP_FEATURE_ALL;ELPP_STL_LOGGING;ELPP_THREAD_SAFE;ELPP_NO_DEFAULT_LOG_FILE;ELPP_DISABLE_DEFAULT_CRASH_HANDLING;HAVE_EXECINFO"
+  INTERFACE_COMPILE_DEFINITIONS "ELPP_FEATURE_ALL;ELPP_STL_LOGGING;ELPP_THREAD_SAFE;ELPP_NO_DEFAULT_LOG_FILE;ELPP_DISABLE_DEFAULT_CRASH_HANDLING;NOMINMAX"
 )
 
 # Create imported target easy3d::core
 add_library(easy3d::core STATIC IMPORTED)
 
 set_target_properties(easy3d::core PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "easy3d::util"
 )
 
@@ -81,7 +81,7 @@ set_target_properties(easy3d::core PROPERTIES
 add_library(easy3d::fileio STATIC IMPORTED)
 
 set_target_properties(easy3d::fileio PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "easy3d::core;easy3d::util;3rd_lastools;3rd_rply"
 )
 
@@ -95,7 +95,7 @@ add_library(3rd_rply STATIC IMPORTED)
 add_library(easy3d::kdtree STATIC IMPORTED)
 
 set_target_properties(easy3d::kdtree PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "easy3d::core;3rd_kdtree"
 )
 
@@ -106,7 +106,7 @@ add_library(3rd_kdtree STATIC IMPORTED)
 add_library(easy3d::algo STATIC IMPORTED)
 
 set_target_properties(easy3d::algo PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "easy3d::core;easy3d::util;easy3d::kdtree;3rd_poisson;3rd_ransac;3rd_triangle;3rd_tetgen;3rd_glutess"
 )
 
@@ -117,7 +117,7 @@ add_library(3rd_poisson STATIC IMPORTED)
 add_library(3rd_ransac STATIC IMPORTED)
 
 set_target_properties(3rd_ransac PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party/ransac"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d/3rd_party/ransac"
 )
 
 # Create imported target 3rd_triangle
@@ -133,7 +133,7 @@ add_library(3rd_glutess STATIC IMPORTED)
 add_library(easy3d::renderer STATIC IMPORTED)
 
 set_target_properties(easy3d::renderer PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "3rd_glew;easy3d::core;easy3d::util;easy3d::fileio;easy3d::algo"
 )
 
@@ -142,15 +142,15 @@ add_library(3rd_glew STATIC IMPORTED)
 
 set_target_properties(3rd_glew PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "GLEW_STATIC;GLEW_NO_GLU"
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party/glew/include"
-  INTERFACE_LINK_LIBRARIES "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/System/Library/Frameworks/OpenGL.framework;/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/System/Library/Frameworks/OpenGL.framework"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d/3rd_party/glew/include"
+  INTERFACE_LINK_LIBRARIES "opengl32;glu32"
 )
 
 # Create imported target easy3d::gui
 add_library(easy3d::gui STATIC IMPORTED)
 
 set_target_properties(easy3d::gui PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "easy3d::core;easy3d::util;easy3d::renderer"
 )
 
@@ -158,7 +158,7 @@ set_target_properties(easy3d::gui PROPERTIES
 add_library(easy3d::viewer STATIC IMPORTED)
 
 set_target_properties(easy3d::viewer PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d"
   INTERFACE_LINK_LIBRARIES "3rd_glew;3rd_glfw;easy3d::core;easy3d::renderer;easy3d::util;easy3d::fileio;easy3d::algo"
 )
 
@@ -166,148 +166,148 @@ set_target_properties(easy3d::viewer PROPERTIES
 add_library(3rd_glfw STATIC IMPORTED)
 
 set_target_properties(3rd_glfw PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party/glfw/include"
-  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:Threads::Threads>;-framework Cocoa;-framework IOKit;-framework CoreFoundation"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/code/defillet/lib-easy3d/3rd_party/glfw/include"
+  INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:Threads::Threads>"
 )
 
 # Import target "easy3d::util" for configuration "Release"
 set_property(TARGET easy3d::util APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::util PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_util.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_util.lib"
   )
 
 # Import target "3rd_backward" for configuration "Release"
 set_property(TARGET 3rd_backward APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_backward PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_backward.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_backward.lib"
   )
 
 # Import target "3rd_easyloggingpp" for configuration "Release"
 set_property(TARGET 3rd_easyloggingpp APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_easyloggingpp PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_easyloggingpp.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_easyloggingpp.lib"
   )
 
 # Import target "easy3d::core" for configuration "Release"
 set_property(TARGET easy3d::core APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::core PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_core.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_core.lib"
   )
 
 # Import target "easy3d::fileio" for configuration "Release"
 set_property(TARGET easy3d::fileio APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::fileio PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_fileio.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_fileio.lib"
   )
 
 # Import target "3rd_lastools" for configuration "Release"
 set_property(TARGET 3rd_lastools APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_lastools PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_lastools.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_lastools.lib"
   )
 
 # Import target "3rd_rply" for configuration "Release"
 set_property(TARGET 3rd_rply APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_rply PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_rply.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_rply.lib"
   )
 
 # Import target "easy3d::kdtree" for configuration "Release"
 set_property(TARGET easy3d::kdtree APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::kdtree PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_kdtree.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_kdtree.lib"
   )
 
 # Import target "3rd_kdtree" for configuration "Release"
 set_property(TARGET 3rd_kdtree APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_kdtree PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_kdtree.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_kdtree.lib"
   )
 
 # Import target "easy3d::algo" for configuration "Release"
 set_property(TARGET easy3d::algo APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::algo PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_algo.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_algo.lib"
   )
 
 # Import target "3rd_poisson" for configuration "Release"
 set_property(TARGET 3rd_poisson APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_poisson PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_poisson.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_poisson.lib"
   )
 
 # Import target "3rd_ransac" for configuration "Release"
 set_property(TARGET 3rd_ransac APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_ransac PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_ransac.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_ransac.lib"
   )
 
 # Import target "3rd_triangle" for configuration "Release"
 set_property(TARGET 3rd_triangle APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_triangle PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_triangle.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_triangle.lib"
   )
 
 # Import target "3rd_tetgen" for configuration "Release"
 set_property(TARGET 3rd_tetgen APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_tetgen PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_tetgen.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_tetgen.lib"
   )
 
 # Import target "3rd_glutess" for configuration "Release"
 set_property(TARGET 3rd_glutess APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_glutess PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_glutess.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_glutess.lib"
   )
 
 # Import target "easy3d::renderer" for configuration "Release"
 set_property(TARGET easy3d::renderer APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::renderer PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_renderer.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_renderer.lib"
   )
 
 # Import target "3rd_glew" for configuration "Release"
 set_property(TARGET 3rd_glew APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_glew PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_glew.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_glew.lib"
   )
 
 # Import target "easy3d::gui" for configuration "Release"
 set_property(TARGET easy3d::gui APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::gui PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_gui.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_gui.lib"
   )
 
 # Import target "easy3d::viewer" for configuration "Release"
 set_property(TARGET easy3d::viewer APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(easy3d::viewer PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/libeasy3d_viewer.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/easy3d_viewer.lib"
   )
 
 # Import target "3rd_glfw" for configuration "Release"
 set_property(TARGET 3rd_glfw APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(3rd_glfw PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib/lib3rd_glfw.a"
+  IMPORTED_LOCATION_RELEASE "D:/code/defillet/cmake-build-release/lib/3rd_glfw.lib"
   )
 
 # This file does not depend on other imported targets which have

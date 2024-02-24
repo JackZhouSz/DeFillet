@@ -1,8 +1,8 @@
-# Install script for directory: /Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party
+# Install script for directory: D:/code/defillet/lib-easy3d/3rd_party
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/usr/local")
+  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/defillet")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -32,26 +32,21 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "FALSE")
 endif()
 
-# Set default install directory permissions.
-if(NOT DEFINED CMAKE_OBJDUMP)
-  set(CMAKE_OBJDUMP "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/objdump")
-endif()
-
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/glew/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/glfw/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/imgui/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/rply/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/lastools/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/kdtree/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/ransac/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/poisson/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/triangle/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/tetgen/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/glutess/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/backward/cmake_install.cmake")
-  include("/Users/xiaowuga/Desktop/code/defillet/cmake-build-release/lib-easy3d/3rd_party/easyloggingpp/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/glew/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/glfw/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/imgui/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/rply/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/lastools/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/kdtree/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/ransac/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/poisson/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/triangle/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/tetgen/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/glutess/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/backward/cmake_install.cmake")
+  include("D:/code/defillet/cmake-build-release/lib-easy3d/3rd_party/easyloggingpp/cmake_install.cmake")
 
 endif()
 

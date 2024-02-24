@@ -41,7 +41,7 @@ find_dependency(Threads)
 # Compute paths
 get_filename_component(EASY3D_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
-set(EASY3D_INCLUDE_DIRS "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d")
+set(EASY3D_INCLUDE_DIRS "D:/code/defillet/lib-easy3d")
 message(STATUS "EASY3D_INCLUDE_DIRS: ${EASY3D_INCLUDE_DIRS}")
 
 set(EASY3D_LIBRARIES "easy3d::util;easy3d::core;easy3d::fileio;easy3d::kdtree;easy3d::algo;easy3d::renderer;easy3d::gui;easy3d::viewer")

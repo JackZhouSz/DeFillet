@@ -61,7 +61,15 @@ namespace DEFILLET {
                       std::vector<double>& distance,
                       std::vector<Eigen::Vector3d>& normals);
 
-    bool optimize(const std::vector<Eigen::Vector3d>& points,
+    bool optimize_qem(const std::vector<Eigen::Vector3d>& points,
+                  const std::vector<std::pair<int,int>>& edges,
+                  std::vector<Eigen::Vector3d>& normals,
+                  std::vector<Eigen::Vector3d>& cur_normals,
+                  std::vector<Eigen::Vector3d>& new_points,
+                  std::vector<size_t>& fixed_points,
+                  double beta);
+
+    bool optimize_centroid(const std::vector<Eigen::Vector3d>& points,
                   const std::vector<std::pair<int,int>>& edges,
                   std::vector<Eigen::Vector3d>& normals,
                   std::vector<Eigen::Vector3d>& cur_normals,

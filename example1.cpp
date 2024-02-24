@@ -78,7 +78,7 @@ int main() {
 //    RENDER::mesh_scalar_field_visualization(easy3d_fillet_points, fillet_faces, distance);
     RENDER::mesh_point_vector_field(easy3d_fillet_points, fillet_faces, easy3d_normals);
     std::vector<Eigen::Vector3d> new_fillet_points;
-    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, normals, new_fillet_points, fillet_bounding, 10.0, 100)) {
+    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, normals, new_fillet_points, fillet_bounding, 5.0, 5)) {
         for(int i = 0; i < new_fillet_points.size(); i++) {
             int id = point_map_table[i];
             eigen_points[id] = new_fillet_points[i];

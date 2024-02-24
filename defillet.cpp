@@ -399,7 +399,7 @@ namespace DEFILLET {
         }
     }
 
-    bool optimize(const std::vector<Eigen::Vector3d>& points,
+    bool optimize_qem(const std::vector<Eigen::Vector3d>& points,
                   const std::vector<std::pair<int,int>>& edges,
                   std::vector<Eigen::Vector3d>& normals,
                   std::vector<Eigen::Vector3d>& cur_normals,
@@ -491,6 +491,118 @@ namespace DEFILLET {
         return true;
     }
 
+    bool optimize_centroid(const std::vector<Eigen::Vector3d>& points,
+                      const std::vector<std::pair<int,int>>& edges,
+                      std::vector<Eigen::Vector3d>& normals,
+                      std::vector<Eigen::Vector3d>& cur_normals,
+                      std::vector<Eigen::Vector3d>& new_points,
+                      std::vector<size_t>& fixed_points,
+                      double beta) {
+        int nb_points = points.size(), nb_edges = edges.size();
+        Eigen::SparseMatrix<double> NC(nb_edges * 2, nb_points * 3);
+        std::vector<Eigen::Triplet<double>> triplets;
+        for(int i = 0; i < nb_edges; i++) {
+            int v0 = edges[i].first, v1 = edges[i].second;
+            double nx1 = normals[v0].x(), ny1 = normals[v0].y(), nz1 = normals[v0].z();
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0, nx1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points, ny1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points * 2, nz1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1, -nx1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points, -ny1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points * 2, -nz1));
+
+            nx1 = normals[v1].x(), ny1 = normals[v1].y(), nz1 = normals[v1].z();
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0, nx1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points, ny1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points * 2, nz1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v1, -nx1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v1 + nb_points, -ny1));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v1 + nb_points * 2, -nz1));
+        }
+        NC.setFromTriplets(triplets.begin(), triplets.end());
+
+        std::vector<std::vector<int>> graph(nb_points);
+        for(int i = 0; i < nb_edges; i++) {
+            int x = edges[i].first, y = edges[i].second;
+            graph[x].emplace_back(y);
+            graph[y].emplace_back(x);
+        }
+        triplets.clear();
+        Eigen::SparseMatrix<double> CC(nb_points, nb_points * 3);
+        for(int i = 0; i < nb_points; i++) {
+            int num = graph[i].size();
+            for(int j = 0; j < num; j++) {
+                int id = graph[i][j];
+                triplets.emplace_back(Eigen::Triplet<double>(i, id, 1.0));
+                triplets.emplace_back(Eigen::Triplet<double>(i, id + nb_points, 1.0));
+                triplets.emplace_back(Eigen::Triplet<double>(i, id + 2 * nb_points, 1.0));
+            }
+            triplets.emplace_back(Eigen::Triplet<double>(i, i, -num));
+            triplets.emplace_back(Eigen::Triplet<double>(i, i + nb_points, -num));
+            triplets.emplace_back(Eigen::Triplet<double>(i, i + 2 * nb_points, -num));
+        }
+        CC.setFromTriplets(triplets.begin(), triplets.end());
+
+        int nb_fixed_points = fixed_points.size();
+        Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
+        triplets.clear();
+        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
+        for(int i = 0; i < nb_fixed_points; i++) {
+            int id = fixed_points[i];
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  id, 1.0)); d[ 3 * i] = points[id].x();
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  id + nb_points, 1.0)); d[3 * i + 1] = points[id].y();
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0)); d[3 * i + 2] = points[id].z();
+        }
+        E.setFromTriplets(triplets.begin(), triplets.end());
+
+        Eigen::SparseMatrix<double> A;
+        igl::cat(1, NC, CC, A);
+        Eigen::SparseMatrix<double> AT = A.transpose();
+        Eigen::SparseMatrix<double> ATA = AT * A;
+        Eigen::SparseMatrix<double> I(ATA.rows(), ATA.cols()); I.setIdentity();
+        I = beta * I;
+        Eigen::SparseMatrix<double> Q = I + ATA;
+        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
+        Eigen::SparseMatrix<double> ET = E.transpose();
+        Eigen::SparseMatrix<double> tempMat1;
+        Eigen::SparseMatrix<double> tempMat2;
+        Eigen::SparseMatrix<double> S;
+        igl::cat(1, Q, E, tempMat1);
+        igl::cat(1, ET, zero, tempMat2);
+        igl::cat(0, tempMat1, tempMat2, S);
+        Eigen::VectorXd ab = Eigen::VectorXd::Zero(nb_points * 3);
+        Eigen::VectorXd p(nb_points * 3);
+        for(int i = 0; i < nb_points; i++) {
+            p[i] = points[i].x();
+            p[i + nb_points] = points[i].y();
+            p[i + 2 * nb_points] = points[i].z();
+        }
+//        p = AT * p;
+        Eigen::VectorXd b(nb_points * 3 + d.size());
+        b << beta * p, d;
+
+        Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+
+        solver.compute(S);
+        if(solver.info()!= Eigen::Success) {
+            std::cout << "decomposition failed" << std::endl;
+            return false;
+        }
+        Eigen::VectorXd x = solver.solve(b);
+        if(solver.info()!= Eigen::Success) {
+            // solving failed
+            std::cout << "solving failed" << std::endl;
+            return false;
+        }
+
+        new_points.resize(nb_points);
+        for(int i = 0; i < nb_points; i++) {
+            new_points[i] = Eigen::Vector3d(x[i], x[i + nb_points], x[i + 2 * nb_points]);
+//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
+        }
+        return true;
+    }
+
     bool iterative_optimize(const std::vector<Eigen::Vector3d>& points,
                             const std::vector<std::vector<size_t>>& faces,
                             std::vector<Eigen::Vector3d>& normals,
@@ -535,15 +647,15 @@ namespace DEFILLET {
                 }
             }
 
-            optimize(old_points, edges, normals, cur_normals, new_points, fixed_points, zz);
+            optimize_centroid(old_points, edges, normals, cur_normals, new_points, fixed_points, zz);
             old_points = new_points;
 
-            for(auto v : mesh->vertices()) {
-                auto& ver = mesh->position(v);
-                ver = easy3d::vec3(old_points[v.idx()].x(),
-                                      old_points[v.idx()].y(),
-                                      old_points[v.idx()].z());
-            }
+//            for(auto v : mesh->vertices()) {
+//                auto& ver = mesh->position(v);
+//                ver = easy3d::vec3(old_points[v.idx()].x(),
+//                                      old_points[v.idx()].y(),
+//                                      old_points[v.idx()].z());
+//            }
         }
         return true;
     }

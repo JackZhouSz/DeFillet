@@ -6,6 +6,7 @@
 #define DEFILLET_GCP_H
 
 #include <iostream>
+#include <vector>
 #include <map>
 #include <GCoptimization.h>
 

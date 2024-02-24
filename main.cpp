@@ -7,19 +7,11 @@
 #include <fstream>
 #include "voronoi.h"
 #include "common.h"
-#include "defillet.h"
+#include "defillet1.h"
 #include "visualization.h"
+#include "utils.h"
 #include <chrono>
 #include <Eigen/IterativeLinearSolvers>
-
-#include <nlohmann/json.hpp>
-
-
-
-
-
-using json = nlohmann::json;
-
 
 using namespace std;
 
@@ -204,7 +196,7 @@ int main() {
 
         std::vector<std::array<double, 3>> my_points;
         cgal_points_convert_to_my_points(new_fillet_points, my_points);
-        write_ply_points("../data/all3.ply", my_points);
+//        write_ply_points("../data/all3.ply", my_points);
         for(int i = 0; i < new_fillet_points.size(); i++) {
             int id = point_map_table[i];
             sites[id] = new_fillet_points[i];

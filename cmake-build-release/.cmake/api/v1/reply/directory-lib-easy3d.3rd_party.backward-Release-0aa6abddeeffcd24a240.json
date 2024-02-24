@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "lib-easy3d/3rd_party/backward",
+		"source" : "lib-easy3d/3rd_party/backward"
+	}
+}

@@ -8,7 +8,7 @@
 #define _USE_MATH_DEFINES
 #include "Parameters.h"
 #include <Eigen/Dense>
-#include <Windows.h>
+//#include <Windows.h>
 using namespace std;
 
 
@@ -196,7 +196,7 @@ void CRichModel::ComputePlanarCoordsOfIncidentVertForEdges()
 		double rightLen = Edge(Edge(i).indexOfRightEdge).length;
 		double x = (squareOfLeftLen - rightLen * rightLen) / bottom + bottom;
 		x /= 2.0;
-		m_Edges[i].coordOfOppositeVert = make_pair(x, sqrt(max(0.0, squareOfLeftLen - x * x)));
+		m_Edges[i].coordOfOppositeVert = make_pair(x, sqrt(std::max(0.0, squareOfLeftLen - x * x)));
 	}
 	for (int i = 0; i < GetNumOfEdges(); ++i)
 	{

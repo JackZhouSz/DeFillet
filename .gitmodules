@@ -1,0 +1,3 @@
+[submodule "lib-easy3d"]
+	path = lib-easy3d
+	url = https://github.com/xiaowuga/lib-easy3d.git

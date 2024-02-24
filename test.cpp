@@ -7,7 +7,7 @@
 #include <fstream>
 #include "voronoi.h"
 #include "common.h"
-#include "defillet.h"
+#include "defillet1.h"
 #include "visualization.h"
 #include <chrono>
 #include <Eigen/IterativeLinearSolvers>

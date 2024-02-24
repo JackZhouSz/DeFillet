@@ -22,8 +22,10 @@ namespace KNN {
     public:
         KdSearch(std::vector<Point>& points);
         ~KdSearch();
-        int radius_search(const Point& p, double squared_radius, std::vector<int> &neighbors,
+        int radius_search(const Point& p, double squared_radius, std::vector<size_t> &neighbors,
                 std::vector<double> &squared_distances) const;
+        void kth_search(const Point& p, int k, std::vector<size_t> &neighbors,
+                        std::vector<double> &squared_distances) const;
     protected:
         std::vector<Point>* points_;
         void* tree_;

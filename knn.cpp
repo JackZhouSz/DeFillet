@@ -51,7 +51,7 @@ namespace KNN {
         delete get_tree(tree_);
     }
 
-    int KdSearch::radius_search(const Point& p, double radius, std::vector<int> &neighbors,
+    int KdSearch::radius_search(const Point& p, double radius, std::vector<size_t> &neighbors,
                                  std::vector<double> &squared_distances) const {
         std::vector<std::pair<int , double> > matches;
         nanoflann::SearchParams params;
@@ -67,5 +67,14 @@ namespace KNN {
         }
 
         return (int)neighbors.size();
+    }
+
+    void KdSearch::kth_search(const Point &p, int k, std::vector<size_t> &neighbors,
+                              std::vector<double> &squared_distances) const {
+        nanoflann::KNNResultSet<double> resultSet(k);
+        neighbors.resize(k);
+        squared_distances.resize(k);
+        resultSet.init(&neighbors[0], &squared_distances[0]);
+        get_tree(tree_)->findNeighbors(resultSet, p.p,  nanoflann::SearchParams(k));
     }
 }

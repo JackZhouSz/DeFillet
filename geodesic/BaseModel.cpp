@@ -1,13 +1,13 @@
 #include "BaseModel.h"
 #include "Parameters.h"
-#include <windows.h>
-#include "gl\gl.h"
-#include "gl\glu.h"
+//#include <windows.h>
+//#include "gl\gl.h"
+//#include "gl\glu.h"
 #include <float.h>
 #include <iostream>
 //#include "gl\glut.h"
-#pragma comment(lib, "OPENGL32.LIB")
-#pragma comment(lib, "GLU32.LIB")
+//#pragma comment(lib, "OPENGL32.LIB")
+//#pragma comment(lib, "GLU32.LIB")
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -21,48 +21,48 @@ CBaseModel::CBaseModel(const string& filename) : m_filename(filename)
 {
 }
 
-void CBaseModel::Render() const
-{	
-	glPushMatrix();
-	GLint shadeModel;
-	glGetIntegerv(GL_SHADE_MODEL, &shadeModel);
-	if (shadeModel == GL_SMOOTH)
-	{
-		for (int i = 0; i < GetNumOfFaces(); ++i)
-		{
-			glBegin(GL_POLYGON);
-			for (int j = 0; j < 3; ++j)
-			{			
-				const CPoint3D &pt = Vert(Face(i)[j]);
-				if (!m_NormalsToVerts.empty())
-				{
-					const CPoint3D &normal = Normal(Face(i)[j]);
-					glNormal3f((float)normal.x, (float)normal.y, (float)normal.z);
-				}
-				glVertex3f((float)pt.x, (float)pt.y, (float)pt.z);
-			}	
-			glEnd();
-		}	
-	}
-	else
-	{
-		for (int i = 0; i < GetNumOfFaces(); ++i)
-		{
-			glBegin(GL_POLYGON);
-			CPoint3D normal = VectorCross(Vert(Face(i)[0]), Vert(Face(i)[1]), Vert(Face(i)[2]));
-			normal.Normalize();
-			glNormal3f((float)normal.x, (float)normal.y, (float)normal.z);
-			for (int j = 0; j < 3; ++j)
-			{			
-				const CPoint3D &pt = Vert(Face(i)[j]);
-				glVertex3f((float)pt.x, (float)pt.y, (float)pt.z);
-			}	
-			glEnd();
-		}	
-	}
-	
-	glPopMatrix();
-}
+//void CBaseModel::Render() const
+//{
+//	glPushMatrix();
+//	GLint shadeModel;
+//	glGetIntegerv(GL_SHADE_MODEL, &shadeModel);
+//	if (shadeModel == GL_SMOOTH)
+//	{
+//		for (int i = 0; i < GetNumOfFaces(); ++i)
+//		{
+//			glBegin(GL_POLYGON);
+//			for (int j = 0; j < 3; ++j)
+//			{
+//				const CPoint3D &pt = Vert(Face(i)[j]);
+//				if (!m_NormalsToVerts.empty())
+//				{
+//					const CPoint3D &normal = Normal(Face(i)[j]);
+//					glNormal3f((float)normal.x, (float)normal.y, (float)normal.z);
+//				}
+//				glVertex3f((float)pt.x, (float)pt.y, (float)pt.z);
+//			}
+//			glEnd();
+//		}
+//	}
+//	else
+//	{
+//		for (int i = 0; i < GetNumOfFaces(); ++i)
+//		{
+//			glBegin(GL_POLYGON);
+//			CPoint3D normal = VectorCross(Vert(Face(i)[0]), Vert(Face(i)[1]), Vert(Face(i)[2]));
+//			normal.Normalize();
+//			glNormal3f((float)normal.x, (float)normal.y, (float)normal.z);
+//			for (int j = 0; j < 3; ++j)
+//			{
+//				const CPoint3D &pt = Vert(Face(i)[j]);
+//				glVertex3f((float)pt.x, (float)pt.y, (float)pt.z);
+//			}
+//			glEnd();
+//		}
+//	}
+//
+//	glPopMatrix();
+//}
 
 void CBaseModel::ComputeScaleAndNormals()
 {
@@ -253,8 +253,10 @@ void CBaseModel::ReadObjFile(const string& filename)
 			continue;
 		}
 	}
-	m_Verts.swap(vector<CPoint3D>(m_Verts));
-	m_Faces.swap(vector<CFace>(m_Faces));
+    std::vector<CPoint3D> tmp_Verts(m_Verts);
+    m_Verts.swap(tmp_Verts);
+    vector<CFace> tmp_faces(m_Faces);
+	m_Faces.swap(tmp_faces);
 	in.close();
 }
 
@@ -305,7 +307,8 @@ void CBaseModel::ReadOffFile(const string& filename)
 		in >> pt.z;
 		m_Verts.push_back(pt);
 	}
-	m_Verts.swap(vector<CPoint3D>(m_Verts));
+    std::vector<CPoint3D> tmp_Verts(m_Verts);
+	m_Verts.swap(tmp_Verts);
 	
 	int degree;
 	while (in >> degree)
@@ -325,7 +328,8 @@ void CBaseModel::ReadOffFile(const string& filename)
 	}
 
 	in.close();
-	m_Faces.swap(vector<CFace>(m_Faces));
+    vector<CFace> tmp_Faces(m_Faces);
+	m_Faces.swap(tmp_Faces);
 }
 
 void CBaseModel::ReadMFile(const string& filename)
@@ -378,8 +382,10 @@ void CBaseModel::ReadMFile(const string& filename)
 			continue;
 		}
 	}
-	m_Verts.swap(vector<CPoint3D>(m_Verts));
-	m_Faces.swap(vector<CFace>(m_Faces));
+    std::vector<CPoint3D> tmp_Verts(m_Verts);
+    m_Verts.swap(tmp_Verts);
+    vector<CFace> tmp_faces(m_Faces);
+    m_Faces.swap(tmp_faces);
 	in.close();
 }
 

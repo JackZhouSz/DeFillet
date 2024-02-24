@@ -1,0 +1,599 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "example1"
+		}
+	],
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_executable",
+			"target_link_libraries",
+			"use_CGAL_GMP_support",
+			"CGAL_setup_CGAL_dependencies",
+			"CGAL_setup_target_dependencies",
+			"find_package"
+		],
+		"files" : 
+		[
+			"CMakeLists.txt",
+			"/usr/local/lib/cmake/CGAL/CGAL_SetupGMP.cmake",
+			"/usr/local/lib/cmake/CGAL/CGAL_SetupCGALDependencies.cmake",
+			"/usr/local/lib/cmake/CGAL/CGAL_setup_target_dependencies.cmake",
+			"/usr/local/lib/cmake/CGAL/CGALConfig.cmake",
+			"lib-easy3d/easy3d/algo/CMakeLists.txt",
+			"lib-easy3d/easy3d/kdtree/CMakeLists.txt",
+			"lib-easy3d/easy3d/viewer/CMakeLists.txt",
+			"lib-easy3d/3rd_party/glfw/src/CMakeLists.txt",
+			"lib-easy3d/easy3d/util/CMakeLists.txt",
+			"lib-easy3d/easy3d/fileio/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 20,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 21,
+				"parent" : 0
+			},
+			{
+				"command" : 5,
+				"file" : 0,
+				"line" : 11,
+				"parent" : 0
+			},
+			{
+				"file" : 4,
+				"parent" : 3
+			},
+			{
+				"command" : 4,
+				"file" : 4,
+				"line" : 185,
+				"parent" : 4
+			},
+			{
+				"command" : 3,
+				"file" : 3,
+				"line" : 3,
+				"parent" : 5
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 88,
+				"parent" : 6
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 70,
+				"parent" : 7
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 73,
+				"parent" : 7
+			},
+			{
+				"file" : 5
+			},
+			{
+				"command" : 1,
+				"file" : 5,
+				"line" : 88,
+				"parent" : 10
+			},
+			{
+				"file" : 6
+			},
+			{
+				"command" : 1,
+				"file" : 6,
+				"line" : 31,
+				"parent" : 12
+			},
+			{
+				"file" : 7
+			},
+			{
+				"command" : 1,
+				"file" : 7,
+				"line" : 26,
+				"parent" : 14
+			},
+			{
+				"file" : 8
+			},
+			{
+				"command" : 1,
+				"file" : 8,
+				"line" : 163,
+				"parent" : 16
+			},
+			{
+				"file" : 9
+			},
+			{
+				"command" : 1,
+				"file" : 9,
+				"line" : 40,
+				"parent" : 18
+			},
+			{
+				"file" : 10
+			},
+			{
+				"command" : 1,
+				"file" : 10,
+				"line" : 65,
+				"parent" : 20
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-O3 -DNDEBUG -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk -mmacosx-version-min=10.12 -fcolor-diagnostics"
+				},
+				{
+					"fragment" : "-std=gnu++14"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_BACKTRACE=0"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_BACKTRACE_SYMBOL=0"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_BFD=0"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_DW=0"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_DWARF=0"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_LIBUNWIND=0"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BACKWARD_HAS_UNWIND=1"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "CGAL_USE_GMPXX=1"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ELPP_DISABLE_DEFAULT_CRASH_HANDLING"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ELPP_FEATURE_ALL"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ELPP_NO_DEFAULT_LOG_FILE"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ELPP_STL_LOGGING"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ELPP_THREAD_SAFE"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "GLEW_NO_GLU"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "GLEW_STATIC"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "HAVE_EXECINFO"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "IGL_STATIC_LIBRARY"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 2,
+					"path" : "/Users/xiaowuga/Desktop/code/defillet/gcp"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/Users/xiaowuga/Desktop/code/defillet/geodesic"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party/ransac"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party/glew/include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/Users/xiaowuga/Desktop/code/defillet/lib-easy3d/3rd_party/glfw/include"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/usr/local/include"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/usr/local/include/eigen3"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2,
+					2
+				],
+				"standard" : "14"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "3rd_rply::@46ceea9d6939eeba504e"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_lastools::@2a5eae4a9f97a5de4867"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_kdtree::@af3f16f66d07251e0a0f"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_ransac::@dd68476e25ad18325b40"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_poisson::@138a882c62b315ff3544"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_triangle::@7f010137979aa3ea3572"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_tetgen::@4e174d36769e67bd81f8"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_glutess::@c88210b75cfacb48b676"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_backward::@2e1a6e96e5adbc578be0"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_easyloggingpp::@9e5b002c56c61f75546a"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_util::@f2c1932803737a8237c3"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_core::@f9216e5a4b83d368f4df"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_fileio::@83445708f9c57c37748a"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_kdtree::@035a528476a6de785687"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_algo::@696624bdb0c99e91f5bd"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_renderer::@e04a87a3b8f07669609c"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "easy3d_viewer::@e5375f6008ac3038e805"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "geodesic::@ebf1397fafac92176321"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "gcp::@67c19ef50ab0be18ebfc"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_glew::@9420b39e369e300728c3"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "3rd_glfw::@c044aa786037f31a694e"
+		}
+	],
+	"id" : "example1::@6890427a1f51a3e7e1df",
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "-O3 -DNDEBUG",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "gcp/libgcp.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "geodesic/libgeodesic.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "/usr/local/lib/libigl.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "lib/libeasy3d_algo.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "lib/libeasy3d_util.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "lib/libeasy3d_viewer.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "lib/libeasy3d_renderer.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 8,
+				"fragment" : "/usr/local/lib/libgmpxx.dylib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 9,
+				"fragment" : "/usr/local/lib/libmpfr.dylib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 9,
+				"fragment" : "/usr/local/lib/libgmp.dylib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "lib/libeasy3d_algo.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/libeasy3d_kdtree.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 13,
+				"fragment" : "lib/lib3rd_kdtree.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/lib3rd_poisson.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/lib3rd_ransac.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/lib3rd_triangle.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/lib3rd_tetgen.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/lib3rd_glutess.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 15,
+				"fragment" : "lib/lib3rd_glew.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-Xlinker -framework -Xlinker OpenGL",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 15,
+				"fragment" : "lib/lib3rd_glfw.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 17,
+				"fragment" : "-framework Cocoa",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 17,
+				"fragment" : "-framework IOKit",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 17,
+				"fragment" : "-framework CoreFoundation",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 15,
+				"fragment" : "lib/libeasy3d_fileio.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "lib/libeasy3d_core.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "lib/libeasy3d_util.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 19,
+				"fragment" : "lib/lib3rd_backward.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 19,
+				"fragment" : "lib/lib3rd_easyloggingpp.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 21,
+				"fragment" : "lib/lib3rd_lastools.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 21,
+				"fragment" : "lib/lib3rd_rply.a",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"name" : "example1",
+	"nameOnDisk" : "example1",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "example1.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "defillet.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "knn.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "voronoi.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "gcp.cpp",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "EXECUTABLE"
+}

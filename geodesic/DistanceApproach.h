@@ -1,6 +1,8 @@
 #pragma once
 #include "EdgePoint.h"
 #include "RichModel.h"
+#include <chrono>
+
 class CDistanceApproach
 {
 protected:
@@ -11,10 +13,10 @@ protected:
 	map<int, double> m_sources;	
 	set<int> m_destinations;
 	string m_nameOfAlgorithm;
-	 __int64 m_maxLenOfQueue;
-	 __int64 m_depthOfResultingTree;
-	
-	 __int64 m_nTotalMilliSeconds;
+    long long m_maxLenOfQueue;
+    long long m_depthOfResultingTree;
+
+    double m_nTotalSeconds;
 protected:
 	virtual void Initialize() = 0;
 	virtual void Dispose() = 0;
@@ -36,10 +38,10 @@ public:
 	vector<EdgePoint> BacktraceIsoline(double val) const;
 	virtual int GetAncestor(int vIndex) const = 0;	
 	double GetMaxDistance() const;
-	virtual  __int64 GetMaxLenOfQueue() const{return m_maxLenOfQueue;}
-	virtual  __int64 GetMaxPropagationLevels()const {return m_depthOfResultingTree;}
+	virtual  long long GetMaxLenOfQueue() const{return m_maxLenOfQueue;}
+	virtual  long long GetMaxPropagationLevels()const {return m_depthOfResultingTree;}
 	string GetAlgorithmName() const;
-	 __int64 GetRunTime() const{return m_nTotalMilliSeconds;}
+    long long GetRunTime() const{return m_nTotalSeconds;}
 	double GetMemoryCost() const {return m_memory;}
 	virtual void OutputExperimentalResults() const;
 	const vector<double>& GetDistanceField() const;

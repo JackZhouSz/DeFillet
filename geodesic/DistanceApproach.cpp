@@ -1,7 +1,11 @@
 #include "DistanceApproach.h"
-#include <Windows.h>
+//#include <Windows.h>
+#include <limits>
 #include <iostream>
 using namespace std;
+const double DBL_MAX = std::numeric_limits<double>::max();
+const double FLT_MAX = std::numeric_limits<double>::min();
+
 CDistanceApproach::CDistanceApproach(const CRichModel& model, int source) : model(model)
 {
 	m_nameOfAlgorithm = "Abstract";
@@ -159,9 +163,11 @@ string CDistanceApproach::GetAlgorithmName() const
 void CDistanceApproach::Execute()
 {
 	Initialize();
-	m_nTotalMilliSeconds = GetTickCount();	
+    auto start = chrono::system_clock::now();
 	Propagate();
-	m_nTotalMilliSeconds = GetTickCount() - m_nTotalMilliSeconds;
+    auto end = chrono::system_clock::now();
+    auto duration = duration_cast<chrono::microseconds>(end - start);
+	m_nTotalSeconds = double(duration.count()) * chrono::microseconds::period::num / chrono::microseconds::period::den;
 	CollectExperimentalResults();
 	Dispose();	
 }
@@ -173,7 +179,7 @@ void CDistanceApproach::Initialize()
 	m_depthOfResultingTree = 0;
 	m_maxDisValue = -1;
 	m_memory = 0;
-	m_nTotalMilliSeconds = 0;
+	m_nTotalSeconds = 0;
 }
 
 void CDistanceApproach::CollectExperimentalResults()
@@ -190,7 +196,7 @@ void CDistanceApproach::OutputExperimentalResults() const
 	cout << "Experimental results are as follows:\n";
 	cout << "Algorithm: " << m_nameOfAlgorithm << endl;
 	cout << "Memory = " << m_memory << " Mega-bytes.\n";
-	cout << "Timing = " << m_nTotalMilliSeconds << " ms.\n";
+	cout << "Timing = " << m_nTotalSeconds << " s.\n";
 	cout << "MaxDepth = " << m_depthOfResultingTree << " levels.\n";
 	cout << "MaxLenOfQue = " << m_maxLenOfQueue << " elements.\n";
 }

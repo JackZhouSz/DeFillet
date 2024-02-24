@@ -2,14 +2,15 @@
 //
 //////////////////////////////////////////////////////////////////////
 #include "ExactDGPMethod.h"
-#include <windows.h>
-#include <gl/GL.h>
-#include <gl/GLU.h>
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "glu32.lib")
+//#include <windows.h>
+//#include <gl/GL.h>
+//#include <gl/GLU.h>
+//#pragma comment(lib, "opengl32.lib")
+//#pragma comment(lib, "glu32.lib")
 #include <fstream>
 #include <iterator>
 #include <cassert>
+#include <algorithm>
 #include "Parameters.h"
 using namespace std;
 
@@ -119,7 +120,7 @@ vector<EdgePoint> CExactDGPMethod::BacktraceShortestPath(int end) const
 			}
 			else if (proportion >= 0 && proportion <= 1)
 			{
-				proportion = max(proportion, 0);
+				proportion = std::max(proportion, 0.0);
 				coord = model.GetNew2DCoordinatesByRotatingAroundLeftChildEdge(edgeIndex, coord);
 				edgeIndex = model.Edge(edgeIndex).indexOfLeftEdge;
 				//rightLen = disToAngle;				
@@ -127,8 +128,8 @@ vector<EdgePoint> CExactDGPMethod::BacktraceShortestPath(int end) const
 			else
 			{
 				proportion = model.ProportionOnRightEdgeByImage(edgeIndex, coord, oldProprotion);
-				proportion = max(proportion, 0);
-				proportion = min(proportion, 1);
+				proportion = std::max(proportion, 0.0);
+				proportion = std::min(proportion, 1.0);
 				coord = model.GetNew2DCoordinatesByRotatingAroundRightChildEdge(edgeIndex, coord);
 				edgeIndex = model.Edge(edgeIndex).indexOfRightEdge;
 			}
@@ -146,7 +147,7 @@ int CExactDGPMethod::GetAncestor(int vertex) const
 
 void CExactDGPMethod::CollectExperimentalResults()
 {
-	m_memory = ((double)model.GetNumOfVerts() * sizeof InfoAtVertex) / 1024 / 1024;
+	m_memory = ((double)model.GetNumOfVerts() * sizeof(InfoAtVertex)) / 1024 / 1024;
 	for (int i = 0; i < m_scalarField.size(); ++i)
 	{
 		m_scalarField[i] = m_InfoAtVertices[i].disUptodate;

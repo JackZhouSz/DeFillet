@@ -61,7 +61,7 @@ public:
 	static vector<double> GetScalarField(string filename);
 	static string GetComments(const char* filename);
 	virtual void PrintInfo(ostream& out) const;
-	virtual void Render() const;
+//	virtual void Render() const;
 	inline int GetNumOfVerts() const;
 	inline int GetNumOfFaces() const;	
 	string GetFileShortName() const;

@@ -93,8 +93,8 @@ void CChen_Han::Propagate()
 
 void CChen_Han::CollectExperimentalResults()
 {
-	m_memory = ((double)model.GetNumOfVerts() * sizeof InfoAtVertex
-		+ (double)model.GetNumOfEdges() * sizeof Window
+	m_memory = ((double)model.GetNumOfVerts() * sizeof(InfoAtVertex)
+		+ (double)model.GetNumOfEdges() * sizeof(Window)
 		+ (double)m_maxLenOfQueue * sizeof(Window *)) / 1024 / 1024;
 	for (int i = 0; i < m_scalarField.size(); ++i)
 	{
@@ -158,7 +158,7 @@ bool CChen_Han::UpdateTreeDepthBackWithChoice()
 		if (!m_QueueForPseudoSources.empty())
 		{
 			const InfoAtVertex& infoOfHeadElemOfPseudoSources = m_InfoAtVertices[m_QueueForPseudoSources.front().indexOfVert];
-			m_depthOfResultingTree = max(m_depthOfResultingTree, 
+			m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 				infoOfHeadElemOfPseudoSources.levelOnSequenceTree);
 			fFromQueueOfPseudoSources = true;
 		}
@@ -168,7 +168,7 @@ bool CChen_Han::UpdateTreeDepthBackWithChoice()
 		if (m_QueueForPseudoSources.empty())
 		{
 			const Window& infoOfHeadElemOfWindows = *m_QueueForWindows.front().pWindow;
-			m_depthOfResultingTree = max(m_depthOfResultingTree,
+			m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 				infoOfHeadElemOfWindows.levelOnSequenceTree);
 			fFromQueueOfPseudoSources = false;
 		}
@@ -179,13 +179,13 @@ bool CChen_Han::UpdateTreeDepthBackWithChoice()
 			if (infoOfHeadElemOfPseudoSources.levelOnSequenceTree <= 
 				infoOfHeadElemOfWindows.levelOnSequenceTree)
 			{
-				m_depthOfResultingTree = max(m_depthOfResultingTree,
+				m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 					infoOfHeadElemOfPseudoSources.levelOnSequenceTree);
 				fFromQueueOfPseudoSources = true;
 			}
 			else
 			{
-				m_depthOfResultingTree = max(m_depthOfResultingTree,
+				m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 					infoOfHeadElemOfWindows.levelOnSequenceTree);
 				fFromQueueOfPseudoSources = false;
 			}
@@ -199,7 +199,7 @@ void CChen_Han::OutputExperimentalResults() const
 	cout << "Experimental results are as follows:\n";
 	cout << "Algorithm: " << m_nameOfAlgorithm << endl;
 	cout << "Memory = " << m_memory << " Mega-bytes.\n";
-	cout << "Timing = " << m_nTotalMilliSeconds << " ms.\n";
+	cout << "Timing = " << m_nTotalSeconds << " ms.\n";
 	cout << "MaxDepth = " << m_depthOfResultingTree << " levels.\n";
 	cout << "MaxLenOfQue = " << m_maxLenOfQueue << " elements.\n";
 	cout << "TotalWindowNum = " << m_nCountOfWindows << endl;
@@ -465,8 +465,8 @@ void CChen_Han::ComputeChildrenOfPseudoSourceFromWindow(int indexOfParentVertex)
 			//}
 		}
 
-		propMinus = max(0, propMinus);
-		propMinus = min(1, propMinus);
+		propMinus = std::max(0.0, propMinus);
+		propMinus = std::min(1.0, propMinus);
 	}
 	
 	int rightEdge = model.Neigh(indexOfParentVertex)[indexPlus].first;
@@ -505,8 +505,8 @@ void CChen_Han::ComputeChildrenOfPseudoSourceFromWindow(int indexOfParentVertex)
 			//}
 		}
 
-		propPlus = max(0, propPlus);
-		propPlus = min(1, propPlus);
+		propPlus = std::max(0.0, propPlus);
+		propPlus = std::min(1.0, propPlus);
 	}
 
 #endif
@@ -693,10 +693,10 @@ void CChen_Han::ComputeTheOnlyLeftChild(const Window& w)
 	quoteW.pWindow = new Window;
 	quoteW.pWindow->proportions[0] = model.ProportionOnLeftEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[0]) - 1e-4;
-	quoteW.pWindow->proportions[0] = max(0, quoteW.pWindow->proportions[0]);
+	quoteW.pWindow->proportions[0] = std::max(0.0, quoteW.pWindow->proportions[0]);
 	quoteW.pWindow->proportions[1] = model.ProportionOnLeftEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[1]) + 1e-4;
-	quoteW.pWindow->proportions[1] = min(1, quoteW.pWindow->proportions[1]);
+	quoteW.pWindow->proportions[1] = std::min(1.0, quoteW.pWindow->proportions[1]);
 	if (IsTooNarrowWindow(*quoteW.pWindow))
 	{
 		delete quoteW.pWindow;
@@ -729,10 +729,10 @@ void CChen_Han::ComputeTheOnlyRightChild(const Window& w)
 	quoteW.pWindow = new Window;
 	quoteW.pWindow->proportions[0] = model.ProportionOnRightEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[0]) - 1e-4;
-	quoteW.pWindow->proportions[0] = max(0, quoteW.pWindow->proportions[0]);
+	quoteW.pWindow->proportions[0] = std::max(0.0, quoteW.pWindow->proportions[0]);
 	quoteW.pWindow->proportions[1] = model.ProportionOnRightEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[1]) + 1e-4;
-	quoteW.pWindow->proportions[1] = min(1, quoteW.pWindow->proportions[1]);
+	quoteW.pWindow->proportions[1] = std::min(1.0, quoteW.pWindow->proportions[1]);
 	if (IsTooNarrowWindow(*quoteW.pWindow))
 	{
 		delete quoteW.pWindow;
@@ -764,7 +764,7 @@ void CChen_Han::ComputeTheOnlyLeftTrimmedChild(const Window& w)
 	quoteW.pWindow = new Window;
 	quoteW.pWindow->proportions[0] = model.ProportionOnLeftEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[0]) - 1e-4;
-	quoteW.pWindow->proportions[0] = max(0, quoteW.pWindow->proportions[0]);
+	quoteW.pWindow->proportions[0] = std::max(0.0, quoteW.pWindow->proportions[0]);
 	quoteW.pWindow->proportions[1] = 1;
 	if (IsTooNarrowWindow(*quoteW.pWindow))
 	{
@@ -798,7 +798,7 @@ void CChen_Han::ComputeTheOnlyRightTrimmedChild(const Window& w)
 	quoteW.pWindow->proportions[0] = 0;
 	quoteW.pWindow->proportions[1] = model.ProportionOnRightEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[1]) + 1e-4;
-	quoteW.pWindow->proportions[1] = min(1, quoteW.pWindow->proportions[1]);
+	quoteW.pWindow->proportions[1] = std::min(1.0, quoteW.pWindow->proportions[1]);
 	if (IsTooNarrowWindow(*quoteW.pWindow))
 	{
 		delete quoteW.pWindow;
@@ -830,7 +830,7 @@ void CChen_Han::ComputeLeftTrimmedChildWithParent(const Window& w)
 	quoteW.pWindow = new Window;
 	quoteW.pWindow->proportions[0] = model.ProportionOnLeftEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[0]) - 1e-4;
-	quoteW.pWindow->proportions[0] = max(0, quoteW.pWindow->proportions[0]);
+	quoteW.pWindow->proportions[0] = std::max(0.0, quoteW.pWindow->proportions[0]);
 	quoteW.pWindow->proportions[1] = 1;
 	if (IsTooNarrowWindow(*quoteW.pWindow))
 	{
@@ -865,7 +865,7 @@ void CChen_Han::ComputeRightTrimmedChildWithParent(const Window& w)
 	quoteW.pWindow->proportions[0] = 0;
 	quoteW.pWindow->proportions[1] = model.ProportionOnRightEdgeByImage(w.indexOfCurEdge,
 		w.coordOfPseudoSource, w.proportions[1]) + 1e-4;
-	quoteW.pWindow->proportions[1] = min(1, quoteW.pWindow->proportions[1]);
+	quoteW.pWindow->proportions[1] = std::min(1.0, quoteW.pWindow->proportions[1]);
 	//quoteW.pWindow->proportions[1] = max(quoteW.pWindow->proportions[1], quoteW.pWindow->proportions[0]);
 	if (IsTooNarrowWindow(*quoteW.pWindow))
 	{

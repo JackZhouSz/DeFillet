@@ -1,0 +1,36 @@
+/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=/Applications/CLion.app/Contents/bin/ninja/mac/ninja -G Ninja -S /Users/xiaowuga/Desktop/code/defillet -B /Users/xiaowuga/Desktop/code/defillet/cmake-build-release
+-- Using header-only CGAL
+-- Targeting Ninja
+-- Using /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ compiler.
+-- Running in macOS DARWIN_VERSION=23
+-- Boost include dirs: /usr/local/include
+-- Boost libraries:    
+-- ************************************************************
+--     Package : Easy3D
+--     Version : 2.5.0
+--     Type    : Release
+--     System  : 64-bit Darwin
+--     Min OSX deployment version : 10.12
+-- ************************************************************
+-- OpenGL libraries: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/System/Library/Frameworks/OpenGL.framework;/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/System/Library/Frameworks/OpenGL.framework
+-- Including Cocoa support
+-- Could NOT find OpenMP_C (missing: OpenMP_C_FLAGS OpenMP_C_LIB_NAMES) 
+-- Could NOT find OpenMP_CXX (missing: OpenMP_CXX_FLAGS OpenMP_CXX_LIB_NAMES) 
+-- Could NOT find OpenMP (missing: OpenMP_C_FOUND OpenMP_CXX_FOUND) 
+-- Could NOT find OpenMP (missing: OpenMP_C_INCLUDE_DIRS) 
+-- Could NOT find OpenMP (missing: OpenMP_C_LIBRARIES) 
+-- Could NOT find OpenMP (missing: OpenMP_CXX_INCLUDE_DIRS) 
+-- Could NOT find OpenMP (missing: OpenMP_CXX_LIBRARIES) 
+-- Setting C++11
+-- Adding target: easy3d::util (easy3d_util)
+-- Adding target: easy3d::core (easy3d_core)
+-- Adding target: easy3d::fileio (easy3d_fileio)
+-- Adding target: easy3d::kdtree (easy3d_kdtree)
+-- Found Boost: /usr/local/lib/cmake/Boost-1.84.0/BoostConfig.cmake (found version "1.84.0")  
+-- Adding target: easy3d::algo (easy3d_algo)
+-- Adding target: easy3d::renderer (easy3d_renderer)
+-- Adding target: easy3d::gui (easy3d_gui)
+-- Adding target: easy3d::viewer (easy3d_viewer)
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/xiaowuga/Desktop/code/defillet/cmake-build-release

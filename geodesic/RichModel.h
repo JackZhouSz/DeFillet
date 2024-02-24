@@ -7,7 +7,7 @@
 #include <cassert>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <windows.h>
+//#include <windows.h>
 using namespace std;
 struct EdgePoint;
 

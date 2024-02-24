@@ -1,259 +1,196 @@
 //
-// Created by xiaowuga on 12/17/2023.
+// Created by 小乌嘎 on 2024/2/10.
 //
 
 #include "defillet.h"
-#include <limits>
-#include <functional>
-#include <queue>
-#include <Xin_Wang.h>
-#include <CGAL/Polygon_mesh_processing/compute_normal.h>
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <Eigen/IterativeLinearSolvers>
-#include <Eigen/SVD>
-#include <igl/cat.h>
-#include <igl/min_quad_with_fixed.h>
-#include <Eigen/SparseLU>
-#include <algorithm>
+#include "gcp.h"
+#include <numeric>
 #include <easy3d/core/surface_mesh.h>
-#include <igl/massmatrix.h>
-#include <igl/cotmatrix.h>
-#include <igl/invert_diag.h>
+#include <Xin_Wang.h>
+
+#include <Eigen/Sparse>
+#include <Eigen/SparseLU>
 #include <unsupported/Eigen/KroneckerProduct>
 
+#include <igl/cat.h>
 
 namespace DEFILLET {
 
-    void computes_vertices_density_field(const std::vector<Point>& vertices,
-                                         double radius,
-                                         std::vector<double>& density_field) {
-        int nb_vertices = vertices.size();
+    void compute_fillet_field_v1(const std::vector<Eigen::Vector3d>& points,
+                              const std::vector<std::vector<size_t>>& faces,
+                              const std::vector<Eigen::Vector3d>& vor_vertices,
+                              const std::vector<std::vector<int>>& vor_site_poles,
+                              std::vector<double>& density_field,
+                              std::vector<double>& fillet_field,
+                              std::vector<size_t>& fillet_poles,
+                              double eps) {
+
+        Eigen::AlignedBox3d boundingBox;
+        int nb_points = points.size();
+        for(int i = 0; i < nb_points; i++) {
+            boundingBox.extend(points[i]);
+        }
+        double diagonal = boundingBox.diagonal().norm();
+        double radius = diagonal * eps;
+        std::cout << "eps = " << eps << " " << "diagonal = " << diagonal << " " << "radius = " <<  radius << std::endl;
+        int nb_vertices = vor_vertices.size();
         std::vector<KNN::Point> knn_vertices;
-        cgal_points_convert_to_knn_points(vertices, knn_vertices);
+        UTILS::eigen_points_to_knn_points(vor_vertices, knn_vertices);
         KNN::KdSearch kds(knn_vertices);
         density_field.resize(nb_vertices);
         for(int i = 0; i < nb_vertices; i++) {
-            std::vector<int> neighbors;
+            std::vector<size_t> neighbors;
             std::vector<double> squared_distances;
             int num = kds.radius_search(knn_vertices[i], radius, neighbors, squared_distances);
             density_field[i] = num;
         }
-
-//        double_vector1D_data_normalize(density_field);
-    }
-
-    void compute_sites_pole_radius_field(const std::vector<Point>& sites,
-                                         const std::vector<Point>& vertices,
-                                         const std::vector<std::vector<int>>& site_regions,
-                                         const std::vector<double>& vertices_density_field,
-                                         std::vector<double>& site_density_field,
-                                         std::vector<double>& site_pole_radius_field) {
-        int nb_sites = sites.size();
-        int nb_vertices = vertices.size();
-
-        site_density_field.resize(nb_sites);
-        site_pole_radius_field.resize(nb_sites);
-
-        for(int i = 0; i < nb_sites; i++) {
-            const Point& s = sites[i];
-            const std::vector<int>& region = site_regions[i];
-            int nb_region = region.size();
-            int pole_id1 = 0;
-            double max_value1 = std::numeric_limits<double>::min();
-            for(int j = 0; j < nb_region; j++) {
-                double len = std::sqrt(CGAL::squared_distance(vertices[region[j]], s));
-                if(max_value1 < len) {
-                    max_value1 = len;
-                    pole_id1 = region[j];
-                }
+        UTILS::vector_normalize(density_field);
+        double max_len = std::numeric_limits<double>::min();
+        double min_len = std::numeric_limits<double>::max();
+        for(int i = 0; i < nb_points; i++) {
+            for(size_t j = 0; j < vor_site_poles[i].size(); j++) {
+                int id = vor_site_poles[i][j];
+                double len = (vor_vertices[id] - points[i]).norm();
+//                std::cout << len << std::endl;
+                max_len = std::max(max_len, len);
+                min_len = std::min(min_len, len);
             }
-
-            int pole_id2 = -1;
-            double max_value2 = std::numeric_limits<double>::min();
-            for(int j = 0; j < nb_region; j++) {
-                double len = std::sqrt(CGAL::squared_distance(vertices[region[j]], s));
-                auto v1 = vertices[pole_id1] - s;
-                auto v2 =  vertices[region[j]] - s;
-                double dot_value = v1.x() * v2.x() + v1.y() * v2.y() + v1.z() * v2.z();
-
-                if(dot_value < 0 && max_value2 < len) {
-                    max_value2 = len;
-                    pole_id2 = region[j];
-                }
-            }
-            double max_value = 0;
-            int id = pole_id1;
-            if(pole_id2 == -1) {
-                id = pole_id1;
-                max_value = max_value1;
-            }
-            else {
-//                if(vertices_density_field[pole_id1] > vertices_density_field[pole_id2]) {
-//                    id = pole_id1;
-//                    max_value = max_value1;
-//                }
-//                else {
-//                    id = pole_id2;
-//                    max_value = max_value2;
-//                }
-
-                if(vertices_density_field[pole_id1] / max_value1 > vertices_density_field[pole_id2] / max_value2) {
-                    id = pole_id1;
-                    max_value = max_value1;
-                }
-                else {
-                    id = pole_id2;
-                    max_value = max_value2;
-                }
-            }
-
-            site_pole_radius_field[i] = max_value;
-            site_density_field[i] = vertices_density_field[id];
         }
-
-    }
-
-    void compute_sites_pole_radius_field1(const std::vector<Point>& sites,
-                                         const std::vector<Point>& vertices,
-                                         const std::vector<std::vector<int>>& site_regions,
-                                         const std::vector<double>& vertices_density_field,
-                                         std::vector<double>& site_density_field,
-                                         std::vector<double>& site_pole_radius_field,
-                                         std::vector<int>& site_to_vertices,
-                                         std::vector<std::vector<int>>& dsa) {
-        int nb_sites = sites.size();
-        int nb_vertices = vertices.size();
-        site_density_field.resize(nb_sites);
-        site_pole_radius_field.resize(nb_sites);
-        site_to_vertices.resize(nb_sites);
-
-        dsa.clear();
-        dsa.resize(vertices.size());
-
-        for(int i = 0; i < nb_sites; i++) {
-            const Point& s = sites[i];
-            const std::vector<int>& region = site_regions[i];
-            int nb_region = region.size();
-            int pole_id1 = 0;
-            double max_value1 = std::numeric_limits<double>::min();
-            for(int j = 0; j < nb_region; j++) {
-                double len = std::sqrt(CGAL::squared_distance(vertices[region[j]], s));
-                if(max_value1 < len) {
-                    max_value1 = len;
-                    pole_id1 = region[j];
-                }
+        std::cout << max_len << ' ' << min_len << std::endl;
+        fillet_field.resize(nb_points);
+        fillet_poles.resize(nb_points);
+        for(int i = 0; i < nb_points; i++) {
+            double maxx = 0;
+            size_t max_id = vor_site_poles[i][0];
+            for(size_t j = 0 ; j < vor_site_poles[i].size(); j++) {
+                 int id = vor_site_poles[i][j];
+                 double len = ((vor_vertices[id] - points[i]).norm() - min_len) / (max_len - min_len) + 1e-2;
+//                 std::cout << len << std::endl;
+//                 double len = (vor_vertices[id] - points[i]).norm();
+                 double val = density_field[id] / len;
+//                 std::cout << val << std::endl;
+                 if(maxx < val) {
+                     maxx = val;
+                     max_id = id;
+                 }
             }
-
-            int pole_id2 = -1;
-            double max_value2 = std::numeric_limits<double>::min();
-            for(int j = 0; j < nb_region; j++) {
-                double len = std::sqrt(CGAL::squared_distance(vertices[region[j]], s));
-                auto v1 = vertices[pole_id1] - s;
-                auto v2 =  vertices[region[j]] - s;
-                double dot_value = v1.x() * v2.x() + v1.y() * v2.y() + v1.z() * v2.z();
-
-                if(dot_value < 0 && max_value2 < len) {
-                    max_value2 = len;
-                    pole_id2 = region[j];
-                }
-            }
-            double max_value = 0;
-            int id = pole_id1;
-
-            if(pole_id2 == -1) {
-                id = pole_id1;
-                max_value = max_value1;
-                dsa[id].emplace_back(i);
-            }
-            else {
-//                if(vertices_density_field[pole_id1] > vertices_density_field[pole_id2]) {
-//                    id = pole_id1;
-//                    max_value = max_value1;
-//                }
-//                else {
-//                    id = pole_id2;
-//                    max_value = max_value2;
-//                }
-                dsa[pole_id1].emplace_back(i);
-                dsa[pole_id2].emplace_back(i);
-                if(vertices_density_field[pole_id1] / max_value1 > vertices_density_field[pole_id2] / max_value2) {
-                    id = pole_id1;
-                    max_value = max_value1;
-
-                }
-                else {
-                    id = pole_id2;
-                    max_value = max_value2;
-                }
-            }
-
-            site_pole_radius_field[i] = max_value;
-            site_density_field[i] = vertices_density_field[id];
-            site_to_vertices[i] = id;
+            fillet_field[i] = maxx;
+            fillet_poles[i] = max_id;
         }
-
-
+        UTILS::vector_normalize(fillet_field);
     }
 
-    void run_graph_cut(const std::vector<double>& node_weight,
-                       const std::vector<std::pair<int,int>>& edges,
-                       const std::vector<double>& edge_weight,
-                       std::vector<int>& labels,
+    void compute_fillet_field(const std::vector<Eigen::Vector3d>& points,
+                              const std::vector<std::vector<size_t>>& faces,
+                              const std::vector<Eigen::Vector3d>& vor_vertices,
+                              const std::vector<std::vector<int>>& vor_site_poles,
+                              std::vector<double>& density_field,
+                              std::vector<double>& fillet_field,
+                              std::vector<size_t>& fillet_poles,
+                              double eps,
+                              double radius) {
+
+        Eigen::AlignedBox3d boundingBox;
+        int nb_points = points.size();
+        for(int i = 0; i < nb_points; i++) {
+            boundingBox.extend(points[i]);
+        }
+        double diagonal = boundingBox.diagonal().norm();
+        if(radius < 0.0)
+            radius = diagonal * eps;
+        std::cout << "eps = " << eps << ", " << "diagonal = " << diagonal << ", " << "radius = " <<  radius << std::endl;
+        int nb_vertices = vor_vertices.size();
+        std::vector<KNN::Point> knn_vertices;
+        UTILS::eigen_points_to_knn_points(vor_vertices, knn_vertices);
+        KNN::KdSearch kds(knn_vertices);
+        density_field.resize(nb_vertices);
+        for(int i = 0; i < nb_vertices; i++) {
+            std::vector<size_t> neighbors;
+            std::vector<double> squared_distances;
+            int num = kds.radius_search(knn_vertices[i], radius, neighbors, squared_distances);
+            density_field[i] = num;
+        }
+        UTILS::vector_normalize(density_field);
+//        double max_len = std::numeric_limits<double>::min();
+//        double min_len = std::numeric_limits<double>::max();
+//        for(int i = 0; i < nb_points; i++) {
+//            for(size_t j = 0; j < vor_site_poles[i].size(); j++) {
+//                int id = vor_site_poles[i][j];
+//                double len = (vor_vertices[id] - points[i]).norm();
+//                max_len = std::max(max_len, len);
+//                min_len = std::min(min_len, len);
+//            }
+//        }
+//        std::cout << max_len << ' ' << min_len << std::endl;
+        fillet_field.resize(nb_points);
+        fillet_poles.resize(nb_points);
+        for(int i = 0; i < nb_points; i++) {
+            double maxx = 0;
+            size_t max_id = vor_site_poles[i][0];
+            for(size_t j = 0 ; j < vor_site_poles[i].size(); j++) {
+                int id = vor_site_poles[i][j];
+                double len = (vor_vertices[id] - points[i]).norm();
+                double val = density_field[id] / len;
+                if(maxx < val) {
+                    maxx = val;
+                    max_id = id;
+                }
+            }
+            fillet_field[i] = maxx;
+            fillet_poles[i] = max_id;
+        }
+        UTILS::vector_normalize(fillet_field);
+    }
+
+    void run_graph_cut(const std::vector<Eigen::Vector3d>& points,
+                       const std::vector<std::vector<size_t>>& faces,
+                       const std::vector<Eigen::Vector3d>& vor_vertices,
+                       const std::vector<size_t>& fillet_poles,
+                       std::vector<double>& fillet_field,
+                       std::vector<double>& labels,
                        double alpha,
                        double thr) {
+        UTILS::vector_normalize(fillet_field);
+        if(thr < 0.0) {
+            thr = UTILS::threshold_otsu(fillet_field, 255);
+            std::cout << "thr = " << thr << std::endl;
+        }
+//        thr = 0.24;
+        int nb_points = points.size();
+        std::vector<double> data_cost(2 * nb_points);
 
-        int nb_node = node_weight.size();
-        int nb_edges = edges.size();
-        int nb_labels = 2;
-
-        std::vector<double> data_cost(2 * nb_node);
-        for(int i = 0; i < nb_node; i++) {
-//            data_cost[i] = node_weight[i] / (nb_node);
-//            data_cost[i + nb_node] = (1.0 - node_weight[i]) / (nb_node);
-            if(node_weight[i] > thr) {
-                data_cost[i] = 1.0 / (nb_node);
-                data_cost[i + nb_node] = 0;
-//                  data_cost[i] = (node_weight[i] - thr) / (1.0 - thr);
-//                  data_cost[i + nb_node] = 1.0 - (node_weight[i] - thr) / (1.0 - thr);
+        std::vector<std::vector<std::pair<int,double>>> graph;
+        UTILS::extract_vertex_graph_from_mesh(points, faces, graph);
+        for(int i = 0; i < nb_points; i++) {
+            std::set<size_t> neighbors;
+            UTILS::extract_k_ring_neighboring(graph, i, 1, neighbors);
+            int num = neighbors.size();
+            int ct = 0;
+            for(auto j : neighbors) {
+                if(fillet_field[j] > thr)
+                    ct++;
             }
-            else  {
-                data_cost[i] = 0;
-                data_cost[i + nb_node] = 1.0 / (nb_node);
-//                data_cost[i] = node_weight[i];
-//                data_cost[i + nb_node] = 1.0 - (nb_node);
-            }
-
+            data_cost[i] = 1.0 * ct / (2 * nb_points);
+            data_cost[i + nb_points] = 1.0 * (num - ct) / (2 * nb_points);
         }
 
-        std::vector<double> final_edge_weight(nb_edges);
-        double sum_edge_weight = 0;
-//        for(int i = 0; i < nb_edges; i++) {
-//            sum_edge_weight += edge_weight[i];
-//        }
+        std::vector<std::pair<int,int>> edges;
+        std::vector<double> edge_weights;
+        UTILS::extract_edge_from_mesh(points, faces, edges, edge_weights);
+        int nb_edges = edges.size();
+        double edges_sum = std::accumulate(edge_weights.begin(), edge_weights.end(), 0.0f);
+//        std::cout << edges_sum << std::endl;
+        std::vector<double> smooth_cost(nb_edges);
 
         for(int i = 0; i < nb_edges; i++) {
-            final_edge_weight[i] = alpha * edge_weight[i];
-            sum_edge_weight += alpha * edge_weight[i];
+            double val = alpha * edge_weights[i] / edges_sum;
+            smooth_cost[i] = val;
         }
-        double tmp_sum = 0;
-//        for(int i = 0; i < nb_edges; i++) {
-//            int x = edges[i].first;
-//            int y = edges[i].second;
-//            double z = std::abs(node_weight[x] - node_weight[y]) * alpha;
-////            final_edge_weight[i] = alpha * edge_weight[i] / sum_edge_weight;
-//            final_edge_weight[i] += z;
-//            tmp_sum += z;
-//        }
-        for(int i = 0; i < final_edge_weight.size(); i++) {
-//            if(tmp_sum > 0)
-                final_edge_weight[i] /= (tmp_sum + sum_edge_weight);
-        }
-        DataCost data_item(data_cost, nb_node, nb_labels);
-        SmoothCost smooth_item(edges, final_edge_weight);
 
-        GCoptimizationGeneralGraph gcp(nb_node, 2);
+        GCP::DataCost data_item(data_cost, nb_points, 2);
+        GCP::SmoothCost smooth_item(edges, smooth_cost);
+
+        GCoptimizationGeneralGraph gcp(nb_points, 2);
         gcp.setVerbosity(0);
         for(int i = 0; i < nb_edges; i++) {
             int x = edges[i].first;
@@ -265,210 +202,166 @@ namespace DEFILLET {
         gcp.setSmoothCostFunctor(&smooth_item);
 
         std::cout << "Before optimization energy is " << gcp.compute_energy() << std::endl;
-        gcp.expansion(100);
+        gcp.expansion(10);
         std::cout << "After optimization energy is " << gcp.compute_energy() << std::endl;
-
-        labels.resize(nb_node);
-        for(int i = 0; i < nb_node; i++) {
-            if(gcp.whatLabel(i) == 0) {
-                labels[i] = 0;
-            } else {
-                labels[i] = 1;
-            }
-        }
-    }
-
-
-    void find_island(const std::vector<std::vector<std::pair<int,double>>>& mesh_graph,
-                          std::vector<double>& scalar_field,
-                          std::vector<int>& island,
-                          double scalar_thr,
-                          double island_thr) {
-        int nb_node = mesh_graph.size();
-        std::vector<bool> vis(nb_node ,false);
-        std::vector<int> cur_island;
-        island.clear();
-
-        std::function<void(int)> dfs1 = [&](int k) {
-            vis[k] = true;
-            cur_island.emplace_back(k);
-            int num = mesh_graph[k].size();
-            for(int i = 0; i < num; i++){
-                int cur_node = mesh_graph[k][i].first;
-                if(!vis[cur_node]) {
-                    if(scalar_field[cur_node] < scalar_thr) {
-
-                        dfs1(cur_node);
-                    }
-                }
-            }
-        };
-
-        for(int i = 0; i < nb_node; i++) {
-            if(!vis[i] && scalar_field[i] < scalar_thr) {
-                cur_island.clear();
-                dfs1(i);
-                if(cur_island.size() < island_thr) {
-                    island.insert(island.end(), cur_island.begin(), cur_island.end());
-                }
-            }
-        }
-
-        std::function<void(int)> dfs2 = [&](int k) {
-            vis[k] = true;
-            cur_island.emplace_back(k);
-            int num = mesh_graph[k].size();
-            for(int i = 0; i < num; i++){
-                int cur_node = mesh_graph[k][i].first;
-                if(!vis[cur_node]) {
-                    if(scalar_field[cur_node] > scalar_thr) {
-
-                        dfs2(cur_node);
-                    }
-                }
-            }
-        };
-
-
-        vis.resize(nb_node, false);
-
-        for(int i = 0; i < nb_node; i++) {
-            if(!vis[i] && scalar_field[i] > scalar_thr) {
-                cur_island.clear();
-                dfs2(i);
-                if(cur_island.size() < island_thr) {
-                    island.insert(island.end(), cur_island.begin(), cur_island.end());
-                }
-            }
-        }
-
-
-    }
-
-    void corrosion_island(const std::vector<Point>& points,
-                          const std::vector<int> island,
-                          double radius,
-                          double scalar_thr,
-                          std::vector<double>& scalar_field) {
-        std::vector<KNN::Point> knn_points;
-        cgal_points_convert_to_knn_points(points, knn_points);
-        KNN::KdSearch kds(knn_points);
-        int nb_island = island.size();
-        for(int i = 0; i < nb_island; i++) {
-            int id = island[i];
-            std::vector<int> neighbors;
-            std::vector<double> squared_distances;
-            int num = kds.radius_search(knn_points[id], radius, neighbors, squared_distances);
-            double val = scalar_field[id] > scalar_thr ? 1.0 : 0;
-            double max_value = 0.0, min_value = 1.0;
-            for(int i = 0; i < num; i++) {
-                max_value = std::max(scalar_field[neighbors[i]], max_value);
-                min_value = std::min(scalar_field[neighbors[i]], min_value);
-            }
-            scalar_field[id] = scalar_field[id] > scalar_thr ? min_value : max_value;
-        }
-    }
-
-    void classify_defillet_triangle_via_vertices_voting(const std::vector<std::vector<size_t>>& f_ind,
-                                                        const std::vector<double>& vertices_field,
-                                                        double thr,
-                                                        std::vector<bool>& is_fillet) {
-        int nb_faces = f_ind.size();
-
-        is_fillet.resize(nb_faces);
-        for(int i = 0; i < nb_faces; i++) {
-            int ct  = 0, num = f_ind[i].size();
-            for(int j = 0 ; j < num; j++) {
-                int id = f_ind[i][j];
-                if(vertices_field[id] > thr) {
-                    ct++;
-                }
-                else {
-                    ct--;
-                }
-            }
-            if(ct > 0) {
-                is_fillet[i] = true;
-            } else {
-                is_fillet[i] = false;
-            }
-        }
-
-    }
-
-    void extract_interest_region(const std::vector<Point>& points,
-                               const std::vector<std::vector<size_t>>& faces,
-                               const std::vector<bool>& is_fillet,
-                               std::vector<Point>& fillet_points,
-                               std::vector<std::vector<size_t>>& fillet_faces,
-                               std::vector<int>& point_map_table,
-                               std::vector<int>& faces_map_table,
-                               std::vector<bool>& face_labels) {
-
-        Surface_mesh mesh;
-        int nb_points = points.size(), nb_faces = faces.size();
-
+        std::cout << gcp.giveDataEnergy() << ' ' << gcp.giveSmoothEnergy() << std::endl;
+        labels.resize(nb_points);
         for(int i = 0; i < nb_points; i++) {
-            mesh.add_vertex(points[i]);
+            if(gcp.whatLabel(i) == 0) {
+                labels[i] = 0.0;
+            } else {
+                labels[i] = 1.0;
+            }
+        }
+    }
+
+    void run_graph_cut_v1(std::vector<Eigen::Vector3d>& points,
+                       std::vector<std::vector<size_t>>& faces,
+                       std::vector<double>& fillet_field,
+                       std::vector<double>& labels,
+                       double alpha) {
+        std::vector<std::pair<int,int>> edges;
+        std::vector<double> edge_weights1;
+        UTILS::extract_edge_from_mesh(points, faces, edges, edge_weights1);
+        UTILS::vector_normalize(fillet_field);
+        UTILS::vector_normalize(edge_weights1);
+        double thr = UTILS::threshold_otsu(fillet_field, 100);
+//        thr *= 0.9;
+        std::cout << "thr = " << thr << std::endl;
+        int nb_points = points.size();
+        std::vector<double> data_cost(2 * nb_points);
+        for(int i = 0; i < nb_points; i++) {
+            if(fillet_field[i] > thr) {
+                data_cost[i] = 1.0;
+                data_cost[i + nb_points] = 0.0;
+//                data_cost[i] = 0.5 + 0.5 * (fillet_field[i] - thr) / (1 - thr);
+//                data_cost[i + nb_points] = 1.0 - data_cost[i];
+            } else {
+                data_cost[i] = 0;
+                data_cost[i + nb_points] = 1.0;
+//                data_cost[i] = 0.5 * fillet_field[i] / thr;
+//                data_cost[i + nb_points] = 1.0 - data_cost[i];
+            }
+        }
+        int nb_edges = edges.size();
+        std::vector<double> edge_weights2(nb_edges);
+        for(int i = 0; i < nb_edges; i++) {
+            double len = (points[edges[i].first] - points[edges[i].second]).norm();
+            edge_weights2[i] = len * alpha;
+        }
+        UTILS::vector_normalize(edge_weights2);
+        for(int i = 0; i < nb_edges; i++) {
+            edge_weights1[i] *= alpha;
+        }
+        std::vector<double> smooth_cost(nb_edges);
+        for(int i = 0; i < nb_edges; i++) {
+            smooth_cost[i] = edge_weights1[i];
+//            smooth_cost[i] = (edge_weights1[i] + edge_weights2[i]) / 2;
+        }
+        GCP::DataCost data_item(data_cost, nb_points, 2);
+        GCP::SmoothCost smooth_item(edges, smooth_cost);
+
+        GCoptimizationGeneralGraph gcp(nb_points, 2);
+        gcp.setVerbosity(0);
+        for(int i = 0; i < nb_edges; i++) {
+            int x = edges[i].first;
+            int y = edges[i].second;
+            gcp.setNeighbors(x, y);
         }
 
+        gcp.setDataCostFunctor(&data_item);
+        gcp.setSmoothCostFunctor(&smooth_item);
+
+        std::cout << "Before optimization energy is " << gcp.compute_energy() << std::endl;
+        gcp.expansion(10);
+        std::cout << "After optimization energy is " << gcp.compute_energy() << std::endl;
+        std::cout << gcp.giveDataEnergy() << ' ' << gcp.giveSmoothEnergy() << std::endl;
+        labels.resize(nb_points);
+        for(int i = 0; i < nb_points; i++) {
+            if(gcp.whatLabel(i) == 0) {
+                labels[i] = 0.1;
+            } else {
+                labels[i] = 1.0;
+            }
+        }
+    }
+
+    void extract_interest_region(const std::vector<Eigen::Vector3d>& points,
+                                 const std::vector<std::vector<size_t>>& faces,
+                                 const std::vector<double>& label,
+                                 std::vector<Eigen::Vector3d>& fillet_points,
+                                 std::vector<std::vector<size_t>>& fillet_faces,
+                                 std::vector<int>& point_map,
+                                 std::vector<size_t>& fillet_bounding,
+                                 std::vector<Eigen::Vector3d>& fillet_bounding_normals) {
+        easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
+        int nb_points = points.size();
+        for(int i = 0; i < nb_points; i++) {
+            mesh->add_vertex(easy3d::vec3(points[i].x(),
+                                          points[i].y(), points[i].z()));
+        }
+
+        int nb_faces = faces.size();
         for(int i = 0; i < nb_faces; i++) {
-            mesh.add_face(Vertex_index(faces[i][0])
-                    ,Vertex_index(faces[i][1]), Vertex_index(faces[i][2]));
+            auto v1 = easy3d::SurfaceMesh::Vertex(faces[i][0]);
+            auto v2 = easy3d::SurfaceMesh::Vertex(faces[i][1]);
+            auto v3 = easy3d::SurfaceMesh::Vertex(faces[i][2]);
+            mesh->add_triangle(v1, v2, v3);
         }
 
-        std::set<int> interest_face;
-
-        for(auto f : mesh.faces()) {
-            if(is_fillet[f.idx()]) {
-                for(auto af : mesh.faces_around_face(mesh.halfedge(f))) {
-                    interest_face.insert(af.idx());
+        std::set<easy3d::SurfaceMesh::Face> faces_set;
+        std::set<easy3d::SurfaceMesh::Vertex> vertex_set;
+        std::set<easy3d::SurfaceMesh::Vertex> bounding_set;
+        for(auto f : mesh->faces()) {
+            int flag = 0;
+            for(auto v : mesh->vertices(f)) {
+                flag |= int(label[v.idx()] + 0.1);
+            }
+            if(flag) {
+                faces_set.insert(f);
+                for(auto v : mesh->vertices(f)) {
+                    vertex_set.insert(v);
+                    flag = int(label[v.idx()] + 0.1);
+                    if(flag == 0) {
+                        bounding_set.insert(v);
+                    }
                 }
-                interest_face.insert(f.idx());
             }
         }
 
-        std::set<int> interest_vertex;
-
-        for(auto fi : interest_face) {
-            auto f = Face_index (fi);
-            for(auto fv : mesh.vertices_around_face(mesh.halfedge(f))) {
-                interest_vertex.insert(fv.idx());
-            }
+        point_map.resize(vertex_set.size());
+        std::map<int, size_t> mp;
+        size_t id = 0;
+        for(auto v : vertex_set) {
+            point_map[id] = v.idx();
+            mp[v.idx()] = id++;
+            easy3d::vec3 p = mesh->position(v);
+            fillet_points.emplace_back(Eigen::Vector3d(p.x, p.y, p.z));
         }
 
-        fillet_points.clear();
-        point_map_table.clear();
-        std::map<int,int> point_map;
-        for(auto vi : interest_vertex) {
-            point_map[vi] = point_map_table.size();
-            point_map_table.emplace_back(vi);
-            fillet_points.emplace_back(points[vi]);
-        }
-
-        fillet_faces.clear();
-        faces_map_table.clear();
-        face_labels.clear();
-        for(auto fi : interest_face) {
+        for(auto f : faces_set) {
             std::vector<size_t> tmp;
-            int num = faces[fi].size();
-            for(int i = 0; i < num; i++) {
-                tmp.emplace_back(point_map[faces[fi][i]]);
+            for(auto v : mesh->vertices(f)) {
+                tmp.emplace_back(mp[v.idx()]);
             }
             fillet_faces.emplace_back(tmp);
-            faces_map_table.emplace_back(fi);
-            face_labels.emplace_back(is_fillet[fi]);
         }
 
-
+        for(auto v : bounding_set) {
+            int id = mp[v.idx()];
+            easy3d::vec3 n = mesh->compute_vertex_normal(v);
+            fillet_bounding.emplace_back(id);
+            fillet_bounding_normals.emplace_back(Eigen::Vector3d(n.x, n.y, n.z));
+        }
     }
 
-    void run_geodesic(const std::vector<Point>& points,
+    void run_geodesic(const std::vector<Eigen::Vector3d>& points,
                       const std::vector<std::vector<size_t>>& faces,
-                      const std::vector<int>& centroid,
-                      const std::vector<bool>& centroid_labels,
-                      std::vector<int>& ancestor,
-                      std::vector<double>& distance) {
+                      std::vector<size_t>& sources,
+                      const std::vector<Eigen::Vector3d>& sources_normals,
+                      std::vector<size_t>& ancestor,
+                      std::vector<double>& distance,
+                      std::vector<Eigen::Vector3d>& normals) {
         int nb_points = points.size();
         std::vector<CPoint3D> xin_points;
         for(int i = 0; i < nb_points; i++) {
@@ -485,412 +378,61 @@ namespace DEFILLET {
         }
 
         CRichModel mesh(xin_points, xin_faces);
-        std::set<int> sources;
-
-        int nb_centroid = centroid.size();
-        for(int i = 0; i < nb_centroid; i++) {
-            if(!centroid_labels[i]) {
-                sources.insert(centroid[i]);
-            }
-        }
-        CXin_Wang alg(mesh, sources);
+        std::set<int> xin_sources(sources.begin(), sources.end());
+        CXin_Wang alg(mesh, xin_sources);
         alg.Execute();
 
-//        std::cout << nb_points << ' ' << mesh.GetNumOfVerts() << std::endl;
         ancestor.resize(nb_points);
         distance.resize(nb_points);
+        normals.resize(nb_points);
 
+        int nb_sources = sources.size();
+        std::map<int,int> mp;
+        for(int i = 0; i < nb_sources; i++) {
+            mp[sources[i]] = i;
+        }
         for(int i = 0; i < nb_points; i++) {
             ancestor[i] = alg.GetAncestor(i);
+//            std::cout << ancestor[i] << std::endl;
+            normals[i] = sources_normals[mp[ancestor[i]]];
             distance[i] = alg.GetDistanceField()[i];
         }
     }
 
-
-    void geodesic_post_processing(const std::vector<Point>& points,
-                                  const std::vector<std::vector<size_t>>& faces,
-                                  const std::vector<int>& ancestor,
-                                  const std::vector<bool>& face_labels,
-                                  std::vector<Vector_3>& target_normals,
-                                  std::vector<int>& fixed_points,
-                                  std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector,
-                                  double angle_thr) {
-
-        int nb_points = points.size();
-        int nb_faces = faces.size();
-        std::vector<int> new_ancestor(ancestor.begin() + points.size(), ancestor.end());
-
-        for(int i = 0; i < nb_faces; i++) {
-            new_ancestor[i] -= nb_points;
-        }
-
-
-        Surface_mesh mesh;
-        for(int i = 0; i < nb_points; i++) {
-            mesh.add_vertex(Point(points[i][0], points[i][1], points[i][2]));
-        }
-
-        for(int i = 0; i < nb_faces; i++) {
-            mesh.add_face(Vertex_index(faces[i][0])
-                    ,Vertex_index(faces[i][1]), Vertex_index(faces[i][2]));
-        }
-        typedef boost::graph_traits<Surface_mesh>::face_descriptor face_descriptor;
-        auto fnormals = mesh.add_property_map<face_descriptor, Vector_3>("f:normals", CGAL::NULL_VECTOR).first;
-        CGAL::Polygon_mesh_processing::compute_face_normals(mesh,  fnormals);
-
-
-        target_normals.resize(nb_faces);
-        for(int i = 0; i < nb_faces; i++) {
-            int id = new_ancestor[i];
-            target_normals[i] = fnormals[face_descriptor(id)];
-        }
-
-        edge_vector.clear();
-        std::set<int> fixed_faces_set;
-        for (const Edge_index& edge : mesh.edges()) {
-
-            // 获取边的两个半边
-            Halfedge_index he1 = mesh.halfedge(edge, 0);
-            Halfedge_index he2 = mesh.halfedge(edge, 1);
-//            std::cout << "ASD1" << std::endl;
-            Face_index f1 = mesh.face(he1);
-            Face_index f2 = mesh.face(he2);
-            if(f1.idx() >= nb_faces || f2.idx() >= nb_faces) {
-//                if(f1.idx() < nb_faces) {
-//                    fixed_faces_set.insert(f1.idx());
-//                }
-//                if(f2.idx() < nb_faces) {
-//                    fixed_faces_set.insert(f2.idx());
-//                }
-                continue;
-            }
-            Eigen::Vector3d tnf1 = Eigen::Vector3d(target_normals[f1.idx()].x(),
-                                                  target_normals[f1.idx()].y(), target_normals[f1.idx()].z()).normalized();
-            Eigen::Vector3d tnf2 = Eigen::Vector3d(target_normals[f2.idx()].x(),
-                                                  target_normals[f2.idx()].y(), target_normals[f2.idx()].z()).normalized();
-
-            double dot_product = tnf1.dot(tnf2);
-
-            // 计算夹角（弧度）
-
-            double angle_radians = std::acos(dot_product);
-//            std::cout << angle_radians << std::endl;
-            // 将弧度转换为角度
-            double angle_degrees = angle_radians * 180.0 / M_PI;
-
-            if(angle_degrees < angle_thr) {
-                Eigen::Vector3d onf1 = Eigen::Vector3d(fnormals[f1].x(),
-                                                       fnormals[f1].y(), fnormals[f1].z()).normalized();
-
-                int id1 = mesh.source(he1).idx();
-                int id2 = mesh.target(he1).idx();
-
-                // 计算旋转四元数
-                Eigen::Quaterniond quaternion;
-                quaternion.setFromTwoVectors(onf1, tnf1);
-
-                // 将四元数转换为旋转矩阵
-                Eigen::Matrix3d R = quaternion.toRotationMatrix();
-                Vector_3 cgal_v = points[id1] - points[id2];
-                Eigen::Vector3d v = Eigen::Vector3d(cgal_v.x(), cgal_v.y(), cgal_v.z()).normalized();
-                v = R * v;
-
-                edge_vector.emplace_back(std::make_pair(id1, std::make_pair(id2, Vector_3(v.x(), v.y(), v.z()))));
-            }
-
-
-        }
-
-        fixed_points.clear();
-        std::set<int> fixed_points_set;
-        for(int i = 0; i < nb_faces; i++) {
-            if(!face_labels[i]) {
-                int num = faces[i].size();
-                for (int j = 0; j < num; j++) {
-                    fixed_points_set.insert(faces[i][j]);
-                }
-            }
-        }
-        fixed_points.insert(fixed_points.end(), fixed_points_set.begin(), fixed_points_set.end());
-    }
-
-    bool optimize_with_fixed_solve(const std::vector<Point>& points,
-                  const std::vector<std::vector<size_t>>& faces,
-                  std::vector<Vector_3>& normals,
-                  std::vector<Point>& new_points,
-                  std::vector<int>& fixed_points,
-                  std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector) {
-        int nb_faces = faces.size();
-        int nb_points = points.size();
-        int nb_fixed_points = fixed_points.size();
-        int nb_edges = edge_vector.size();
-        std::cout << "run optimize..." << std::endl;
-        // normals constraint
-        std::cout << "add normals constraint" << std::endl;
-        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
-        Eigen::VectorXd c = Eigen::VectorXd::Zero(nb_faces * 2 + nb_edges);
+    bool optimize(const std::vector<Eigen::Vector3d>& points,
+                  const std::vector<std::pair<int,int>>& edges,
+                  std::vector<Eigen::Vector3d>& normals,
+                  std::vector<Eigen::Vector3d>& cur_normals,
+                  std::vector<Eigen::Vector3d>& new_points,
+                  std::vector<size_t>& fixed_points,
+                  double beta) {
+        int nb_points = points.size(), nb_edges = edges.size();
+        Eigen::SparseMatrix<double> NC(nb_edges * 2, nb_points * 3);
         std::vector<Eigen::Triplet<double>> triplets;
-        for(int i = 0; i < nb_faces; i++) {
-            double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
-            int v0 = faces[i][0], v1 = faces[i][1], v2 = faces[i][2];
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v0 + 1, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v0 + 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v1, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v1 + 1, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v1 + 2, -n2));
-
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v0 + 1, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v0 + 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2 + 1, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2 + 2, -n2));
-        }
-        NC.setFromTriplets(triplets.begin(), triplets.end());
-
-        // edges vector constraint
-        std::cout << "add edges vector constraint" << std::endl;
-
-        Eigen::SparseMatrix<double> EVC(nb_edges, nb_points * 3);
-        triplets.clear();
         for(int i = 0; i < nb_edges; i++) {
-            int id1 = edge_vector[i].first;
-            int id2 = edge_vector[i].second.first;
-            const Vector_3& v = edge_vector[i].second.second;
-            double c1 = v.x(), c2 = v.y(), c3 = v.z();
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1, (-c2 + c3)));
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2, (c2 - c3)));
 
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1 + 1, (c1 - c3)));
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2 + 1, (-c1 + c3)));
+            int v0 = edges[i].first, v1 = edges[i].second;
+            double nx1 = normals[v0].x(), ny1 = normals[v0].y(), nz1 = normals[v0].z();
+            double nx2 = cur_normals[v0].x(), ny2 = cur_normals[v0].y(), nz2 = cur_normals[v0].z();
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0, nx1 + nx2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points, ny1 + ny2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points * 2, nz1 + nz2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1, -(nx1 + nx2)));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points, -(ny1 + ny2)));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points * 2, -(nz1 + nz2)));
 
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1 + 2, (-c1 + c2)));
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2 + 2, (c1 - c2)));
-        }
-        EVC.setFromTriplets(triplets.begin(), triplets.end());
-
-
-        // fixed points constraint
-        std::cout << "add fixed points constraint" << std::endl;
-        Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
-        std::cout << nb_fixed_points << std::endl;
-        triplets.clear();
-        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
-        std::cout << nb_points << std::endl;
-        for(int i = 0; i < nb_fixed_points; i++) {
-            int id = fixed_points[i];
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  3 * id, 1.0)); d[ 3 * i] = points[id].x();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  3 * id + 1, 1.0)); d[3 * i + 1] = points[id].y();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  3 * id + 2, 1.0)); d[3 * i + 2] = points[id].z();
-        }
-        E.setFromTriplets(triplets.begin(), triplets.end());
-
-        std::cout << "run solver..." << std::endl;
-
-
-        Eigen::SparseMatrix<double> A;
-        igl::cat(1, NC, EVC, A);
-        Eigen::SparseMatrix<double> AT = A.transpose();
-        Eigen::SparseMatrix<double> Q = AT * A;
-        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
-        Eigen::SparseMatrix<double> ET = E.transpose();
-        Eigen::SparseMatrix<double> tempMat1;
-        Eigen::SparseMatrix<double> tempMat2;
-        Eigen::SparseMatrix<double> L;
-        igl::cat(1, Q, E, tempMat1);
-        igl::cat(1, ET, zero, tempMat2);
-        igl::cat(0, tempMat1, tempMat2, L);
-        Eigen::VectorXd b(nb_points * 3 + d.size());
-        b << Eigen::VectorXd::Zero(nb_points * 3), d;
-
-        std::cout << L.rows() << ' ' << L.cols() << std::endl;
-        igl::min_quad_with_fixed_data<double> solver_data;
-        igl::min_quad_with_fixed_precompute(L, Eigen::VectorXi(), Eigen::SparseMatrix<double>(), true, solver_data);
-        Eigen::VectorXd x(b.size(), 0);
-        for(int i = 0; i < nb_points; i++) {
-            x[3 * i] = points[i].x();
-            x[3 * i + 1] = points[i].y();
-            x[3 * i + 2] = points[i].z();
-//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
-        }
-        Eigen::MatrixXd Y(0, 3), Beq(0, 3);
-        igl::min_quad_with_fixed_solve(solver_data, b, Y, Beq, x);
-        new_points.resize(nb_points);
-        for(int i = 0; i < nb_points; i++) {
-            new_points[i] = Point(x[3 * i], x[3 * i + 1], x[3 * i + 2]);
-//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
-        }
-        std::cout << "done." << std::endl;
-        return true;
-    }
-
-    bool optimize_sparseLU(const std::vector<Point>& points,
-                           const std::vector<std::vector<size_t>>& faces,
-                           std::vector<Vector_3>& normals,
-                           std::vector<Point>& new_points,
-                           std::vector<int>& fixed_points,
-                           std::vector<std::pair<int,std::pair<int,Vector_3>>>& edge_vector) {
-        int nb_faces = faces.size();
-        int nb_points = points.size();
-        int nb_fixed_points = fixed_points.size();
-        int nb_edges = edge_vector.size();
-        std::cout << "run optimize..." << std::endl;
-        // normals constraint
-        std::cout << "add normals constraint" << std::endl;
-        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
-        Eigen::VectorXd c = Eigen::VectorXd::Zero(nb_faces * 2 + nb_edges);
-        std::vector<Eigen::Triplet<double>> triplets;
-        for(int i = 0; i < nb_faces; i++) {
-            double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
-            int v0 = faces[i][0], v1 = faces[i][1], v2 = faces[i][2];
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v0 + 1, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v0 + 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v1, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v1 + 1, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, 3 * v1 + 2, -n2));
-
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v0 + 1, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v0 + 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2 + 1, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, 3 * v2 + 2, -n2));
+            nx1 = normals[v1].x(), ny1 = normals[v1].y(), nz1 = normals[v1].z();
+            nx2 = cur_normals[v1].x(), ny2 = cur_normals[v1].y(), nz2 = cur_normals[v1].z();
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0, nx1 + nx2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points, ny1 + ny2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points * 2, nz1 + nz2));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v1, -(nx1 + nx2)));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v1 + nb_points, -(ny1 + ny2)));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v1 + nb_points * 2, -(nz1 + nz2)));
         }
         NC.setFromTriplets(triplets.begin(), triplets.end());
 
-        // edges vector constraint
-        std::cout << "add edges vector constraint" << std::endl;
-
-        Eigen::SparseMatrix<double> EVC(nb_edges, nb_points * 3);
-        triplets.clear();
-        for(int i = 0; i < nb_edges; i++) {
-            int id1 = edge_vector[i].first;
-            int id2 = edge_vector[i].second.first;
-            const Vector_3& v = edge_vector[i].second.second;
-            double c1 = v.x(), c2 = v.y(), c3 = v.z();
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1, (-c2 + c3)));
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2, (c2 - c3)));
-
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1 + 1, (c1 - c3)));
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2 + 1, (-c1 + c3)));
-
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id1 + 2, (-c1 + c2)));
-            triplets.emplace_back(Eigen::Triplet<double>(i,  3 * id2 + 2, (c1 - c2)));
-        }
-        EVC.setFromTriplets(triplets.begin(), triplets.end());
-
-
-        // fixed points constraint
-        std::cout << "add fixed points constraint" << std::endl;
-        Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
-        std::cout << nb_fixed_points << std::endl;
-        triplets.clear();
-        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
-        std::cout << nb_points << std::endl;
-        for(int i = 0; i < nb_fixed_points; i++) {
-            int id = fixed_points[i];
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  3 * id, 1.0)); d[ 3 * i] = points[id].x();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  3 * id + 1, 1.0)); d[3 * i + 1] = points[id].y();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  3 * id + 2, 1.0)); d[3 * i + 2] = points[id].z();
-        }
-        E.setFromTriplets(triplets.begin(), triplets.end());
-
-        std::cout << "run solver..." << std::endl;
-
-
-        Eigen::SparseMatrix<double> A;
-        igl::cat(1, NC, EVC, A);
-        Eigen::SparseMatrix<double> AT = A.transpose();
-        Eigen::SparseMatrix<double> Q = AT * A;
-        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
-        Eigen::SparseMatrix<double> ET = E.transpose();
-        Eigen::SparseMatrix<double> tempMat1;
-        Eigen::SparseMatrix<double> tempMat2;
-        Eigen::SparseMatrix<double> L;
-        igl::cat(1, Q, E, tempMat1);
-        igl::cat(1, ET, zero, tempMat2);
-        igl::cat(0, tempMat1, tempMat2, L);
-        Eigen::VectorXd b(nb_points * 3 + d.size());
-        b << Eigen::VectorXd::Zero(nb_points * 3), d;
-        Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-        std::cout << L.rows() << ' ' << L.cols() << std::endl;
-        solver.compute(L);
-        if(solver.info()!= Eigen::Success) {
-            std::cout << "decomposition failed" << std::endl;
-            return false;
-        }
-        Eigen::VectorXd x = solver.solve(b);
-        if(solver.info()!= Eigen::Success) {
-            // solving failed
-            std::cout << "solving failed" << std::endl;
-            return false;
-        }
-        new_points.resize(nb_points);
-        for(int i = 0; i < nb_points; i++) {
-            new_points[i] = Point(x[3 * i], x[3 * i + 1], x[3 * i + 2]);
-//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
-        }
-        std::cout << "done." << std::endl;
-        return true;
-    }
-
-    bool optimize_spareQR(const std::vector<Point>& points,
-                          const std::vector<std::vector<size_t>>& faces,
-                          std::vector<Vector_3>& normals,
-                          std::vector<Point>& new_points,
-                          std::vector<int>& fixed_points,
-                          double beta) {
-        int nb_faces = faces.size();
-        int nb_points = points.size();
         int nb_fixed_points = fixed_points.size();
-        Eigen::MatrixXd V;
-        Eigen::MatrixXi F;
-        V.resize(nb_points, 3);
-        for(int i = 0; i < nb_points; i++) {
-            V(i, 0) = points[i].x();V(i, 1) = points[i].y();V(i, 2) = points[i].z();
-        }
-        F.resize(nb_faces, 3);
-        for(int i = 0; i < nb_faces; i++) {
-            F(i, 0) = faces[i][0]; F(i, 1) = faces[i][1]; F(i, 2) = faces[i][2];
-        }
-
-        Eigen::SparseMatrix<double> C,M,Minv,L,LC;
-        igl::cotmatrix(V,F, C);
-        igl::massmatrix(V,F,igl::MASSMATRIX_TYPE_VORONOI,M);
-        igl::invert_diag(M,Minv);
-        L = Minv * C;
-
-        LC = Eigen::KroneckerProductSparse<Eigen::MatrixXd, Eigen::SparseMatrix<double>>(Eigen::MatrixXd::Identity(3, 3), L);
-
-
-        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
-        Eigen::VectorXd c = Eigen::VectorXd::Zero(nb_faces * 2);
-        std::vector<Eigen::Triplet<double>> triplets;
-        for(int i = 0; i < nb_faces; i++) {
-            double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
-            int v0 = faces[i][0], v1 = faces[i][1], v2 = faces[i][2];
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points * 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points * 2, -n2));
-
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points * 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points * 2, -n2));
-        }
-        NC.setFromTriplets(triplets.begin(), triplets.end());
-
-
-
-        // fixed points constraint
-        std::cout << "add fixed points constraint" << std::endl;
         Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
         triplets.clear();
         Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
@@ -901,246 +443,6 @@ namespace DEFILLET {
             triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0)); d[3 * i + 2] = points[id].z();
         }
         E.setFromTriplets(triplets.begin(), triplets.end());
-
-        Eigen::SparseMatrix<double> LTL = beta * LC.transpose() * LC;
-
-
-        Eigen::SparseMatrix<double> A = NC;
-        Eigen::SparseMatrix<double> AT = A.transpose();
-        Eigen::SparseMatrix<double> ATA = AT * A;
-        Eigen::SparseMatrix<double> Q = LTL + ATA;
-        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
-        Eigen::SparseMatrix<double> ET = E.transpose();
-        Eigen::SparseMatrix<double> tempMat1;
-        Eigen::SparseMatrix<double> tempMat2;
-        Eigen::SparseMatrix<double> S;
-        igl::cat(1, Q, E, tempMat1);
-        igl::cat(1, ET, zero, tempMat2);
-        igl::cat(0, tempMat1, tempMat2, S);
-        Eigen::VectorXd ab = Eigen::VectorXd::Zero(nb_points * 3);
-        Eigen::VectorXd p(nb_points * 3);
-        for(int i = 0; i < nb_points; i++) {
-            p[i] = points[i].x();
-            p[i + nb_points] = points[i].y();
-            p[i + 2 * nb_points] = points[i].z();
-        }
-        Eigen::VectorXd lb = LTL  * p;
-        Eigen::VectorXd b(nb_points * 3 + d.size());
-        b << ab + lb, d;
-        Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver; // 创建SparseQR求解器
-        std::cout << S.rows() << ' ' << S.cols() << std::endl;
-        solver.compute(S);
-        if(solver.info()!= Eigen::Success) {
-            std::cout << "decomposition failed" << std::endl;
-            return false;
-        }
-        Eigen::VectorXd x = solver.solve(b);
-        if(solver.info()!= Eigen::Success) {
-            // solving failed
-            std::cout << "solving failed" << std::endl;
-            return false;
-        }
-        new_points.resize(nb_points);
-        for(int i = 0; i < nb_points; i++) {
-            new_points[i] = Point(x[i], x[i + nb_points], x[i + 2 * nb_points]);
-//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
-        }
-        std::cout << "done." << std::endl;
-        return true;
-    }
-
-    Eigen::VectorXd solve_ldlt(const Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > &ldlt,
-                               const Eigen::VectorXd& right,
-                               double pinvtoler) {
-        Eigen::VectorXd X_0 = ldlt.permutationP() * right;
-        Eigen::VectorXd X_1 = ldlt.matrixL().solve(X_0);
-        Eigen::VectorXd X_2(ldlt.vectorD().size());
-        X_2.setZero();
-        for (int i = 0; i < ldlt.vectorD().size(); ++i)
-            if (abs(ldlt.vectorD()(i)) > pinvtoler)
-                X_2[i] = X_1[i] / ldlt.vectorD()(i);
-        Eigen::VectorXd X_3 = ldlt.matrixU().solve(X_2);
-        return ldlt.permutationPinv() * X_3;
-    }
-
-    Eigen::VectorXd solve_ldlt(const Eigen::SparseMatrix<double>& CoeffMat,
-                               const Eigen::VectorXd& right,
-                               double pinvtoler) {
-        std::cout << "begin run.." << std::endl;
-        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > ldlt(CoeffMat);
-        std::cout << "run done.." << std::endl;
-        return solve_ldlt(ldlt, right, pinvtoler);
-    }
-
-
-    bool optimize_SimplicialLDLT(const std::vector<Point>& points,
-                                 const std::vector<std::vector<size_t>>& faces,
-                                 std::vector<Vector_3>& normals,
-                                 std::vector<Point>& new_points,
-                                 std::vector<int>& fixed_points,
-                                 double beta) {
-        int nb_faces = faces.size();
-        int nb_points = points.size();
-        int nb_fixed_points = fixed_points.size();
-        Eigen::MatrixXd V;
-        Eigen::MatrixXi F;
-        V.resize(nb_points, 3);
-        for(int i = 0; i < nb_points; i++) {
-            V(i, 0) = points[i].x();V(i, 1) = points[i].y();V(i, 2) = points[i].z();
-        }
-        F.resize(nb_faces, 3);
-        for(int i = 0; i < nb_faces; i++) {
-            F(i, 0) = faces[i][0]; F(i, 1) = faces[i][1]; F(i, 2) = faces[i][2];
-        }
-
-        Eigen::SparseMatrix<double> C,M,Minv,L,LC;
-        igl::cotmatrix(V,F, C);
-        igl::massmatrix(V,F,igl::MASSMATRIX_TYPE_VORONOI,M);
-        igl::invert_diag(M,Minv);
-        L = Minv * C;
-
-        LC = Eigen::KroneckerProductSparse<Eigen::MatrixXd, Eigen::SparseMatrix<double>>(Eigen::MatrixXd::Identity(3, 3), L);
-
-
-        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
-        Eigen::VectorXd c = Eigen::VectorXd::Zero(nb_faces * 2);
-        std::vector<Eigen::Triplet<double>> triplets;
-        for(int i = 0; i < nb_faces; i++) {
-            double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
-            int v0 = faces[i][0], v1 = faces[i][1], v2 = faces[i][2];
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points * 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points * 2, -n2));
-
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points * 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points * 2, -n2));
-        }
-        NC.setFromTriplets(triplets.begin(), triplets.end());
-
-        // fixed points constraint
-        std::cout << "add fixed points constraint" << std::endl;
-        Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
-        triplets.clear();
-        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
-        for(int i = 0; i < nb_fixed_points; i++) {
-            int id = fixed_points[i];
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  id, 1.0)); d[ 3 * i] = points[id].x();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  id + nb_points, 1.0)); d[3 * i + 1] = points[id].y();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0)); d[3 * i + 2] = points[id].z();
-        }
-        E.setFromTriplets(triplets.begin(), triplets.end());
-
-        Eigen::SparseMatrix<double> LTL = beta * LC.transpose() * LC;
-
-
-        Eigen::SparseMatrix<double> A = NC;
-        Eigen::SparseMatrix<double> AT = A.transpose();
-        Eigen::SparseMatrix<double> ATA = AT * A;
-        Eigen::SparseMatrix<double> Q = LTL + ATA;
-        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
-        Eigen::SparseMatrix<double> ET = E.transpose();
-        Eigen::SparseMatrix<double> tempMat1;
-        Eigen::SparseMatrix<double> tempMat2;
-        Eigen::SparseMatrix<double> S;
-        igl::cat(1, Q, E, tempMat1);
-        igl::cat(1, ET, zero, tempMat2);
-        igl::cat(0, tempMat1, tempMat2, S);
-        Eigen::VectorXd ab = Eigen::VectorXd::Zero(nb_points * 3);
-        Eigen::VectorXd p(nb_points * 3);
-        for(int i = 0; i < nb_points; i++) {
-            p[i] = points[i].x();
-            p[i + nb_points] = points[i].y();
-            p[i + 2 * nb_points] = points[i].z();
-        }
-//        Eigen::VectorXd lb = -2 * LTL  * p;
-        Eigen::VectorXd lb = Eigen::VectorXd::Zero(nb_points * 3);
-        Eigen::VectorXd b(nb_points * 3 + d.size());
-        b << ab + lb, d;
-//        Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver; // 创建SparseQR求解器
-        Eigen::VectorXd x = solve_ldlt(S, b, 1e-6);
-
-        new_points.resize(nb_points);
-        for(int i = 0; i < nb_points; i++) {
-            new_points[i] = Point(x[i], x[i + nb_points], x[i + 2 * nb_points]);
-//            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
-        }
-        std::cout << "done." << std::endl;
-        return true;
-    }
-
-    bool optimize_SimplicialLDLT2(const std::vector<Point>& points,
-                                  const std::vector<std::vector<size_t>>& faces,
-                                  std::vector<Vector_3>& normals,
-                                  std::vector<Point>& new_points,
-                                  std::vector<int>& fixed_points,
-                                  double beta) {
-        int nb_faces = faces.size();
-        int nb_points = points.size();
-        int nb_fixed_points = fixed_points.size();
-        Eigen::MatrixXd V;
-        Eigen::MatrixXi F;
-        V.resize(nb_points, 3);
-        for(int i = 0; i < nb_points; i++) {
-            V(i, 0) = points[i].x();V(i, 1) = points[i].y();V(i, 2) = points[i].z();
-        }
-        F.resize(nb_faces, 3);
-        for(int i = 0; i < nb_faces; i++) {
-            F(i, 0) = faces[i][0]; F(i, 1) = faces[i][1]; F(i, 2) = faces[i][2];
-        }
-
-        Eigen::SparseMatrix<double> C,M,Minv,L,LC;
-        igl::cotmatrix(V,F, C);
-        igl::massmatrix(V,F,igl::MASSMATRIX_TYPE_VORONOI,M);
-        igl::invert_diag(M,Minv);
-        L = Minv * C;
-
-        LC = Eigen::KroneckerProductSparse<Eigen::MatrixXd, Eigen::SparseMatrix<double>>(Eigen::MatrixXd::Identity(3, 3), L);
-
-
-        Eigen::SparseMatrix<double> NC(nb_faces * 2, nb_points * 3);
-        Eigen::VectorXd c = Eigen::VectorXd::Zero(nb_faces * 2);
-        std::vector<Eigen::Triplet<double>> triplets;
-        for(int i = 0; i < nb_faces; i++) {
-            double n0 = normals[i].x(), n1 = normals[i].y(), n2 = normals[i].z();
-            int v0 = faces[i][0], v1 = faces[i][1], v2 = faces[i][2];
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v0 + nb_points * 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i, v1 + nb_points * 2, -n2));
-
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0, n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points, n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v0 + nb_points * 2, n2));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2, -n0));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points, -n1));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * i + 1, v2 + nb_points * 2, -n2));
-        }
-        NC.setFromTriplets(triplets.begin(), triplets.end());
-
-        // fixed points constraint
-        std::cout << "add fixed points constraint" << std::endl;
-        Eigen::VectorXd d = Eigen::VectorXd(nb_fixed_points * 3);
-        triplets.clear();
-        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
-        for(int i = 0; i < nb_fixed_points; i++) {
-            int id = fixed_points[i];
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i,  id, 1.0)); d[ 3 * i] = points[id].x();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1,  id + nb_points, 1.0)); d[3 * i + 1] = points[id].y();
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0)); d[3 * i + 2] = points[id].z();
-        }
-        E.setFromTriplets(triplets.begin(), triplets.end());
-
-        Eigen::SparseMatrix<double> LTL = beta * LC.transpose() * LC;
-
 
         Eigen::SparseMatrix<double> A = NC;
         Eigen::SparseMatrix<double> AT = A.transpose();
@@ -1163,14 +465,12 @@ namespace DEFILLET {
             p[i + nb_points] = points[i].y();
             p[i + 2 * nb_points] = points[i].z();
         }
-//        Eigen::VectorXd lb = -2 * LTL  * p;
-        Eigen::VectorXd lb = Eigen::VectorXd::Zero(nb_points * 3);
+
         Eigen::VectorXd b(nb_points * 3 + d.size());
         b << beta * p, d;
-//        Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver; // 创建SparseQR求解器
-//        Eigen::VectorXd x = solve_ldlt(S, b, 1e-6);
+
         Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-//        std::cout << L.rows() << ' ' << L.cols() << std::endl;
+
         solver.compute(S);
         if(solver.info()!= Eigen::Success) {
             std::cout << "decomposition failed" << std::endl;
@@ -1182,32 +482,69 @@ namespace DEFILLET {
             std::cout << "solving failed" << std::endl;
             return false;
         }
+
         new_points.resize(nb_points);
         for(int i = 0; i < nb_points; i++) {
-            new_points[i] = Point(x[i], x[i + nb_points], x[i + 2 * nb_points]);
+            new_points[i] = Eigen::Vector3d(x[i], x[i + nb_points], x[i + 2 * nb_points]);
 //            std::cout << x[3 * i] << ' ' << x[3 * i + 1] << ' ' << x[3 * i + 2] << std::endl;
         }
-        std::cout << "done." << std::endl;
         return true;
     }
-    bool iterative_optimize(const std::vector<Point>& points,
-                            const std::vector<std::vector<size_t>>& faces,
-                            std::vector<Vector_3>& normals,
-                            std::vector<Point>& new_points,
-                            std::vector<int>& fixed_points,
-                            double beta,
-                            int nb_optimize) {
-        std::vector<Point> old_points = points;
-        double zz = beta;
-        std::cout << "ASD" <<std::endl;
-        for(int i = 0; i < nb_optimize; i++) {
 
-            optimize_SimplicialLDLT2(old_points, faces, normals, new_points, fixed_points, zz);
-            old_points = new_points;
-            zz *= 0.8;
-//            new_points.clear();
+    bool iterative_optimize(const std::vector<Eigen::Vector3d>& points,
+                            const std::vector<std::vector<size_t>>& faces,
+                            std::vector<Eigen::Vector3d>& normals,
+                            std::vector<Eigen::Vector3d>& new_points,
+                            std::vector<size_t>& fixed_points,
+                            double beta,
+                            int num_iterations) {
+        std::vector<std::pair<int,int>> edges;
+        std::vector<double> edge_weights;
+        UTILS::extract_edge_from_mesh(points, faces, edges, edge_weights);
+        double zz = beta;
+        std::vector<Eigen::Vector3d> old_points = points;
+
+        easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
+
+        int nb_points = points.size();
+        for(int i = 0; i < nb_points; i++) {
+            mesh->add_vertex(easy3d::vec3(points[i].x(),
+                                          points[i].y(), points[i].z()));
         }
-        std::cout << "ASD"<<std::endl;
+
+        int nb_faces = faces.size();
+        for(int i = 0; i < nb_faces; i++) {
+            auto v1 = easy3d::SurfaceMesh::Vertex(faces[i][0]);
+            auto v2 = easy3d::SurfaceMesh::Vertex(faces[i][1]);
+            auto v3 = easy3d::SurfaceMesh::Vertex(faces[i][2]);
+            mesh->add_triangle(v1, v2, v3);
+        }
+        std::vector<bool> is_fixed(nb_points, false);
+        for(size_t i = 0; i < fixed_points.size(); i++) {
+            is_fixed[fixed_points[i]] = true;
+        }
+
+        for(int i = 0; i < num_iterations; i++) {
+            std::vector<Eigen::Vector3d> cur_normals(nb_points);
+            for(auto v : mesh->vertices()) {
+                if(is_fixed[v.idx()]) {
+                    cur_normals[v.idx()] = normals[v.idx()];
+                } else {
+                    easy3d::vec3 n = mesh->compute_vertex_normal(v);
+                    cur_normals[v.idx()] = Eigen::Vector3d(n.x, n.y, n.z);
+                }
+            }
+
+            optimize(old_points, edges, normals, cur_normals, new_points, fixed_points, zz);
+            old_points = new_points;
+
+            for(auto v : mesh->vertices()) {
+                auto& ver = mesh->position(v);
+                ver = easy3d::vec3(old_points[v.idx()].x(),
+                                      old_points[v.idx()].y(),
+                                      old_points[v.idx()].z());
+            }
+        }
         return true;
     }
 }

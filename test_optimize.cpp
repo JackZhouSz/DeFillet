@@ -10,7 +10,7 @@
 #include <Eigen/SparseQR>
 #include <cmath>
 #include "visualization.h"
-#include "defillet.h"
+#include "defillet1.h"
 #include <igl/massmatrix.h>
 #include <igl/cotmatrix.h>
 #include <igl/invert_diag.h>

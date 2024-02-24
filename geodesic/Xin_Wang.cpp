@@ -185,7 +185,7 @@ bool CXin_Wang::UpdateTreeDepthBackWithChoice()
 		if (!m_QueueForPseudoSources.empty())
 		{
 			const InfoAtVertex& infoOfHeadElemOfPseudoSources = m_InfoAtVertices[m_QueueForPseudoSources.top().indexOfVert];
-			m_depthOfResultingTree = max(m_depthOfResultingTree, 
+			m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 				infoOfHeadElemOfPseudoSources.levelOnSequenceTree);
 			fFromQueueOfPseudoSources = true;
 		}
@@ -195,7 +195,7 @@ bool CXin_Wang::UpdateTreeDepthBackWithChoice()
 		if (m_QueueForPseudoSources.empty())
 		{
 			const Window& infoOfHeadElemOfWindows = *m_QueueForWindows.top().pWindow;
-			m_depthOfResultingTree = max(m_depthOfResultingTree,
+			m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 				infoOfHeadElemOfWindows.levelOnSequenceTree);
 			fFromQueueOfPseudoSources = false;
 		}
@@ -206,13 +206,13 @@ bool CXin_Wang::UpdateTreeDepthBackWithChoice()
 			if (headElemOfPseudoSources.disUptodate <= 
 				headElemOfWindows.disUptodate)
 			{
-				m_depthOfResultingTree = max(m_depthOfResultingTree,
+				m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 					m_InfoAtVertices[headElemOfPseudoSources.indexOfVert].levelOnSequenceTree);
 				fFromQueueOfPseudoSources = true;
 			}
 			else
 			{
-				m_depthOfResultingTree = max(m_depthOfResultingTree,
+				m_depthOfResultingTree = std::max((int)m_depthOfResultingTree,
 					headElemOfWindows.pWindow->levelOnSequenceTree);
 				fFromQueueOfPseudoSources = false;
 			}

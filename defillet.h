@@ -55,11 +55,12 @@ namespace DEFILLET {
 
     void run_geodesic(const std::vector<Eigen::Vector3d>& points,
                       const std::vector<std::vector<size_t>>& faces,
-                      std::vector<size_t>& sources,
+                      const std::vector<size_t>& sources,
                       const std::vector<Eigen::Vector3d>& sources_normals,
                       std::vector<size_t>& ancestor,
                       std::vector<double>& distance,
-                      std::vector<Eigen::Vector3d>& normals);
+                      std::vector<Eigen::Vector3d>& point_tar_normals,
+                      std::vector<Eigen::Vector3d>& face_tar_normals);
 
     bool optimize_qem(const std::vector<Eigen::Vector3d>& points,
                   const std::vector<std::pair<int,int>>& edges,

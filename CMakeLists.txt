@@ -17,7 +17,7 @@ add_subdirectory(gcp)
 add_subdirectory(lib-easy3d)
 add_subdirectory(geodesic)
 
-add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp)
+add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
 target_link_libraries(example1 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
         igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 #add_executable(defillet main.cpp knn.cpp voronoi.cpp defillet1.cpp)

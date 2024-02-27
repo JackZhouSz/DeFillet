@@ -4,6 +4,7 @@
 
 #include "defillet.h"
 #include "gcp.h"
+#include "optimize.h"
 #include <numeric>
 #include <easy3d/core/surface_mesh.h>
 #include <Xin_Wang.h>
@@ -357,34 +358,45 @@ namespace DEFILLET {
 
     void run_geodesic(const std::vector<Eigen::Vector3d>& points,
                       const std::vector<std::vector<size_t>>& faces,
-                      std::vector<size_t>& sources,
+                      const std::vector<size_t>& sources,
                       const std::vector<Eigen::Vector3d>& sources_normals,
                       std::vector<size_t>& ancestor,
                       std::vector<double>& distance,
-                      std::vector<Eigen::Vector3d>& normals) {
+                      std::vector<Eigen::Vector3d>& point_tar_normals,
+                      std::vector<Eigen::Vector3d>& face_tar_normals) {
+
         int nb_points = points.size();
+        int nb_faces = faces.size();
+
         std::vector<CPoint3D> xin_points;
         for(int i = 0; i < nb_points; i++) {
             xin_points.emplace_back(CPoint3D(points[i].x(),
                                              points[i].y(), points[i].z()));
         }
-
-        int nb_faces = faces.size();
         std::vector<CBaseModel::CFace> xin_faces;
-
         for(int i = 0; i < nb_faces; i++) {
-            xin_faces.emplace_back(CBaseModel::CFace(faces[i][0],
-                                                     faces[i][1], faces[i][2]));
+            int num = faces[i].size();
+            Eigen::Vector3d center; center.setZero();
+            for(int j = 0; j < num; j++) {
+                center += points[faces[i][j]];
+            }
+            center /= num;
+            xin_points.emplace_back(CPoint3D(center.x(),
+                                             center.y(), center.z()));
+            for(int j = 0; j < num; j++) {
+                xin_faces.emplace_back(CBaseModel::CFace(faces[i][j],
+                                                         faces[i][(j + 1) % num], nb_points + i));
+            }
         }
 
         CRichModel mesh(xin_points, xin_faces);
         std::set<int> xin_sources(sources.begin(), sources.end());
         CXin_Wang alg(mesh, xin_sources);
         alg.Execute();
-
         ancestor.resize(nb_points);
         distance.resize(nb_points);
-        normals.resize(nb_points);
+        point_tar_normals.resize(nb_points);
+        face_tar_normals.resize(nb_faces);
 
         int nb_sources = sources.size();
         std::map<int,int> mp;
@@ -393,9 +405,13 @@ namespace DEFILLET {
         }
         for(int i = 0; i < nb_points; i++) {
             ancestor[i] = alg.GetAncestor(i);
-//            std::cout << ancestor[i] << std::endl;
-            normals[i] = sources_normals[mp[ancestor[i]]];
+            point_tar_normals[i] = sources_normals[mp[ancestor[i]]];
             distance[i] = alg.GetDistanceField()[i];
+        }
+
+        for(int i = 0; i < nb_faces; i++) {
+            int idx = alg.GetAncestor(i + nb_points);
+            face_tar_normals[i] = sources_normals[mp[ancestor[idx]]];
         }
     }
 
@@ -610,53 +626,16 @@ namespace DEFILLET {
                             std::vector<size_t>& fixed_points,
                             double beta,
                             int num_iterations) {
-        std::vector<std::pair<int,int>> edges;
-        std::vector<double> edge_weights;
-        UTILS::extract_edge_from_mesh(points, faces, edges, edge_weights);
-        double zz = beta;
-        std::vector<Eigen::Vector3d> old_points = points;
 
-        easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
-
-        int nb_points = points.size();
-        for(int i = 0; i < nb_points; i++) {
-            mesh->add_vertex(easy3d::vec3(points[i].x(),
-                                          points[i].y(), points[i].z()));
-        }
-
-        int nb_faces = faces.size();
-        for(int i = 0; i < nb_faces; i++) {
-            auto v1 = easy3d::SurfaceMesh::Vertex(faces[i][0]);
-            auto v2 = easy3d::SurfaceMesh::Vertex(faces[i][1]);
-            auto v3 = easy3d::SurfaceMesh::Vertex(faces[i][2]);
-            mesh->add_triangle(v1, v2, v3);
-        }
-        std::vector<bool> is_fixed(nb_points, false);
-        for(size_t i = 0; i < fixed_points.size(); i++) {
-            is_fixed[fixed_points[i]] = true;
-        }
+        Optimize opt(points, faces, normals, fixed_points, "edge-based", beta);
 
         for(int i = 0; i < num_iterations; i++) {
-            std::vector<Eigen::Vector3d> cur_normals(nb_points);
-            for(auto v : mesh->vertices()) {
-                if(is_fixed[v.idx()]) {
-                    cur_normals[v.idx()] = normals[v.idx()];
-                } else {
-                    easy3d::vec3 n = mesh->compute_vertex_normal(v);
-                    cur_normals[v.idx()] = Eigen::Vector3d(n.x, n.y, n.z);
-                }
+            if(!opt.solve()) {
+                return false;
             }
-
-            optimize_centroid(old_points, edges, normals, cur_normals, new_points, fixed_points, zz);
-            old_points = new_points;
-
-//            for(auto v : mesh->vertices()) {
-//                auto& ver = mesh->position(v);
-//                ver = easy3d::vec3(old_points[v.idx()].x(),
-//                                      old_points[v.idx()].y(),
-//                                      old_points[v.idx()].z());
-//            }
         }
+
+        opt.get_points(new_points);
         return true;
     }
 }

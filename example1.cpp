@@ -68,17 +68,14 @@ int main() {
     UTILS::eigen_points_to_easy3d_points(fillet_points, easy3d_fillet_points);
     std::vector<size_t> ancestor;
     std::vector<double> distance;
-    std::vector<Eigen::Vector3d> normals;
+    std::vector<Eigen::Vector3d> point_tar_normals;
+    std::vector<Eigen::Vector3d> face_tar_normals;
     DEFILLET::run_geodesic(fillet_points, fillet_faces, fillet_bounding,
                            fillet_bounding_normals,
-                           ancestor, distance, normals);
-    std::vector<easy3d::vec3> easy3d_normals;
-    UTILS::eigen_points_to_easy3d_points(normals, easy3d_normals);
+                           ancestor, distance, point_tar_normals, face_tar_normals);
 
-//    RENDER::mesh_scalar_field_visualization(easy3d_fillet_points, fillet_faces, distance);
-    RENDER::mesh_point_vector_field(easy3d_fillet_points, fillet_faces, easy3d_normals);
     std::vector<Eigen::Vector3d> new_fillet_points;
-    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, normals, new_fillet_points, fillet_bounding, 5.0, 100)) {
+    if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, face_tar_normals, new_fillet_points, fillet_bounding, 2.0, 10)) {
         for(int i = 0; i < new_fillet_points.size(); i++) {
             int id = point_map_table[i];
             eigen_points[id] = new_fillet_points[i];

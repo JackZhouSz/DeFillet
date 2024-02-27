@@ -57,7 +57,8 @@ namespace DEFILLET {
                       const std::vector<std::vector<size_t>>& faces,
                       const std::vector<size_t>& sources,
                       const std::vector<Eigen::Vector3d>& sources_normals,
-                      std::vector<size_t>& ancestor,
+                      std::vector<size_t>& point_ancestors,
+                      std::vector<size_t>& face_ancestors,
                       std::vector<double>& distance,
                       std::vector<Eigen::Vector3d>& point_tar_normals,
                       std::vector<Eigen::Vector3d>& face_tar_normals);
@@ -80,10 +81,14 @@ namespace DEFILLET {
 
     bool iterative_optimize(const std::vector<Eigen::Vector3d>& points,
                             const std::vector<std::vector<size_t>>& faces,
-                            std::vector<Eigen::Vector3d>& normals,
+                            const std::vector<size_t>& point_ancestors,
+                            const std::vector<size_t>& face_ancestors,
+                            const std::vector<Eigen::Vector3d>& point_tar_normals,
+                            const std::vector<Eigen::Vector3d>& face_tar_normals,
+                            const std::vector<size_t>& fixed_points,
                             std::vector<Eigen::Vector3d>& new_points,
-                            std::vector<size_t>& fixed_points,
-                            double beta,
+                            std::string type = "edge-based",
+                            double beta = 5,
                             int num_iterations = 10);
 }
 

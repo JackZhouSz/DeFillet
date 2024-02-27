@@ -13,7 +13,10 @@ namespace DEFILLET {
     public:
         Optimize(const std::vector<Eigen::Vector3d>& points,
                  const std::vector<std::vector<size_t>>& faces,
-                 const std::vector<Eigen::Vector3d>& normals,
+                 const std::vector<size_t>& point_ancestors,
+                 const std::vector<size_t>& face_ancestors,
+                 const std::vector<Eigen::Vector3d>& point_tar_normals,
+                 const std::vector<Eigen::Vector3d>& face_tar_normals,
                  const std::vector<size_t>& fixed_points,
                  std::string type = "edge-based",
                  double beta = 10);
@@ -22,7 +25,8 @@ namespace DEFILLET {
 
         void get_points(std::vector<Eigen::Vector3d>& points);
     private:
-        void edge_init(const std::vector<Eigen::Vector3d>& normals,
+        void edge_init(const std::vector<size_t>& face_ancestors,
+                       const std::vector<Eigen::Vector3d>& face_tar_normals,
                        const std::vector<size_t>& fixed_points);
 
         void point_init(const std::vector<Eigen::Vector3d>& normals,

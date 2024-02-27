@@ -360,7 +360,8 @@ namespace DEFILLET {
                       const std::vector<std::vector<size_t>>& faces,
                       const std::vector<size_t>& sources,
                       const std::vector<Eigen::Vector3d>& sources_normals,
-                      std::vector<size_t>& ancestor,
+                      std::vector<size_t>& point_ancestors,
+                      std::vector<size_t>& face_ancestors,
                       std::vector<double>& distance,
                       std::vector<Eigen::Vector3d>& point_tar_normals,
                       std::vector<Eigen::Vector3d>& face_tar_normals) {
@@ -393,7 +394,8 @@ namespace DEFILLET {
         std::set<int> xin_sources(sources.begin(), sources.end());
         CXin_Wang alg(mesh, xin_sources);
         alg.Execute();
-        ancestor.resize(nb_points);
+        point_ancestors.resize(nb_points);
+        face_ancestors.resize(nb_faces);
         distance.resize(nb_points);
         point_tar_normals.resize(nb_points);
         face_tar_normals.resize(nb_faces);
@@ -404,14 +406,14 @@ namespace DEFILLET {
             mp[sources[i]] = i;
         }
         for(int i = 0; i < nb_points; i++) {
-            ancestor[i] = alg.GetAncestor(i);
-            point_tar_normals[i] = sources_normals[mp[ancestor[i]]];
+            point_ancestors[i] = alg.GetAncestor(i);
+            point_tar_normals[i] = sources_normals[mp[point_ancestors[i]]];
             distance[i] = alg.GetDistanceField()[i];
         }
 
         for(int i = 0; i < nb_faces; i++) {
-            int idx = alg.GetAncestor(i + nb_points);
-            face_tar_normals[i] = sources_normals[mp[ancestor[idx]]];
+            face_ancestors[i] = alg.GetAncestor(i + nb_points);
+            face_tar_normals[i] = sources_normals[mp[face_ancestors[i]]];
         }
     }
 
@@ -621,13 +623,17 @@ namespace DEFILLET {
 
     bool iterative_optimize(const std::vector<Eigen::Vector3d>& points,
                             const std::vector<std::vector<size_t>>& faces,
-                            std::vector<Eigen::Vector3d>& normals,
+                            const std::vector<size_t>& point_ancestors,
+                            const std::vector<size_t>& face_ancestors,
+                            const std::vector<Eigen::Vector3d>& point_tar_normals,
+                            const std::vector<Eigen::Vector3d>& face_tar_normals,
+                            const std::vector<size_t>& fixed_points,
                             std::vector<Eigen::Vector3d>& new_points,
-                            std::vector<size_t>& fixed_points,
+                            std::string type,
                             double beta,
                             int num_iterations) {
 
-        Optimize opt(points, faces, normals, fixed_points, "edge-based", beta);
+        Optimize opt(points, faces, point_ancestors, face_ancestors, point_tar_normals, face_tar_normals, fixed_points, type, beta);
 
         for(int i = 0; i < num_iterations; i++) {
             if(!opt.solve()) {

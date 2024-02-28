@@ -40,27 +40,48 @@ namespace DEFILLET {
             src_points[f] = face_ancestors[idx];
         }
 
-        for(auto e : mesh_->edges()) {
-            bool flag = false;
-            for(int i = 0; i < 2; i++) {
-                auto h1 = mesh_->halfedge(e, 0);
-                auto f1 = mesh_->face(h1);
-                if(!f1.is_valid())
-                    continue;
-                auto f2 = mesh_->face(mesh_->opposite(mesh_->next(h1)));
-                auto f3 = mesh_->face(mesh_->opposite(mesh_->prev(h1)));
-                if(f2.is_valid() && f3.is_valid()) {
-                    if(easy3d::dot(tar_nomrals[f1], tar_nomrals[f2]) < 0.7
-                    && easy3d::dot(tar_nomrals[f1], tar_nomrals[f3]) < 0.7) {
-                       flag = true;
-                       break;
-                    }
-                }
-            }
-            if(flag) {
-                mesh_->flip(e);
-            }
-        }
+//        for(auto e : mesh_->edges()) {
+//            bool flag = false;
+//            for(int i = 0; i < 2; i++) {
+//                auto h1 = mesh_->halfedge(e, 0);
+//                auto f1 = mesh_->face(h1);
+//                if(!f1.is_valid())
+//                    continue;
+//                auto f2 = mesh_->face(mesh_->opposite(mesh_->next(h1)));
+//                auto f3 = mesh_->face(mesh_->opposite(mesh_->prev(h1)));
+//                if(f2.is_valid() && f3.is_valid()) {
+//                    if(easy3d::dot(tar_nomrals[f1], tar_nomrals[f2]) < 0.7
+//                    && easy3d::dot(tar_nomrals[f1], tar_nomrals[f3]) < 0.7) {
+//                       flag = true;
+//                       break;
+//                    }
+//                }
+//            }
+//            if(flag) {
+//                mesh_->flip(e);
+//            }
+//        }
+
+//        for(auto v : mesh_->vertices()) {
+//            auto start_h = mesh_->out_halfedge(v);
+//            auto tmp = start_h;
+//            do{
+//                auto f1 = mesh_->face(tmp);
+//                auto f2 = mesh_->face(mesh_->next_around_source(tmp));
+//                auto f3 = mesh_->face(mesh_->prev_around_source(tmp));
+//                if(f1.is_valid() && f2.is_valid() && f3.is_valid()) {
+//                    double cos23 = easy3d::dot(tar_nomrals[f2],tar_nomrals[f3]) / (tar_nomrals[f2].norm() * tar_nomrals[f3].norm());
+//                    double cos12 = easy3d::dot(tar_nomrals[f1],tar_nomrals[f2]) / (tar_nomrals[f1].norm() * tar_nomrals[f2].norm());
+//                    if(1 - cos23  < 0.3 && cos12 > 0.3) {
+//                        tar_nomrals[f2] = tar_nomrals[f1];
+//                        src_points[f2] = src_points[f1];
+//                        break;
+//                    }
+//                }
+//
+//                tmp = mesh_->next_around_source(tmp);
+//            } while(tmp != start_h);
+//        }
 
         std::vector<Eigen::Triplet<double>> triplets;
         Eigen::SparseMatrix<double> FNC(nb_edges * 2, nb_points * 3);
@@ -244,6 +265,31 @@ namespace DEFILLET {
                 tmp.emplace_back(v.idx());
             }
             faces.emplace_back(tmp);
+        }
+    }
+
+    void Optimize::remesh() {
+        for(auto v : mesh_->vertices()) {
+            auto start = mesh_->out_halfedge(v);
+            auto iter = start;
+            do {
+                auto v1 = mesh_->position(mesh_->target(iter)) - mesh_->position(v);
+                auto v2 = mesh_->position(mesh_->source(mesh_->prev( iter))) - mesh_->position(v);
+                auto f = mesh_->face(iter);
+                if(f.is_valid()) {
+                    double val = easy3d::cross(v1, v2).norm();
+                    if(val < 1e-3) {
+                        easy3d::vec3 center = easy3d::vec3(0,0,0);
+                        int ct = 0;
+                        for(auto av : mesh_->vertices(v)) {
+                            center += mesh_->position(av);
+                            ++ct;
+                        }
+                        mesh_->position(v) = center / ct;
+                    }
+                }
+                iter = mesh_->next_around_source(iter);
+            }while(iter != start);
         }
     }
 }

@@ -22,7 +22,7 @@ namespace DEFILLET {
                  double beta = 10);
 
         bool solve();
-
+        void remesh();
         void get_points(std::vector<Eigen::Vector3d>& points);
         void get_faces(std::vector<std::vector<size_t>> & faces);
     private:

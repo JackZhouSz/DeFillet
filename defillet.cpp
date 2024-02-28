@@ -645,6 +645,7 @@ namespace DEFILLET {
                 return false;
             }
         }
+        opt.remesh();
         std::cout << "ASD" <<std::endl;
         opt.get_points(new_points);
         opt.get_faces(new_faces);

@@ -640,13 +640,14 @@ namespace DEFILLET {
         Optimize opt(points, faces, point_ancestors, face_ancestors, point_tar_normals, face_tar_normals, fixed_points, type, beta);
 
         for(int i = 0; i < num_iterations; i++) {
-//            std::cout << i << std::endl;
+
+            std::cout << i << std::endl;
             if(!opt.solve()) {
                 return false;
             }
+
         }
         opt.remesh();
-        std::cout << "ASD" <<std::endl;
         opt.get_points(new_points);
         opt.get_faces(new_faces);
         return true;

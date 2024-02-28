@@ -81,7 +81,7 @@ int main() {
     std::vector<Eigen::Vector3d> new_fillet_points;
     std::vector<std::vector<size_t>> new_fillet_faces;
     if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, point_ancestors, face_ancestors,  point_tar_normals,
-                                    face_tar_normals, fillet_bounding, new_fillet_points,new_fillet_faces, "edge-based", 1.0, 20)) {
+                                    face_tar_normals, fillet_bounding, new_fillet_points,new_fillet_faces, "edge-based", 1.0, 10)) {
         for(int i = 0; i < new_fillet_points.size(); i++) {
             int id = point_map[i];
             eigen_points[id] = new_fillet_points[i];

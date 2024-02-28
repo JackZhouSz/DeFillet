@@ -39,57 +39,38 @@ namespace DEFILLET {
                                           face_tar_normals[idx].y(), face_tar_normals[idx].z());
             src_points[f] = face_ancestors[idx];
         }
+        std::vector<Eigen::Triplet<double>> triplets;
+        int nb_fixed_points = fixed_points.size();
+        d_ = Eigen::VectorXd(nb_fixed_points * 3);
+        E.resize(nb_fixed_points * 3, nb_points * 3);
+//        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
+        for(int i = 0; i < nb_fixed_points; i++) {
+            int id = fixed_points[i];
+            auto v = mesh_->position(easy3d::SurfaceMesh::Vertex(id));
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i, id , 1.0));
+            d_[ 3 * i] = v.x;
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1, id + nb_points, 1.0));
+            d_[3 * i + 1] = v.y;
+            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0));
+            d_[3 * i + 2] = v.z;
+        }
+        E.setFromTriplets(triplets.begin(), triplets.end());
+        nb_fixed_points = fixed_points.size();
+        update_solver();
+    }
 
-//        for(auto e : mesh_->edges()) {
-//            bool flag = false;
-//            for(int i = 0; i < 2; i++) {
-//                auto h1 = mesh_->halfedge(e, 0);
-//                auto f1 = mesh_->face(h1);
-//                if(!f1.is_valid())
-//                    continue;
-//                auto f2 = mesh_->face(mesh_->opposite(mesh_->next(h1)));
-//                auto f3 = mesh_->face(mesh_->opposite(mesh_->prev(h1)));
-//                if(f2.is_valid() && f3.is_valid()) {
-//                    if(easy3d::dot(tar_nomrals[f1], tar_nomrals[f2]) < 0.7
-//                    && easy3d::dot(tar_nomrals[f1], tar_nomrals[f3]) < 0.7) {
-//                       flag = true;
-//                       break;
-//                    }
-//                }
-//            }
-//            if(flag) {
-//                mesh_->flip(e);
-//            }
-//        }
-
-//        for(auto v : mesh_->vertices()) {
-//            auto start_h = mesh_->out_halfedge(v);
-//            auto tmp = start_h;
-//            do{
-//                auto f1 = mesh_->face(tmp);
-//                auto f2 = mesh_->face(mesh_->next_around_source(tmp));
-//                auto f3 = mesh_->face(mesh_->prev_around_source(tmp));
-//                if(f1.is_valid() && f2.is_valid() && f3.is_valid()) {
-//                    double cos23 = easy3d::dot(tar_nomrals[f2],tar_nomrals[f3]) / (tar_nomrals[f2].norm() * tar_nomrals[f3].norm());
-//                    double cos12 = easy3d::dot(tar_nomrals[f1],tar_nomrals[f2]) / (tar_nomrals[f1].norm() * tar_nomrals[f2].norm());
-//                    if(1 - cos23  < 0.3 && cos12 > 0.3) {
-//                        tar_nomrals[f2] = tar_nomrals[f1];
-//                        src_points[f2] = src_points[f1];
-//                        break;
-//                    }
-//                }
-//
-//                tmp = mesh_->next_around_source(tmp);
-//            } while(tmp != start_h);
-//        }
-
+    void Optimize::update_solver() {
+        int nb_points = mesh_->n_vertices();
+        int nb_edges = mesh_->n_edges();
+        int nb_faces = mesh_->n_faces();
+        auto tar_nomrals = mesh_->get_face_property<easy3d::vec3>("f:tar_normals");
+        auto src_points = mesh_->get_face_property<int>("f:src_idx");
         std::vector<Eigen::Triplet<double>> triplets;
         Eigen::SparseMatrix<double> FNC(nb_edges * 2, nb_points * 3);
         for(auto e : mesh_->edges()) {
             int id = e.idx();
             int v0 = mesh_->vertex(e, 0).idx();
             int v1 = mesh_->vertex(e, 1).idx();
-
             auto f1 = mesh_->face(e, 0);
             double nx = tar_nomrals[f1].x, ny = tar_nomrals[f1].y, nz = tar_nomrals[f1].z;
             triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0, nx));
@@ -126,7 +107,6 @@ namespace DEFILLET {
                 center += pos[i];
             }
 
-            double len = (center - mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f]))).norm();
 
             for(int i = 0; i < num; i++) {
                 int id = pidx[i];
@@ -141,21 +121,7 @@ namespace DEFILLET {
         }
         FCC.setFromTriplets(triplets.begin(), triplets.end());
 
-        int nb_fixed_points = fixed_points.size();
-        d_ = Eigen::VectorXd(nb_fixed_points * 3);
-        triplets.clear();
-        Eigen::SparseMatrix<double> E(nb_fixed_points * 3, nb_points * 3);
-        for(int i = 0; i < nb_fixed_points; i++) {
-            int id = fixed_points[i];
-            auto v = mesh_->position(easy3d::SurfaceMesh::Vertex(id));
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i, id , 1.0));
-            d_[ 3 * i] = v.x;
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 1, id + nb_points, 1.0));
-            d_[3 * i + 1] = v.y;
-            triplets.emplace_back(Eigen::Triplet<double>(3 * i + 2,  id + nb_points * 2, 1.0));
-            d_[3 * i + 2] = v.z;
-        }
-        E.setFromTriplets(triplets.begin(), triplets.end());
+
 //        igl::cat(1, FNC, FCC, A);
         Eigen::SparseMatrix<double> A;
         igl::cat(1, FNC, FCC, A);
@@ -177,7 +143,6 @@ namespace DEFILLET {
         if(solver_.info()!= Eigen::Success) {
             std::cout << "decomposition failed" << std::endl;
         }
-
     }
 
     void Optimize::edge_init(const std::vector<size_t>& face_ancestors,
@@ -198,28 +163,6 @@ namespace DEFILLET {
     }
 
     bool Optimize::solve() {
-
-
-//        for(auto v : mesh_->vertices()) {
-//            auto s = mesh_->position(v);
-//            bool flag = false;
-//            easy3d::vec3 center = easy3d::vec3(0,0,0);
-//            int ct = 0;
-//            for(auto cur_h :mesh_->halfedges(v)) {
-//                center += mesh_->position(mesh_->target(cur_h));
-//                auto nxt_h = mesh_->next(mesh_->opposite(cur_h));
-//                auto t1 = mesh_->position(mesh_->target(cur_h)) - s;
-//                auto t2 = mesh_->position(mesh_->target(nxt_h)) - s;
-//                double dot_val = 1.0 - std::abs(easy3d::dot(t1, t2) / (t1.norm() * t2.norm()));
-//                ct += 1;
-//                if(dot_val < 1e-3 ) {
-//                    flag = true;
-//                }
-//            }
-//            if(flag)
-//                mesh_->position(v) = center / ct;
-//        }
-
 
         auto& points = mesh_->points();
         int nb_points = points.size();
@@ -244,8 +187,6 @@ namespace DEFILLET {
                                               x[id + nb_points], x[id + 2 * nb_points]);
         }
 
-
-
     }
 
     void Optimize::get_points(std::vector<Eigen::Vector3d>& points) {
@@ -269,27 +210,60 @@ namespace DEFILLET {
     }
 
     void Optimize::remesh() {
-        for(auto v : mesh_->vertices()) {
-            auto start = mesh_->out_halfedge(v);
-            auto iter = start;
-            do {
-                auto v1 = mesh_->position(mesh_->target(iter)) - mesh_->position(v);
-                auto v2 = mesh_->position(mesh_->source(mesh_->prev( iter))) - mesh_->position(v);
-                auto f = mesh_->face(iter);
-                if(f.is_valid()) {
-                    double val = easy3d::cross(v1, v2).norm();
-                    if(val < 1e-3) {
-                        easy3d::vec3 center = easy3d::vec3(0,0,0);
-                        int ct = 0;
-                        for(auto av : mesh_->vertices(v)) {
-                            center += mesh_->position(av);
-                            ++ct;
-                        }
-                        mesh_->position(v) = center / ct;
+        bool is_update = false;
+        auto tar_nomrals = mesh_->get_face_property<easy3d::vec3>("f:tar_normals");
+        auto src_points = mesh_->get_face_property<int>("f:src_idx");
+
+
+        for(auto f : mesh_->faces()) {
+            std::vector<easy3d::SurfaceMesh::Halfedge> hal;
+            std::vector<double> len;
+            double p = 0;
+            for(auto h : mesh_->halfedges(f)) {
+                hal.emplace_back(h);
+                len.emplace_back(mesh_->edge_length(mesh_->edge(h)));
+                p += len.back();
+            }
+            p /= 2;
+            double s = std::sqrt(p * (p - len[0]) * (p - len[1]) * (p - len[2]));
+            if(s < 1e-2) {
+                is_update = true;
+                easy3d::vec3 center = easy3d::vec3(0, 0, 0);
+                int ct = 0;
+                if(len[0] > len[1] && len[0] > len[2]) {
+                    auto ver = mesh_->target(mesh_->next(hal[0]));
+                    for(auto v : mesh_->vertices(ver)) {
+                        center += mesh_->position(v);ct++;
                     }
+                    mesh_->position(ver) = center / ct;
+                    auto ff = mesh_->face(mesh_->opposite(hal[1]));
+                    tar_nomrals[f] = tar_nomrals[ff];
+                    src_points[f] = src_points[ff];
                 }
-                iter = mesh_->next_around_source(iter);
-            }while(iter != start);
+                else if(len[1] > len[0] && len[1] > len[2]) {
+                    auto ver = mesh_->target(mesh_->next(hal[1]));
+                    for(auto v : mesh_->vertices(ver)) {
+                        center += mesh_->position(v);ct++;
+                    }
+                    mesh_->position(ver) = center / ct;
+                    auto ff = mesh_->face(mesh_->opposite(hal[2]));
+                    tar_nomrals[f] = tar_nomrals[ff];
+                    src_points[f] = src_points[ff];
+                } else {
+                    auto ver = mesh_->target(mesh_->next(hal[0]));
+                    for(auto v : mesh_->vertices(ver)) {
+                        center += mesh_->position(v);ct++;
+                    }
+                    mesh_->position(ver) = center / ct;
+                    auto ff = mesh_->face(mesh_->opposite(hal[0]));
+                    tar_nomrals[f] = tar_nomrals[ff];
+                    src_points[f] = src_points[ff];
+                }
+            }
+        }
+        if(is_update) {
+            std::cout << "SAD" <<std::endl;
+            update_solver();
         }
     }
 }

@@ -30,22 +30,7 @@ namespace DEFILLET {
             auto v3 = easy3d::SurfaceMesh::Vertex(faces[i][2]);
             mesh_->add_triangle(v1, v2, v3);
         }
-
-        if(type == "edge-based")
-            edge_init(face_ancestors,face_tar_normals, fixed_points);
-//        else if(type == "point-based")
-//            point_init(normals, fixed_points);
-//        else if(type == "face-based")
-//            face_init(normals, fixed_points);
-    }
-
-    void Optimize::edge_init(const std::vector<size_t>& face_ancestors,
-                             const std::vector<Eigen::Vector3d>& face_tar_normals,
-                             const std::vector<size_t>& fixed_points) {
-        int nb_points = mesh_->n_vertices();
         int nb_edges = mesh_->n_edges();
-        int nb_faces = mesh_->n_faces();
-
         auto tar_nomrals = mesh_->add_face_property<easy3d::vec3>("f:tar_normals");
         auto src_points = mesh_->add_face_property<int>("f:src_idx");
         for(auto f : mesh_->faces()) {
@@ -54,6 +39,29 @@ namespace DEFILLET {
                                           face_tar_normals[idx].y(), face_tar_normals[idx].z());
             src_points[f] = face_ancestors[idx];
         }
+
+        for(auto e : mesh_->edges()) {
+            bool flag = false;
+            for(int i = 0; i < 2; i++) {
+                auto h1 = mesh_->halfedge(e, 0);
+                auto f1 = mesh_->face(h1);
+                if(!f1.is_valid())
+                    continue;
+                auto f2 = mesh_->face(mesh_->opposite(mesh_->next(h1)));
+                auto f3 = mesh_->face(mesh_->opposite(mesh_->prev(h1)));
+                if(f2.is_valid() && f3.is_valid()) {
+                    if(easy3d::dot(tar_nomrals[f1], tar_nomrals[f2]) < 0.7
+                    && easy3d::dot(tar_nomrals[f1], tar_nomrals[f3]) < 0.7) {
+                       flag = true;
+                       break;
+                    }
+                }
+            }
+            if(flag) {
+                mesh_->flip(e);
+            }
+        }
+
         std::vector<Eigen::Triplet<double>> triplets;
         Eigen::SparseMatrix<double> FNC(nb_edges * 2, nb_points * 3);
         for(auto e : mesh_->edges()) {
@@ -80,7 +88,6 @@ namespace DEFILLET {
             triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + 2 * nb_points, -nz));
         }
         FNC.setFromTriplets(triplets.begin(), triplets.end());
-
         triplets.clear();
         Eigen::SparseMatrix<double> FCC(nb_faces, nb_points * 3);
         for(auto f : mesh_->faces()) {
@@ -149,6 +156,14 @@ namespace DEFILLET {
         if(solver_.info()!= Eigen::Success) {
             std::cout << "decomposition failed" << std::endl;
         }
+
+    }
+
+    void Optimize::edge_init(const std::vector<size_t>& face_ancestors,
+                             const std::vector<Eigen::Vector3d>& face_tar_normals,
+                             const std::vector<size_t>& fixed_points) {
+        int nb_points = mesh_->n_vertices();
+
     }
 
     void Optimize::point_init(const std::vector<Eigen::Vector3d>& normals,
@@ -219,6 +234,16 @@ namespace DEFILLET {
         for(auto v : mesh_->vertices()) {
             auto p = mesh_->position(v);
             points[v.idx()] = Eigen::Vector3d(p.x, p.y, p.z);
+        }
+    }
+
+    void Optimize::get_faces(std::vector<std::vector<size_t>> &faces) {
+        for(auto f : mesh_->faces()) {
+            std::vector<size_t> tmp;
+            for(auto v : mesh_->vertices(f)) {
+                tmp.emplace_back(v.idx());
+            }
+            faces.emplace_back(tmp);
         }
     }
 }

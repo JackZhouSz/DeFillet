@@ -24,6 +24,7 @@ namespace DEFILLET {
         bool solve();
 
         void get_points(std::vector<Eigen::Vector3d>& points);
+        void get_faces(std::vector<std::vector<size_t>> & faces);
     private:
         void edge_init(const std::vector<size_t>& face_ancestors,
                        const std::vector<Eigen::Vector3d>& face_tar_normals,

@@ -48,6 +48,7 @@ namespace DEFILLET {
                                  std::vector<Eigen::Vector3d>& fillet_points,
                                  std::vector<std::vector<size_t>>& fillet_faces,
                                  std::vector<int>& point_map,
+                                 std::vector<std::vector<size_t>>& non_fillet_faces,
                                  std::vector<size_t>& fillet_bounding,
                                  std::vector<Eigen::Vector3d>& fillet_bounding_normals);
 
@@ -87,6 +88,7 @@ namespace DEFILLET {
                             const std::vector<Eigen::Vector3d>& face_tar_normals,
                             const std::vector<size_t>& fixed_points,
                             std::vector<Eigen::Vector3d>& new_points,
+                            std::vector<std::vector<size_t>>& new_faces,
                             std::string type = "edge-based",
                             double beta = 5,
                             int num_iterations = 10);

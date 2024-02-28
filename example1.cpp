@@ -56,11 +56,12 @@ int main() {
 //    RENDER::points_scalar_field_visualization(easy3d_points, labels);
     std::vector<Eigen::Vector3d> fillet_points;
     std::vector<std::vector<size_t>> fillet_faces;
-    std::vector<int> point_map_table;
+    std::vector<int> point_map;
+    std::vector<std::vector<size_t>> non_fillet_faces;
     std::vector<size_t> fillet_bounding;
     std::vector<Eigen::Vector3d> fillet_bounding_normals;
     DEFILLET::extract_interest_region(eigen_points, array_faces, labels,
-                                      fillet_points, fillet_faces, point_map_table,
+                                      fillet_points, fillet_faces, point_map, non_fillet_faces,
                                       fillet_bounding, fillet_bounding_normals);
 
     std::vector<easy3d::vec3> easy3d_fillet_points;
@@ -78,15 +79,26 @@ int main() {
 
 
     std::vector<Eigen::Vector3d> new_fillet_points;
+    std::vector<std::vector<size_t>> new_fillet_faces;
     if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, point_ancestors, face_ancestors,  point_tar_normals,
-                                    face_tar_normals, fillet_bounding, new_fillet_points, "edge-based", 5.0, 100)) {
+                                    face_tar_normals, fillet_bounding, new_fillet_points,new_fillet_faces, "edge-based", 1.0, 20)) {
         for(int i = 0; i < new_fillet_points.size(); i++) {
-            int id = point_map_table[i];
+            int id = point_map[i];
             eigen_points[id] = new_fillet_points[i];
         }
+        for(int i = 0; i < new_fillet_faces.size(); i++) {
+            std::vector<size_t> tmp;
+            int num = new_fillet_faces[i].size();
+            for(int j = 0; j < num; j++) {
+                tmp.emplace_back(point_map[new_fillet_faces[i][j]]);
+            }
+            non_fillet_faces.emplace_back(tmp);
+        }
+        UTILS::eigen_points_to_easy3d_points(eigen_points, easy3d_points);
+        RENDER::mesh_visualization(easy3d_points, non_fillet_faces);
     }
 
-    UTILS::eigen_points_to_easy3d_points(eigen_points, easy3d_points);
-    RENDER::mesh_visualization(easy3d_points, array_faces);
+//    UTILS::eigen_points_to_easy3d_points(eigen_points, easy3d_points);
+//    RENDER::mesh_visualization(easy3d_points, array_faces);
     return 0;
 }

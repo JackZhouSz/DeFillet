@@ -293,6 +293,7 @@ namespace DEFILLET {
                                  std::vector<Eigen::Vector3d>& fillet_points,
                                  std::vector<std::vector<size_t>>& fillet_faces,
                                  std::vector<int>& point_map,
+                                 std::vector<std::vector<size_t>>& non_fillet_faces,
                                  std::vector<size_t>& fillet_bounding,
                                  std::vector<Eigen::Vector3d>& fillet_bounding_normals) {
         easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
@@ -327,6 +328,8 @@ namespace DEFILLET {
                         bounding_set.insert(v);
                     }
                 }
+            } else {
+                non_fillet_faces.emplace_back(faces[f.idx()]);
             }
         }
 
@@ -629,6 +632,7 @@ namespace DEFILLET {
                             const std::vector<Eigen::Vector3d>& face_tar_normals,
                             const std::vector<size_t>& fixed_points,
                             std::vector<Eigen::Vector3d>& new_points,
+                            std::vector<std::vector<size_t>>& new_faces,
                             std::string type,
                             double beta,
                             int num_iterations) {
@@ -636,12 +640,14 @@ namespace DEFILLET {
         Optimize opt(points, faces, point_ancestors, face_ancestors, point_tar_normals, face_tar_normals, fixed_points, type, beta);
 
         for(int i = 0; i < num_iterations; i++) {
+//            std::cout << i << std::endl;
             if(!opt.solve()) {
                 return false;
             }
         }
-
+        std::cout << "ASD" <<std::endl;
         opt.get_points(new_points);
+        opt.get_faces(new_faces);
         return true;
     }
 }

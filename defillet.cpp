@@ -648,6 +648,7 @@ namespace DEFILLET {
 
         }
         opt.remesh();
+        opt.solve();
         opt.get_points(new_points);
         opt.get_faces(new_faces);
         return true;

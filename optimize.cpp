@@ -6,6 +6,8 @@
 
 #include <igl/cat.h>
 
+#include "visualization.h"
+
 namespace DEFILLET {
     Optimize::Optimize(const std::vector<Eigen::Vector3d>& points,
                        const std::vector<std::vector<size_t>>& faces,
@@ -177,47 +179,111 @@ namespace DEFILLET {
         auto vis = mesh_->face_property<bool>("f:vis", false);
         bool state = false;
         int num = 0;
-        int ct = 0;
+        int ct = 1;
+//        do {
+//            num = 0;
+//            for (auto cur_f: mesh_->faces()) {
+//                if (vis[cur_f] == state) {
+//                    std::queue<easy3d::SurfaceMesh::Face> que;
+//                    que.push(cur_f);
+//                    vis[cur_f] = (!state);
+//                    while (!que.empty()) {
+//                        auto f = que.front();
+//                        que.pop();
+//                        if (vis[f] != state) continue;
+//                        vis[f] = (!state);
+//                        for (auto h: mesh_->halfedges(f)) {
+//                            auto nxt_h = mesh_->next(h);
+//                            auto f1 = mesh_->face(mesh_->opposite(h));
+//                            auto f2 = mesh_->face(mesh_->opposite(nxt_h));
+//                            if (f1.is_valid() && f2.is_valid()) {
+//                                auto v1 = tar_nomrals[f];
+//                                auto v2 = tar_nomrals[f1];
+//                                auto v3 = tar_nomrals[f2];
+//                                if (easy3d::dot(v1, v2) < 0.9 && easy3d::dot(v1, v3) < 0.9 && easy3d::dot(v2, v3) > 0.9) {
+////                            tar_nomrals[f] = ((tar_nomrals[f1] + tar_nomrals[f2]) / 2).normalize();
+//                                    tar_nomrals[f] = tar_nomrals[f1];
+//                                    src_points[f] = src_points[f1];
+//                                    num++;
+//                                }
+//                            }
+//                            if (f1.is_valid()) {
+//                                que.push(f1);
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            ct++;
+//            std::cout << "num=" << num <<std::endl;
+//            state = (!state);
+//        } while(num != 0);
+////
+//        while(true) {
+//            num = 0;
+//            for (auto f: mesh_->faces()) {
+//                for (auto h: mesh_->halfedges(f)) {
+//                    auto nxt_h = mesh_->next(h);
+//                    auto f1 = mesh_->face(mesh_->opposite(h));
+//                    auto f2 = mesh_->face(mesh_->opposite(nxt_h));
+//                    if (f1.is_valid() && f2.is_valid()) {
+//                        auto v1 = tar_nomrals[f];
+//                        auto v2 = tar_nomrals[f1];
+//                        auto v3 = tar_nomrals[f2];
+//                        if (easy3d::dot(v1, v2) < 0.9 && easy3d::dot(v1, v3) < 0.9 && easy3d::dot(v2, v3) > 0.9) {
+////                            tar_nomrals[f] = ((tar_nomrals[f1] + tar_nomrals[f2]) / 2).normalize();
+//                            tar_nomrals[f] = tar_nomrals[f1];
+//                            src_points[f] = src_points[f1];
+//                            num++;
+//                        }
+//                    }
+//                }
+//            }
+//            std::cout << "asd_num=" << num << std::endl;
+//            if(num == 0) break;
+//        }
+
+        auto vis_1 = mesh_->vertex_property<bool>("f:vis1", false);
+        state = true;
         do {
             num = 0;
-            for (auto cur_f: mesh_->faces()) {
-                if (vis[cur_f] == state) {
-                    std::queue<easy3d::SurfaceMesh::Face> que;
-                    que.push(cur_f);
-                    vis[cur_f] = (!state);
-                    while (!que.empty()) {
-                        auto f = que.front();
-                        que.pop();
-                        if (vis[f] != state) continue;
-                        vis[f] = (!state);
-                        for (auto h: mesh_->halfedges(f)) {
-                            auto nxt_h = mesh_->next(h);
-                            auto f1 = mesh_->face(mesh_->opposite(h));
-                            auto f2 = mesh_->face(mesh_->opposite(nxt_h));
-                            if (f1.is_valid() && f2.is_valid()) {
-                                auto v1 = mesh_->position(mesh_->target(h)) -
-                                          mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f]));
-                                auto v2 = mesh_->position(mesh_->source(h)) -
-                                          mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f1]));
-                                auto v3 = mesh_->position(mesh_->target(nxt_h)) -
-                                          mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f2]));
-                                if (easy3d::dot(v1, v2) < 0 && easy3d::dot(v1, v3) < 0 && easy3d::dot(v2, v3) > 0) {
+            for (auto cur_v: mesh_->vertices()) {
+                if(vis_1[cur_v] == state) continue;
+                std::queue<easy3d::SurfaceMesh::Vertex>que;
+                que.push(cur_v);
+                while(!que.empty()) {
+                    auto v = que.front(); que.pop();
+                    if(vis_1[v] == state) continue;
+                    vis_1[v] = state;
+                    auto st_h = mesh_->out_halfedge(v);
+                    auto it = st_h;
+                    do {
+                        auto cur_f = mesh_->face(it);
+                        auto prev_f = mesh_->face(mesh_->prev_around_source(it));
+                        auto nxt_f = mesh_->face(mesh_->next_around_source(it));
+                        if (cur_f.is_valid() && prev_f.is_valid() && nxt_f.is_valid()) {
+                            auto v1 = tar_nomrals[cur_f];
+                            auto v2 = tar_nomrals[prev_f];
+                            auto v3 = tar_nomrals[nxt_f];
+                            if (easy3d::dot(v1, v2) < 0.9 && easy3d::dot(v1, v3) < 0.9 && easy3d::dot(v2, v3) > 0.9) {
 //                            tar_nomrals[f] = ((tar_nomrals[f1] + tar_nomrals[f2]) / 2).normalize();
-                                    tar_nomrals[f] = tar_nomrals[f1];
-                                    src_points[f] = src_points[f1];
-                                    num++;
-                                }
-                            }
-                            if (f1.is_valid()) {
-                                que.push(f1);
+                                tar_nomrals[cur_f] = tar_nomrals[prev_f];
+                                src_points[cur_f] = src_points[prev_f];
+                                num++;
                             }
                         }
-                    }
+                        auto tar_v = mesh_->target(it);
+                        if(vis_1[tar_v] != state) {
+                            que.push(tar_v);
+                        }
+                        it = mesh_->next_around_source(it);
+                    } while (it != st_h);
                 }
             }
-            ct++;
+            state = (!state);
+            std::cout << "num=" << num <<std::endl;
         } while(num != 0);
-        std::cout << ct <<std::endl;
+
     }
 
     void Optimize::edge_init(const std::vector<size_t>& face_ancestors,
@@ -282,6 +348,30 @@ namespace DEFILLET {
             }
             faces.emplace_back(tmp);
         }
+        auto tar = mesh_->get_face_property<easy3d::vec3>("f:tar_normals");
+        easy3d::Viewer viewer("vector_field");
+        viewer.add_model(mesh_);
+        const Box3 &box = mesh_->bounding_box();
+        float length = norm(box.max_point() - box.min_point()) * 0.01f;
+        std::vector<vec3> tmp;
+        for (auto f : mesh_->faces()) {
+            easy3d::vec3 center = easy3d::vec3(0,0,0);
+            int ct =0;
+            for(auto v : mesh_->vertices(f)) {
+                center += mesh_->position(v); ct++;
+            }
+            center /= ct;
+            const easy3d::vec3 s = center;
+            easy3d::vec3 v = tar[f];
+            const vec3 t = center + v * length;
+            tmp.push_back(s);
+            tmp.push_back(t);
+        }
+        auto drawable = mesh_->renderer()->add_lines_drawable("normals");
+        drawable->update_vertex_buffer(tmp);
+        drawable->set_uniform_coloring(vec4(0.0f, 1.0f, 0.0f, 1.0f));
+        drawable->set_line_width(3.0f);
+        viewer.run();
     }
 
     void Optimize::remesh() {

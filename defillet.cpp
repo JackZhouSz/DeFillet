@@ -15,6 +15,8 @@
 
 #include <igl/cat.h>
 
+
+
 namespace DEFILLET {
 
     void compute_fillet_field_v1(const std::vector<Eigen::Vector3d>& points,

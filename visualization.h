@@ -18,7 +18,7 @@
 //#include <easy3d/util/initializer.h>
 #include <igl/jet.h>
 
-
+#include <easy3d/fileio/surface_mesh_io.h>
 using namespace easy3d;
 
 namespace RENDER {
@@ -197,6 +197,48 @@ namespace RENDER {
         viewer.run();
 
     }
+
+
+    inline void binary_mesh_segmentation_visualization(const std::vector<easy3d::vec3>& points,
+                                                       const std::vector<std::vector<std::size_t>>& faces,
+                                                       const std::vector<double>& label) {
+        using namespace easy3d;
+        easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
+        int nb_points = points.size();
+        for(int i = 0; i < nb_points; i++) {
+            mesh->add_vertex(points[i]);
+        }
+
+        int nb_faces = faces.size();
+        for(int i = 0; i < nb_faces; i++) {
+            auto v1 = easy3d::SurfaceMesh::Vertex(faces[i][0]);
+            auto v2 = easy3d::SurfaceMesh::Vertex(faces[i][1]);
+            auto v3 = easy3d::SurfaceMesh::Vertex(faces[i][2]);
+            mesh->add_triangle(v1, v2, v3);
+        }
+
+        Viewer viewer("binary_segmentation");
+        viewer.add_model(mesh);
+        auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+        std::string color_name = "f:color";
+        auto coloring = mesh->face_property<vec3>(color_name, vec3(0, 0, 0));
+        for(auto f : mesh->faces()) {
+            int flag = int(label[f.idx()] + 0.1);
+            if(flag) {
+                coloring[f] = easy3d::vec3(1.0, 0.0, 0.0);
+            } else {
+                coloring[f] = easy3d::vec3(0.0, 0.0, 1.0);
+            }
+        }
+
+        const std::string save_file_name = "../bin_seg.ply";
+        easy3d::SurfaceMeshIO::save(save_file_name, mesh);
+        drawable->set_property_coloring(State::FACE, color_name);
+        drawable->update();
+        viewer.update();
+        viewer.run();
+    }
+
 }
 //
 //

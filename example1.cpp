@@ -82,10 +82,12 @@ int main() {
     std::vector<std::vector<size_t>> new_fillet_faces;
     if(DEFILLET::iterative_optimize(fillet_points, fillet_faces, point_ancestors, face_ancestors,  point_tar_normals,
                                     face_tar_normals, fillet_bounding, new_fillet_points,new_fillet_faces, "edge-based", 1.0, 10)) {
+
         for(int i = 0; i < new_fillet_points.size(); i++) {
             int id = point_map[i];
             eigen_points[id] = new_fillet_points[i];
         }
+        std::vector<double> labels(non_fillet_faces.size(), 0.0);
         for(int i = 0; i < new_fillet_faces.size(); i++) {
             std::vector<size_t> tmp;
             int num = new_fillet_faces[i].size();
@@ -93,9 +95,11 @@ int main() {
                 tmp.emplace_back(point_map[new_fillet_faces[i][j]]);
             }
             non_fillet_faces.emplace_back(tmp);
+            labels.emplace_back(1.0);
         }
         UTILS::eigen_points_to_easy3d_points(eigen_points, easy3d_points);
-        RENDER::mesh_visualization(easy3d_points, non_fillet_faces);
+//        RENDER::mesh_visualization(easy3d_points, non_fillet_faces);
+        RENDER::binary_mesh_segmentation_visualization(easy3d_points, non_fillet_faces, labels);
     }
 
 //    UTILS::eigen_points_to_easy3d_points(eigen_points, easy3d_points);

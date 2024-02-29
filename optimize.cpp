@@ -284,6 +284,45 @@ namespace DEFILLET {
             std::cout << "num=" << num <<std::endl;
         } while(num != 0);
 
+//        for(int i = 0; i < 20; i++) {
+//            for (auto cur_v: mesh_->vertices()) {
+//                if(vis_1[cur_v] == state) continue;
+//                std::queue<easy3d::SurfaceMesh::Vertex>que;
+//                que.push(cur_v);
+//                while(!que.empty()) {
+//                    auto v = que.front(); que.pop();
+//                    if(vis_1[v] == state) continue;
+//                    vis_1[v] = state;
+//                    auto st_h = mesh_->out_halfedge(v);
+//                    auto it = st_h;
+//                    do {
+//                        auto cur_f = mesh_->face(it);
+//                        auto prev_f = mesh_->face(mesh_->prev_around_source(it));
+//                        auto nxt_f = mesh_->face(mesh_->next_around_source(it));
+//                        if (cur_f.is_valid() && prev_f.is_valid() && nxt_f.is_valid()) {
+//                            auto v1 = tar_nomrals[cur_f];
+//                            auto v2 = tar_nomrals[prev_f];
+//                            auto v3 = tar_nomrals[nxt_f];
+//                            if (easy3d::dot(v1, v2) > 0.9 && easy3d::dot(v1, v3) > 0.9 && easy3d::dot(v2, v3) > 0.9) {
+////                            tar_nomrals[f] = ((tar_nomrals[f1] + tar_nomrals[f2]) / 2).normalize();
+//                                tar_nomrals[cur_f] = (( tar_nomrals[cur_f] + tar_nomrals[prev_f] + tar_nomrals[nxt_f]) / 3).normalize();
+////                                src_points[cur_f] = src_points[prev_f];
+//                                num++;
+//                            }
+//                        }
+//                        auto tar_v = mesh_->target(it);
+//                        if(vis_1[tar_v] != state) {
+//                            que.push(tar_v);
+//                        }
+//                        it = mesh_->next_around_source(it);
+//                    } while (it != st_h);
+//                }
+//            }
+//            state = (!state);
+//        }
+        
+
+
     }
 
     void Optimize::edge_init(const std::vector<size_t>& face_ancestors,

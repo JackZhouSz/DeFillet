@@ -39,6 +39,9 @@ namespace DEFILLET {
                                           face_tar_normals[idx].y(), face_tar_normals[idx].z());
             src_points[f] = face_ancestors[idx];
         }
+
+        refine_tar_normals();
+
         std::vector<Eigen::Triplet<double>> triplets;
         int nb_fixed_points = fixed_points.size();
         d_ = Eigen::VectorXd(nb_fixed_points * 3);
@@ -143,6 +146,78 @@ namespace DEFILLET {
         if(solver_.info()!= Eigen::Success) {
             std::cout << "decomposition failed" << std::endl;
         }
+    }
+
+    void Optimize::recursive_refine_normals(easy3d::SurfaceMesh::Face f) {
+        auto tar_nomrals = mesh_->get_face_property<easy3d::vec3>("f:tar_normals");
+        auto src_points = mesh_->get_face_property<int>("f:src_idx");
+        auto vis = mesh_->get_face_property<bool>("f:vis");
+
+        vis[f] = true;
+
+        for(auto h : mesh_->halfedges(f)) {
+            auto nxt_h = mesh_->next(h);
+            auto f1 = mesh_->face(mesh_->opposite(h));
+            auto f2 = mesh_->face(mesh_->opposite(nxt_h));
+            if(f1.is_valid() && f2.is_valid()) {
+                auto v1 = mesh_->position(mesh_->target(h)) - mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f]));
+                auto v2 = mesh_->position(mesh_->source(h)) - mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f1]));
+                auto v3 = mesh_->position(mesh_->target(nxt_h)) - mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f2]));
+                if(easy3d::dot(v1, v2) < 0 && easy3d::dot(v1, v3) < 0 && easy3d::dot(v2, v3) > 0) {
+                    tar_nomrals[f] = (tar_nomrals[f1] + tar_nomrals[f2]).normalize();
+                    src_points[f] = src_points[f1];
+                }
+            }
+        }
+    }
+
+    void Optimize::refine_tar_normals() {
+        auto tar_nomrals = mesh_->get_face_property<easy3d::vec3>("f:tar_normals");
+        auto src_points = mesh_->get_face_property<int>("f:src_idx");
+        auto vis = mesh_->face_property<bool>("f:vis", false);
+        bool state = false;
+        int num = 0;
+        int ct = 0;
+        do {
+            num = 0;
+            for (auto cur_f: mesh_->faces()) {
+                if (vis[cur_f] == state) {
+                    std::queue<easy3d::SurfaceMesh::Face> que;
+                    que.push(cur_f);
+                    vis[cur_f] = (!state);
+                    while (!que.empty()) {
+                        auto f = que.front();
+                        que.pop();
+                        if (vis[f] != state) continue;
+                        vis[f] = (!state);
+                        for (auto h: mesh_->halfedges(f)) {
+                            auto nxt_h = mesh_->next(h);
+                            auto f1 = mesh_->face(mesh_->opposite(h));
+                            auto f2 = mesh_->face(mesh_->opposite(nxt_h));
+                            if (f1.is_valid() && f2.is_valid()) {
+                                auto v1 = mesh_->position(mesh_->target(h)) -
+                                          mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f]));
+                                auto v2 = mesh_->position(mesh_->source(h)) -
+                                          mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f1]));
+                                auto v3 = mesh_->position(mesh_->target(nxt_h)) -
+                                          mesh_->position(easy3d::SurfaceMesh::Vertex(src_points[f2]));
+                                if (easy3d::dot(v1, v2) < 0 && easy3d::dot(v1, v3) < 0 && easy3d::dot(v2, v3) > 0) {
+//                            tar_nomrals[f] = ((tar_nomrals[f1] + tar_nomrals[f2]) / 2).normalize();
+                                    tar_nomrals[f] = tar_nomrals[f1];
+                                    src_points[f] = src_points[f1];
+                                    num++;
+                                }
+                            }
+                            if (f1.is_valid()) {
+                                que.push(f1);
+                            }
+                        }
+                    }
+                }
+            }
+            ct++;
+        } while(num != 0);
+        std::cout << ct <<std::endl;
     }
 
     void Optimize::edge_init(const std::vector<size_t>& face_ancestors,

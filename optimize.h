@@ -26,6 +26,8 @@ namespace DEFILLET {
         void get_points(std::vector<Eigen::Vector3d>& points);
         void get_faces(std::vector<std::vector<size_t>> & faces);
         void update_solver();
+        void recursive_refine_normals(easy3d::SurfaceMesh::Face f);
+        void refine_tar_normals();
     private:
         void edge_init(const std::vector<size_t>& face_ancestors,
                        const std::vector<Eigen::Vector3d>& face_tar_normals,

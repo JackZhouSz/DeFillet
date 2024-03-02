@@ -61,7 +61,7 @@ namespace DEFILLET {
         }
         E.setFromTriplets(triplets.begin(), triplets.end());
         nb_fixed_points = fixed_points.size();
-        update_solver();
+        update_solver1();
     }
 
     void Optimize::update_solver() {
@@ -77,26 +77,29 @@ namespace DEFILLET {
             int v0 = mesh_->vertex(e, 0).idx();
             int v1 = mesh_->vertex(e, 1).idx();
             auto f1 = mesh_->face(e, 0);
+            easy3d::vec3 n1 = tar_nomrals[f1];
             double nx = tar_nomrals[f1].x, ny = tar_nomrals[f1].y, nz = tar_nomrals[f1].z;
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0, nx));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0 + nb_points, ny));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0 + 2 * nb_points, nz));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1, -nx));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1 + nb_points, -ny));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1 + 2 * nb_points, -nz));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0, n1.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0 + nb_points, n1.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0 + 2 * nb_points, n1.z));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1, -n1.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1 + nb_points, -n1.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1 + 2 * nb_points, -n1.z));
 
             auto f2 = mesh_->face(e, 1);
+            easy3d::vec3 n2 = tar_nomrals[f2];
             nx = tar_nomrals[f2].x, ny = tar_nomrals[f2].y, nz = tar_nomrals[f2].z;
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0, nx));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0 + nb_points, ny));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0 + 2 * nb_points, nz));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1, -nx));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + nb_points, -ny));
-            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + 2 * nb_points, -nz));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0, n2.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0 + nb_points, n2.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0 + 2 * nb_points, n2.z));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1, -n2.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + nb_points, -n2.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + 2 * nb_points, -n2.z));
         }
         FNC.setFromTriplets(triplets.begin(), triplets.end());
         triplets.clear();
         Eigen::SparseMatrix<double> FCC(nb_faces, nb_points * 3);
+        double alpha = 1.0;
         for(auto f : mesh_->faces()) {
             std::vector<easy3d::vec3> pos;
             std::vector<int> pidx;
@@ -115,21 +118,99 @@ namespace DEFILLET {
 
             for(int i = 0; i < num; i++) {
                 int id = pidx[i];
-                triplets.emplace_back(Eigen::Triplet<double>(f.idx(), id, 2.0 * nx / num));
-                triplets.emplace_back(Eigen::Triplet<double>(f.idx(), id + nb_points, 2.0 * ny / num));
-                triplets.emplace_back(Eigen::Triplet<double>(f.idx(), id + 2 * nb_points, 2 * nz / num));
+                triplets.emplace_back(Eigen::Triplet<double>(f.idx(), id, alpha * nx / num));
+                triplets.emplace_back(Eigen::Triplet<double>(f.idx(), id + nb_points, alpha * ny / num));
+                triplets.emplace_back(Eigen::Triplet<double>(f.idx(), id + 2 * nb_points, alpha * nz / num));
             }
-            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), src_points[f], -nx * 2));
-            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), src_points[f] + nb_points, -ny * 2));
-            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), src_points[f] + 2 * nb_points, -nz * 2));
+            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), src_points[f], -nx * alpha));
+            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), src_points[f] + nb_points, -ny * alpha));
+            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), src_points[f] + 2 * nb_points, -nz * alpha));
 
         }
         FCC.setFromTriplets(triplets.begin(), triplets.end());
 
 
+
 //        igl::cat(1, FNC, FCC, A);
         Eigen::SparseMatrix<double> A;
         igl::cat(1, FNC, FCC, A);
+        Eigen::SparseMatrix<double> AT = A.transpose();
+        Eigen::SparseMatrix<double> ATA = AT * A;
+        Eigen::SparseMatrix<double> I(ATA.rows(), ATA.cols()); I.setIdentity();
+        I = beta_ * I;
+        Eigen::SparseMatrix<double> Q = I + ATA;
+        Eigen::SparseMatrix<double> zero(nb_fixed_points * 3, nb_fixed_points * 3);
+        Eigen::SparseMatrix<double> ET = E.transpose();
+        Eigen::SparseMatrix<double> tempMat1;
+        Eigen::SparseMatrix<double> tempMat2;
+        Eigen::SparseMatrix<double> S;
+        igl::cat(1, Q, E, tempMat1);
+        igl::cat(1, ET, zero, tempMat2);
+        igl::cat(0, tempMat1, tempMat2, S);
+
+        solver_.compute(S);
+        if(solver_.info()!= Eigen::Success) {
+            std::cout << "decomposition failed" << std::endl;
+        }
+    }
+
+    void Optimize::update_solver1() {
+        int nb_points = mesh_->n_vertices();
+        int nb_edges = mesh_->n_edges();
+        int nb_faces = mesh_->n_faces();
+        auto tar_nomrals = mesh_->get_face_property<easy3d::vec3>("f:tar_normals");
+        auto src_points = mesh_->get_face_property<int>("f:src_idx");
+        std::vector<Eigen::Triplet<double>> triplets;
+        Eigen::SparseMatrix<double> FNC(nb_edges * 2, nb_points * 3);
+        for(auto e : mesh_->edges()) {
+            int id = e.idx();
+            int v0 = mesh_->vertex(e, 0).idx();
+            int v1 = mesh_->vertex(e, 1).idx();
+            auto f1 = mesh_->face(e, 0);
+            easy3d::vec3 n1 = tar_nomrals[f1];
+            double nx = tar_nomrals[f1].x, ny = tar_nomrals[f1].y, nz = tar_nomrals[f1].z;
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0, n1.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0 + nb_points, n1.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v0 + 2 * nb_points, n1.z));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1, -n1.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1 + nb_points, -n1.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id, v1 + 2 * nb_points, -n1.z));
+
+            auto f2 = mesh_->face(e, 1);
+            easy3d::vec3 n2 = tar_nomrals[f2];
+            nx = tar_nomrals[f2].x, ny = tar_nomrals[f2].y, nz = tar_nomrals[f2].z;
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0, n2.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0 + nb_points, n2.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v0 + 2 * nb_points, n2.z));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1, -n2.x));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + nb_points, -n2.y));
+            triplets.emplace_back(Eigen::Triplet<double>(2 * id + 1, v1 + 2 * nb_points, -n2.z));
+        }
+        FNC.setFromTriplets(triplets.begin(), triplets.end());
+        triplets.clear();
+        Eigen::SparseMatrix<double> PC(nb_points, nb_points * 3);
+        double alpha = 0.1;
+        for(auto v : mesh_->vertices()) {
+            double tot_x = 0, tot_y = 0, tot_z = 0;
+            for(auto f : mesh_->faces(v)) {
+                auto n = tar_nomrals[f];
+                int src_id = src_points[f];
+                tot_x += n.x * alpha;tot_y += n.y * alpha;tot_z += n.z * alpha;
+                triplets.emplace_back(Eigen::Triplet<double>(v.idx(), src_id, n.x * alpha));
+                triplets.emplace_back(Eigen::Triplet<double>(v.idx(), src_id + nb_points, n.y * alpha));
+                triplets.emplace_back(Eigen::Triplet<double>(v.idx(), src_id + 2 * nb_points, n.z * alpha));
+            }
+
+            triplets.emplace_back(Eigen::Triplet<double>(v.idx(), v.idx(), -tot_x));
+            triplets.emplace_back(Eigen::Triplet<double>(v.idx(), v.idx() + nb_points, -tot_y));
+            triplets.emplace_back(Eigen::Triplet<double>(v.idx(), v.idx() + 2 * nb_points, -tot_z));
+
+        }
+        PC.setFromTriplets(triplets.begin(), triplets.end());
+
+//        igl::cat(1, FNC, FCC, A);
+        Eigen::SparseMatrix<double> A;
+        igl::cat(1, FNC, PC, A);
         Eigen::SparseMatrix<double> AT = A.transpose();
         Eigen::SparseMatrix<double> ATA = AT * A;
         Eigen::SparseMatrix<double> I(ATA.rows(), ATA.cols()); I.setIdentity();

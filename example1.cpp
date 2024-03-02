@@ -9,7 +9,7 @@
 #include "defillet.h"
 
 int main() {
-    std::string file_path = "../data/bottle_fillet_remeshed.ply";
+    std::string file_path = "../data/20431_27e7f151_2.ply";
     std::vector<std::array<double, 3>> array_points;
     std::vector<std::vector<size_t>> array_faces;
     IO::read_ply_mesh(file_path, array_points, array_faces);
@@ -22,9 +22,11 @@ int main() {
     const std::vector<CGAL_Point>& cgal_finite_vertices = vor.get_finite_vertices();
     const std::vector<std::vector<int>>& cgal_finite_regions = vor.get_finite_regions();
 
-    std::vector<easy3d::vec3> easy3d_points;
-//    UTILS::cgal_points_to_easy3d_points(cgal_finite_vertices, easy3d_points);
 
+    std::vector<easy3d::vec3> easy3d_points;
+    UTILS::cgal_points_to_easy3d_points(cgal_finite_vertices, easy3d_points);
+    RENDER::points_visualization(easy3d_points);
+//    return 0;
     const std::vector<std::vector<int>>& finite_cell_pole = vor.get_finite_cell_pole();
 
     std::vector<Eigen::Vector3d> eigen_points;
@@ -36,10 +38,11 @@ int main() {
     std::vector<size_t> fillet_poles;
     DEFILLET::compute_fillet_field(eigen_points, array_faces,
                                    eigen_finite_vertices, finite_cell_pole, density_field,
-                                   fillet_field, fillet_poles, 1e-2, 1.0);
+                                   fillet_field, fillet_poles, 1e-2, -1);
 
     UTILS::array_points_to_easy3d_points(array_points, easy3d_points);
-
+    RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);
+//    return 0;
 //    int nb_points = eigen_points.size();
 //    std::vector<double> pole_fields(eigen_points.size());
 //    for(int i = 0; i < nb_points; i++) {

@@ -142,6 +142,9 @@ namespace DEFILLET {
             fillet_field[i] = maxx;
             fillet_poles[i] = max_id;
         }
+
+        double minn = *std::min_element(fillet_field.begin(),fillet_field.end());
+
         UTILS::vector_normalize(fillet_field);
     }
 

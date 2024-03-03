@@ -19,12 +19,8 @@ namespace DEFILLET {
                               double radius = -1.0);
     void compute_fillet_field_v1(const std::vector<Eigen::Vector3d>& points,
                               const std::vector<std::vector<size_t>>& faces,
-                              const std::vector<Eigen::Vector3d>& vor_vertices,
-                              const std::vector<std::vector<int>>& vor_site_poles,
-                              std::vector<double>& density_field,
                               std::vector<double>& fillet_field,
-                              std::vector<size_t>& fillet_poles,
-                              double eps = 1e-2);
+                              int k = 10);
 
     void run_graph_cut(const std::vector<Eigen::Vector3d>& points,
                        const std::vector<std::vector<size_t>>& faces,

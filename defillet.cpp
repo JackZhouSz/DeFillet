@@ -9,24 +9,22 @@
 #include <easy3d/core/surface_mesh.h>
 #include <Xin_Wang.h>
 
-#include <Eigen/Sparse>
+//#include <Eigen/Sparse>
 #include <Eigen/SparseLU>
-#include <unsupported/Eigen/KroneckerProduct>
+//#include <unsupported/Eigen/KroneckerProduct>
 
 #include <igl/cat.h>
+#include "common.h"
 
-
+#include <queue>
+#include "voronoi.h"
 
 namespace DEFILLET {
 
     void compute_fillet_field_v1(const std::vector<Eigen::Vector3d>& points,
-                              const std::vector<std::vector<size_t>>& faces,
-                              const std::vector<Eigen::Vector3d>& vor_vertices,
-                              const std::vector<std::vector<int>>& vor_site_poles,
-                              std::vector<double>& density_field,
-                              std::vector<double>& fillet_field,
-                              std::vector<size_t>& fillet_poles,
-                              double eps) {
+                                 const std::vector<std::vector<size_t>>& faces,
+                                 std::vector<double>& fillet_field,
+                                 int k) {
 
         Eigen::AlignedBox3d boundingBox;
         int nb_points = points.size();
@@ -34,53 +32,46 @@ namespace DEFILLET {
             boundingBox.extend(points[i]);
         }
         double diagonal = boundingBox.diagonal().norm();
-        double radius = diagonal * eps;
-        std::cout << "eps = " << eps << " " << "diagonal = " << diagonal << " " << "radius = " <<  radius << std::endl;
-        int nb_vertices = vor_vertices.size();
-        std::vector<KNN::Point> knn_vertices;
-        UTILS::eigen_points_to_knn_points(vor_vertices, knn_vertices);
-        KNN::KdSearch kds(knn_vertices);
-        density_field.resize(nb_vertices);
-        for(int i = 0; i < nb_vertices; i++) {
-            std::vector<size_t> neighbors;
-            std::vector<double> squared_distances;
-            int num = kds.radius_search(knn_vertices[i], radius, neighbors, squared_distances);
-            density_field[i] = num;
-        }
-        UTILS::vector_normalize(density_field);
-        double max_len = std::numeric_limits<double>::min();
-        double min_len = std::numeric_limits<double>::max();
+
+        easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
         for(int i = 0; i < nb_points; i++) {
-            for(size_t j = 0; j < vor_site_poles[i].size(); j++) {
-                int id = vor_site_poles[i][j];
-                double len = (vor_vertices[id] - points[i]).norm();
-//                std::cout << len << std::endl;
-                max_len = std::max(max_len, len);
-                min_len = std::min(min_len, len);
-            }
+            mesh->add_vertex(easy3d::vec3(points[i].x(), points[i].y(), points[i].z()));
         }
-        std::cout << max_len << ' ' << min_len << std::endl;
-        fillet_field.resize(nb_points);
-        fillet_poles.resize(nb_points);
-        for(int i = 0; i < nb_points; i++) {
-            double maxx = 0;
-            size_t max_id = vor_site_poles[i][0];
-            for(size_t j = 0 ; j < vor_site_poles[i].size(); j++) {
-                 int id = vor_site_poles[i][j];
-                 double len = ((vor_vertices[id] - points[i]).norm() - min_len) / (max_len - min_len) + 1e-2;
-//                 std::cout << len << std::endl;
-//                 double len = (vor_vertices[id] - points[i]).norm();
-                 double val = density_field[id] / len;
-//                 std::cout << val << std::endl;
-                 if(maxx < val) {
-                     maxx = val;
-                     max_id = id;
-                 }
-            }
-            fillet_field[i] = maxx;
-            fillet_poles[i] = max_id;
+        int nb_faces = faces.size();
+        for(int i = 0; i < nb_faces; i++) {
+            easy3d::SurfaceMesh::Vertex v0(faces[i][0]);
+            easy3d::SurfaceMesh::Vertex v1(faces[i][1]);
+            easy3d::SurfaceMesh::Vertex v2(faces[i][2]);
+            mesh->add_triangle(v0, v1, v2);
         }
-        UTILS::vector_normalize(fillet_field);
+
+        for(auto cur_v : mesh->vertices()) {
+            std::set<easy3d::SurfaceMesh::Vertex> k_near;
+            std::set<easy3d::SurfaceMesh::Vertex> vis;
+            std::priority_queue<std::pair<double, easy3d::SurfaceMesh::Vertex>> que;
+            que.push(make_pair(0.0, cur_v));
+            while((!que.empty()) && k_near.size() < k) {
+                auto v = que.top().second; que.pop();
+                k_near.insert(v);
+                for(auto vat : mesh->vertices(v)) {
+                    if(vis.find(vat) == vis.end()) {
+                        vis.insert(vat);
+                        double len = (mesh->position(vat) - mesh->position(v)).norm();
+                        que.push(std::make_pair(-len, vat));
+                    }
+                }
+
+            }
+
+            std::vector<CGAL_Point> tmp;
+            for(auto v : k_near) {
+                tmp.emplace_back(CGAL_Point(points[v.idx()].x(),
+                                            points[v.idx()].y(),points[v.idx()].z()));
+            }
+            Voronoi vor(tmp);
+
+
+        }
     }
 
     void compute_fillet_field(const std::vector<Eigen::Vector3d>& points,

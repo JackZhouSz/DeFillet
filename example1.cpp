@@ -9,7 +9,7 @@
 #include "defillet.h"
 
 int main() {
-    std::string file_path = "../data/20431_27e7f151_2.ply";
+    std::string file_path = "../data/21681_cbbaafd2_3.ply";
     std::vector<std::array<double, 3>> array_points;
     std::vector<std::vector<size_t>> array_faces;
     IO::read_ply_mesh(file_path, array_points, array_faces);
@@ -54,9 +54,10 @@ int main() {
 //    RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);
     std::vector<double> labels;
     DEFILLET::run_graph_cut(eigen_points, array_faces, eigen_finite_vertices,
-                            fillet_poles, fillet_field,labels, 0.5, 0.24);
+                            fillet_poles, fillet_field,labels, 0.8,  0.2);
 
-//    RENDER::points_scalar_field_visualization(easy3d_points, labels);
+    RENDER::points_scalar_field_visualization(easy3d_points, labels);
+    return 0;
     std::vector<Eigen::Vector3d> fillet_points;
     std::vector<std::vector<size_t>> fillet_faces;
     std::vector<int> point_map;

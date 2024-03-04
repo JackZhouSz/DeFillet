@@ -20,7 +20,7 @@ namespace DEFILLET {
     void compute_fillet_field_v1(const std::vector<Eigen::Vector3d>& points,
                               const std::vector<std::vector<size_t>>& faces,
                               std::vector<double>& fillet_field,
-                              int k = 10);
+                              int nei = 10);
 
     void run_graph_cut(const std::vector<Eigen::Vector3d>& points,
                        const std::vector<std::vector<size_t>>& faces,

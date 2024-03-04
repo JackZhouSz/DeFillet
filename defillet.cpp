@@ -24,7 +24,7 @@ namespace DEFILLET {
     void compute_fillet_field_v1(const std::vector<Eigen::Vector3d>& points,
                                  const std::vector<std::vector<size_t>>& faces,
                                  std::vector<double>& fillet_field,
-                                 int k) {
+                                 int nei) {
 
         Eigen::AlignedBox3d boundingBox;
         int nb_points = points.size();
@@ -46,11 +46,12 @@ namespace DEFILLET {
         }
         fillet_field.resize(nb_points);
         for(auto cur_v : mesh->vertices()) {
+//            std::cout << cur_v.idx() <<std::endl;
             std::set<easy3d::SurfaceMesh::Vertex> k_near;
             std::set<easy3d::SurfaceMesh::Vertex> vis;
             std::priority_queue<std::pair<double, easy3d::SurfaceMesh::Vertex>> que;
             que.push(make_pair(0.0, cur_v));
-            while((!que.empty()) && k_near.size() < k) {
+            while((!que.empty()) && k_near.size() < nei) {
                 auto v = que.top().second; que.pop();
                 k_near.insert(v);
                 for(auto vat : mesh->vertices(v)) {
@@ -77,7 +78,6 @@ namespace DEFILLET {
             std::vector<Eigen::Vector3d> eigen_vertices;
             UTILS::cgal_points_to_eigen_points(vor_vertices, eigen_vertices);
             const std::vector<std::vector<int>>& cell_pole = vor.get_cell_pole();
-
             int nb_vertices = vor_vertices.size();
             std::vector<double>tmp;
             for(int i = 0; i < nb_sites; i++) {
@@ -106,13 +106,17 @@ namespace DEFILLET {
                 }
                 avg /= k;
                 double val = 0;
-                for (int i = 0; i < k; k++) {
-                    val += tmp[i] - avg;
+                for (int i = 0; i < k; i++) {
+                    val += (tmp[i] - avg) * (tmp[i] - avg);
                 }
-                fillet_field[cur_v.idx()] = 1.0 * (k - val) / nb_sites;
+                val /= k;
+//                std::cout <<cur_v.idx() << ' '<<  k << ' ' << val <<' ' << nb_sites << std::endl;
+                fillet_field[cur_v.idx()] = k * (1.0 - exp(-val)) / nb_sites;
             } else {
                 fillet_field[cur_v.idx()] = 0.0;
+
             }
+//            std::cout << cur_v.idx() << ' ' << fillet_field[cur_v.idx()] <<std::endl;
         }
     }
 

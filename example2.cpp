@@ -1,5 +1,5 @@
 //
-// Created by 小乌嘎 on 2024/2/10.
+// Created by xiaowuga on 3/4/2024.
 //
 #include "common.h"
 #include "voronoi.h"
@@ -14,35 +14,33 @@ int main() {
     std::vector<std::vector<size_t>> array_faces;
     IO::read_ply_mesh(file_path, array_points, array_faces);
 
-    std::vector<CGAL_Point> cgal_points;
-    UTILS::array_points_to_cgal_points(array_points, cgal_points);
-    Voronoi vor(cgal_points);
-
-    vor.cal();
-    const std::vector<CGAL_Point>& cgal_finite_vertices = vor.get_finite_vertices();
-    const std::vector<std::vector<int>>& cgal_fini5te_regions = vor.get_finite_regions();
+//    std::vector<CGAL_Point> cgal_points;
+//    UTILS::array_points_to_cgal_points(array_points, cgal_points);
+//    Voronoi vor(cgal_points);
+//
+//    vor.cal();
+//    const std::vector<CGAL_Point>& cgal_finite_vertices = vor.get_finite_vertices();
+//    const std::vector<std::vector<int>>& cgal_fini5te_regions = vor.get_finite_regions();
 
 
     std::vector<easy3d::vec3> easy3d_points;
-    UTILS::cgal_points_to_easy3d_points(cgal_finite_vertices, easy3d_points);
-    RENDER::points_visualization(easy3d_points);
+//    UTILS::cgal_points_to_easy3d_points(cgal_finite_vertices, easy3d_points);
+//    RENDER::points_visualization(easy3d_points);
 //    return 0;
-    const std::vector<std::vector<int>>& finite_cell_pole = vor.get_finite_cell_pole();
+//    const std::vector<std::vector<int>>& finite_cell_pole = vor.get_finite_cell_pole();
 
     std::vector<Eigen::Vector3d> eigen_points;
     UTILS::array_points_to_eigen_points(array_points, eigen_points);
     std::vector<Eigen::Vector3d> eigen_finite_vertices;
-    UTILS::cgal_points_to_eigen_points(cgal_finite_vertices, eigen_finite_vertices);
+//    UTILS::cgal_points_to_eigen_points(cgal_finite_vertices, eigen_finite_vertices);
     std::vector<double> density_field;
     std::vector<double> fillet_field;
     std::vector<size_t> fillet_poles;
-    DEFILLET::compute_fillet_field(eigen_points, array_faces,
-                                   eigen_finite_vertices, finite_cell_pole, density_field,
-                                   fillet_field, fillet_poles, 1e-2, -1);
+    DEFILLET::compute_fillet_field_v1(eigen_points, array_faces,fillet_field, 20);
 
     UTILS::array_points_to_easy3d_points(array_points, easy3d_points);
     RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);
-//    return 0;
+    return 0;
 //    int nb_points = eigen_points.size();
 //    std::vector<double> pole_fields(eigen_points.size());
 //    for(int i = 0; i < nb_points; i++) {

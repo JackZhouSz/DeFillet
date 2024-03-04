@@ -20,6 +20,10 @@ add_subdirectory(geodesic)
 add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
 target_link_libraries(example1 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
         igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+
+add_executable(example2 example2.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
+target_link_libraries(example2 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 #add_executable(defillet main.cpp knn.cpp voronoi.cpp defillet1.cpp)
 #target_link_libraries(defillet PUBLIC CGAL::CGAL easy3d::renderer
 #        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen igl::igl_core)

@@ -32,6 +32,31 @@ void Voronoi::cal() {
     cal_finite_cell_pole();
 }
 
+void Voronoi::cal_v1() {
+    int nb_sites = sites_.size();
+    std::map<Vertex_handle, int> mp_sites;
+    for(int i = 0; i < nb_sites; i++) {
+        Vertex_handle v = T_.insert(sites_[i]);
+        mp_sites[v] = i;
+    }
+
+    vertices_.clear(); regions_.clear();
+    regions_.resize(nb_sites);
+
+    for(auto cell = T_.finite_cells_begin(); cell != T_.finite_cells_end(); cell++) {
+        auto v = T_.dual(cell);
+        int vid = vertices_.size();
+        vertices_.emplace_back(v);
+        for(int i = 0; i < 4; i++) {
+            Vertex_handle vh = cell->vertex(i);
+            int id = mp_sites[vh];
+            regions_[id].emplace_back(vid);
+        }
+    }
+
+    cal_cell_pole();
+}
+
 void Voronoi::cal_finite_vertices_and_regions() {
     finite_vertices_.clear();
     finite_regions_.clear();
@@ -126,6 +151,46 @@ void Voronoi::cal_finite_cell_pole() {
         }
         if(pole_id2 != -1) {
             finite_cell_pole_[i].emplace_back(pole_id2);
+        }
+    }
+}
+
+
+void Voronoi::cal_cell_pole() {
+    int nb_sites = sites_.size();
+    cell_pole_.clear();
+    cell_pole_.resize(nb_sites);
+    for(int i = 0; i < nb_sites; i++) {
+        const CGAL_Point& s = sites_[i];
+        const std::vector<int>& region = regions_[i];
+        int nb_region = region.size();
+        int pole_id1 = -1;
+        double max_value1 = std::numeric_limits<double>::min();
+        for(int j = 0; j < nb_region; j++) {
+            double len = std::sqrt(CGAL::squared_distance(vertices_[region[j]], s));
+            if(max_value1 < len) {
+                max_value1 = len;
+                pole_id1 = region[j];
+            }
+        }
+
+        int pole_id2 = -1;
+        double max_value2 = std::numeric_limits<double>::min();
+        for(int j = 0; j < nb_region; j++) {
+            double len = std::sqrt(CGAL::squared_distance(vertices_[region[j]], s));
+            auto v1 = vertices_[pole_id1] - s;
+            auto v2 =  vertices_[region[j]] - s;
+            double dot_value = v1.x() * v2.x() + v1.y() * v2.y() + v1.z() * v2.z();
+            if(dot_value < 0 && max_value2 < len) {
+                max_value2 = len;
+                pole_id2 = region[j];
+            }
+        }
+        if(pole_id1 != -1) {
+            cell_pole_[i].emplace_back(pole_id1);
+        }
+        if(pole_id2 != -1) {
+            cell_pole_[i].emplace_back(pole_id2);
         }
     }
 }

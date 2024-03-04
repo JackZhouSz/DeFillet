@@ -44,7 +44,7 @@ namespace DEFILLET {
             easy3d::SurfaceMesh::Vertex v2(faces[i][2]);
             mesh->add_triangle(v0, v1, v2);
         }
-
+        fillet_field.resize(nb_points);
         for(auto cur_v : mesh->vertices()) {
             std::set<easy3d::SurfaceMesh::Vertex> k_near;
             std::set<easy3d::SurfaceMesh::Vertex> vis;
@@ -63,14 +63,56 @@ namespace DEFILLET {
 
             }
 
-            std::vector<CGAL_Point> tmp;
+            std::vector<CGAL_Point> sites;
+            std::vector<int> sites_id;
             for(auto v : k_near) {
-                tmp.emplace_back(CGAL_Point(points[v.idx()].x(),
+                sites.emplace_back(CGAL_Point(points[v.idx()].x(),
                                             points[v.idx()].y(),points[v.idx()].z()));
+                sites_id.emplace_back(v.idx());
             }
-            Voronoi vor(tmp);
+            int nb_sites = sites.size();
+            Voronoi vor(sites);
+            vor.cal_v1();
+            const std::vector<CGAL_Point>& vor_vertices = vor.get_vertices();
+            std::vector<Eigen::Vector3d> eigen_vertices;
+            UTILS::cgal_points_to_eigen_points(vor_vertices, eigen_vertices);
+            const std::vector<std::vector<int>>& cell_pole = vor.get_cell_pole();
 
+            int nb_vertices = vor_vertices.size();
+            std::vector<double>tmp;
+            for(int i = 0; i < nb_sites; i++) {
+                int num = cell_pole[i].size();
+                double minn = std::numeric_limits<double>::max();
+                bool flag = false;
+                for(int j = 0; j < num; j++) {
+                    int id = cell_pole[i][j];
+                    if(boundingBox.contains(eigen_vertices[id])) {
+                        double len = (eigen_vertices[id] - points[sites_id[i]]).norm();
+                        if(minn > len) {
+                             minn = len; flag = true;
+                        }
+                    }
+                }
+                if(flag) {
+                    tmp.emplace_back(minn);
+                }
+            }
 
+            int k = tmp.size();
+            if(k > 0) {
+                double avg = 0;
+                for (int i = 0; i < k; i++) {
+                    avg += tmp[i];
+                }
+                avg /= k;
+                double val = 0;
+                for (int i = 0; i < k; k++) {
+                    val += tmp[i] - avg;
+                }
+                fillet_field[cur_v.idx()] = 1.0 * (k - val) / nb_sites;
+            } else {
+                fillet_field[cur_v.idx()] = 0.0;
+            }
         }
     }
 

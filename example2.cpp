@@ -36,7 +36,7 @@ int main() {
     std::vector<double> density_field;
     std::vector<double> fillet_field;
     std::vector<size_t> fillet_poles;
-    DEFILLET::compute_fillet_field_v1(eigen_points, array_faces,fillet_field, 10);
+    DEFILLET::compute_fillet_field_v1(eigen_points, array_faces,fillet_field, 100);
 
     UTILS::array_points_to_easy3d_points(array_points, easy3d_points);
     RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);

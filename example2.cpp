@@ -9,7 +9,7 @@
 #include "defillet.h"
 
 int main() {
-    std::string file_path = "../data/20440_27177360_1.ply";
+    std::string file_path = "../data/20440_27177360_1_part_0.ply";
     std::vector<std::array<double, 3>> array_points;
     std::vector<std::vector<size_t>> array_faces;
     IO::read_ply_mesh(file_path, array_points, array_faces);

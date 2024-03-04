@@ -46,7 +46,6 @@ namespace DEFILLET {
         }
         fillet_field.resize(nb_points);
         for(auto cur_v : mesh->vertices()) {
-//            std::cout << cur_v.idx() <<std::endl;
             std::set<easy3d::SurfaceMesh::Vertex> k_near;
             std::set<easy3d::SurfaceMesh::Vertex> vis;
             std::priority_queue<std::pair<double, easy3d::SurfaceMesh::Vertex>> que;
@@ -170,13 +169,14 @@ namespace DEFILLET {
             for(size_t j = 0 ; j < vor_site_poles[i].size(); j++) {
                 int id = vor_site_poles[i][j];
                 double len = (vor_vertices[id] - points[i]).norm();
-                double val = density_field[id] / len;
+                double val = density_field[id];
                 if(maxx < val) {
                     maxx = val;
                     max_id = id;
                 }
             }
             fillet_field[i] = maxx;
+            fillet_field[i] = 1.0;
             fillet_poles[i] = max_id;
         }
 

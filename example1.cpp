@@ -9,7 +9,7 @@
 #include "defillet.h"
 
 int main() {
-    std::string file_path = "../data/bottle_fillet_remeshed.ply";
+    std::string file_path = "../data/20440_27177360_1_part_0.ply";
     std::vector<std::array<double, 3>> array_points;
     std::vector<std::vector<size_t>> array_faces;
     IO::read_ply_mesh(file_path, array_points, array_faces);
@@ -38,7 +38,7 @@ int main() {
     std::vector<size_t> fillet_poles;
     DEFILLET::compute_fillet_field(eigen_points, array_faces,
                                    eigen_finite_vertices, finite_cell_pole, density_field,
-                                   fillet_field, fillet_poles, 1e-2, -1);
+                                   fillet_field, fillet_poles, 1e-2, 0.4);
 
     UTILS::array_points_to_easy3d_points(array_points, easy3d_points);
     RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);
@@ -57,7 +57,7 @@ int main() {
                             fillet_poles, fillet_field,labels, 0.5,  0.1);
 
     RENDER::points_scalar_field_visualization(easy3d_points, labels);
-//    return 0;
+    return 0;
     std::vector<Eigen::Vector3d> fillet_points;
     std::vector<std::vector<size_t>> fillet_faces;
     std::vector<int> point_map;

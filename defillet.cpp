@@ -113,7 +113,7 @@ namespace DEFILLET {
 //                std::cout <<cur_v.idx() << ' '<<  k << ' ' << val <<' ' << nb_sites << std::endl;
                 fillet_field[cur_v.idx()] = k * (1.0 - exp(-val)) / nb_sites;
             } else {
-                fillet_field[cur_v.idx()] = 0.0;
+                fillet_field[cur_v.idx()] = 0.001;
 
             }
 //            std::cout << cur_v.idx() << ' ' << fillet_field[cur_v.idx()] <<std::endl;

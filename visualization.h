@@ -50,7 +50,7 @@ namespace RENDER {
         igl::jet(Z, true, Ct);
         Viewer viewer("points_scalar_field");
         viewer.add_model(cloud);
-        const std::string color_name = "v:color-segments";
+        const std::string color_name = "v:color";
         auto coloring = cloud->vertex_property<vec3>(color_name, vec3(0, 0, 0));
         auto drawable = cloud->renderer()->get_points_drawable("vertices");
         for (auto v: cloud->vertices()) {

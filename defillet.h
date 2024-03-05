@@ -22,6 +22,13 @@ namespace DEFILLET {
                               std::vector<double>& fillet_field,
                               int nei = 10);
 
+    void compute_fillet_field_v2(const std::vector<Eigen::Vector3d>& points,
+                                 const std::vector<Eigen::Vector3d>& vor_vertices,
+                                 const std::vector<std::vector<int>>& vor_site_poles,
+                                 std::vector<double>& fillet_field,
+
+                                 int nei = 10);
+
     void run_graph_cut(const std::vector<Eigen::Vector3d>& points,
                        const std::vector<std::vector<size_t>>& faces,
                        const std::vector<Eigen::Vector3d>& vor_vertices,

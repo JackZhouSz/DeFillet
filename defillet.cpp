@@ -119,6 +119,104 @@ namespace DEFILLET {
         }
     }
 
+    void compute_fillet_field_v2(const std::vector<Eigen::Vector3d>& points,
+                                 const std::vector<std::vector<size_t>>& faces,
+                                 std::vector<double>& fillet_field,
+                                 int nei) {
+
+        Eigen::AlignedBox3d boundingBox;
+        int nb_points = points.size();
+        for(int i = 0; i < nb_points; i++) {
+            boundingBox.extend(points[i]);
+        }
+        double diagonal = boundingBox.diagonal().norm();
+
+        easy3d::SurfaceMesh* mesh = new easy3d::SurfaceMesh;
+        for(int i = 0; i < nb_points; i++) {
+            mesh->add_vertex(easy3d::vec3(points[i].x(), points[i].y(), points[i].z()));
+        }
+        int nb_faces = faces.size();
+        for(int i = 0; i < nb_faces; i++) {
+            easy3d::SurfaceMesh::Vertex v0(faces[i][0]);
+            easy3d::SurfaceMesh::Vertex v1(faces[i][1]);
+            easy3d::SurfaceMesh::Vertex v2(faces[i][2]);
+            mesh->add_triangle(v0, v1, v2);
+        }
+        fillet_field.resize(nb_points);
+        for(auto cur_v : mesh->vertices()) {
+            std::set<easy3d::SurfaceMesh::Vertex> k_near;
+            std::set<easy3d::SurfaceMesh::Vertex> vis;
+            std::priority_queue<std::pair<double, easy3d::SurfaceMesh::Vertex>> que;
+            que.push(make_pair(0.0, cur_v));
+            while((!que.empty()) && k_near.size() < nei) {
+                auto v = que.top().second; que.pop();
+                k_near.insert(v);
+                for(auto vat : mesh->vertices(v)) {
+                    if(vis.find(vat) == vis.end()) {
+                        vis.insert(vat);
+                        double len = (mesh->position(vat) - mesh->position(v)).norm();
+                        que.push(std::make_pair(-len, vat));
+                    }
+                }
+
+            }
+
+            std::vector<CGAL_Point> sites;
+            std::vector<int> sites_id;
+            for(auto v : k_near) {
+                sites.emplace_back(CGAL_Point(points[v.idx()].x(),
+                                              points[v.idx()].y(),points[v.idx()].z()));
+                sites_id.emplace_back(v.idx());
+            }
+            int nb_sites = sites.size();
+            Voronoi vor(sites);
+            vor.cal_v1();
+            const std::vector<CGAL_Point>& vor_vertices = vor.get_vertices();
+            std::vector<Eigen::Vector3d> eigen_vertices;
+            UTILS::cgal_points_to_eigen_points(vor_vertices, eigen_vertices);
+            const std::vector<std::vector<int>>& cell_pole = vor.get_cell_pole();
+            int nb_vertices = vor_vertices.size();
+            std::vector<double>tmp;
+            for(int i = 0; i < nb_sites; i++) {
+                int num = cell_pole[i].size();
+                double minn = std::numeric_limits<double>::max();
+                bool flag = false;
+                for(int j = 0; j < num; j++) {
+                    int id = cell_pole[i][j];
+                    if(boundingBox.contains(eigen_vertices[id])) {
+                        double len = (eigen_vertices[id] - points[sites_id[i]]).norm();
+                        if(minn > len) {
+                            minn = len; flag = true;
+                        }
+                    }
+                }
+                if(flag) {
+                    tmp.emplace_back(minn);
+                }
+            }
+
+            int k = tmp.size();
+            if(k > 0) {
+                double avg = 0;
+                for (int i = 0; i < k; i++) {
+                    avg += tmp[i];
+                }
+                avg /= k;
+                double val = 0;
+                for (int i = 0; i < k; i++) {
+                    val += (tmp[i] - avg) * (tmp[i] - avg);
+                }
+                val /= k;
+//                std::cout <<cur_v.idx() << ' '<<  k << ' ' << val <<' ' << nb_sites << std::endl;
+                fillet_field[cur_v.idx()] = k * (1.0 - exp(-val)) / nb_sites;
+            } else {
+                fillet_field[cur_v.idx()] = 0.001;
+
+            }
+//            std::cout << cur_v.idx() << ' ' << fillet_field[cur_v.idx()] <<std::endl;
+        }
+    }
+
     void compute_fillet_field(const std::vector<Eigen::Vector3d>& points,
                               const std::vector<std::vector<size_t>>& faces,
                               const std::vector<Eigen::Vector3d>& vor_vertices,

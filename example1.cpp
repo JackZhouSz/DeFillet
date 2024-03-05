@@ -20,7 +20,7 @@ int main() {
 
     vor.cal();
     const std::vector<CGAL_Point>& cgal_finite_vertices = vor.get_finite_vertices();
-    const std::vector<std::vector<int>>& cgal_fini5te_regions = vor.get_finite_regions();
+    const std::vector<std::vector<int>>& cgal_finite_regions = vor.get_finite_regions();
 
 
     std::vector<easy3d::vec3> easy3d_points;

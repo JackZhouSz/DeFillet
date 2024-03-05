@@ -29,6 +29,11 @@ target_link_libraries(example2 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
 add_executable(example3 example3.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
 target_link_libraries(example3 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
         igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+
+
+add_executable(example4 example4.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
+target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 #add_executable(defillet main.cpp knn.cpp voronoi.cpp defillet1.cpp)
 #target_link_libraries(defillet PUBLIC CGAL::CGAL easy3d::renderer
 #        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen igl::igl_core)

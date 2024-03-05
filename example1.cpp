@@ -39,9 +39,13 @@ int main() {
     DEFILLET::compute_fillet_field(eigen_points, array_faces,
                                    eigen_finite_vertices, finite_cell_pole, density_field,
                                    fillet_field, fillet_poles, 1e-2, 0.4);
-
+    std::vector<double> pole_field;
+    for(int i = 0; i < eigen_points.size(); i++) {
+        double len = (eigen_points[i] - eigen_finite_vertices[fillet_poles[i]]).norm();
+        pole_field.emplace_back(len);
+    }
     UTILS::array_points_to_easy3d_points(array_points, easy3d_points);
-    RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);
+    RENDER::points_scalar_field_visualization(easy3d_points, pole_field);
 //    return 0;
 //    int nb_points = eigen_points.size();
 //    std::vector<double> pole_fields(eigen_points.size());

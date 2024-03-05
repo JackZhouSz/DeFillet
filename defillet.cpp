@@ -267,7 +267,7 @@ namespace DEFILLET {
             for(size_t j = 0 ; j < vor_site_poles[i].size(); j++) {
                 int id = vor_site_poles[i][j];
                 double len = (vor_vertices[id] - points[i]).norm();
-                double val = density_field[id];
+                double val = density_field[id] / len;
                 if(maxx < val) {
                     maxx = val;
                     max_id = id;

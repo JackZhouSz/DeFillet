@@ -9,7 +9,7 @@
 
 class Voronoi {
 public:
-    Voronoi(std::vector<CGAL_Point>& sites, double scale = 1.0) : sites_(sites), scale_(scale) {}
+    Voronoi(std::vector<CGAL_Point>& sites, double scale = 0.0001) : sites_(sites), scale_(scale) {}
     void cal();
     void cal_v1();
     void set_scale(double scale) {scale_ = scale;};
@@ -44,6 +44,7 @@ private:
     std::vector<std::vector<int>> cell_pole_;
 
     Triangulation T_;
+
     double scale_;
 };
 

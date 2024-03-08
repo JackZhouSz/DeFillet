@@ -274,7 +274,7 @@ namespace DEFILLET {
                 }
             }
             fillet_field[i] = maxx;
-            fillet_field[i] = 1.0;
+//            fillet_field[i] = 1.0;
             fillet_poles[i] = max_id;
         }
 

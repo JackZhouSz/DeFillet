@@ -38,7 +38,7 @@ int main() {
     std::vector<size_t> fillet_poles;
     DEFILLET::compute_fillet_field(eigen_points, array_faces,
                                    eigen_finite_vertices, finite_cell_pole, density_field,
-                                   fillet_field, fillet_poles, 1e-2, 0.4);
+                                   fillet_field, fillet_poles, 1e-2, -1);
     std::vector<double> pole_field;
     for(int i = 0; i < eigen_points.size(); i++) {
         double len = (eigen_points[i] - eigen_finite_vertices[fillet_poles[i]]).norm();
@@ -58,9 +58,34 @@ int main() {
 //    RENDER::points_scalar_field_visualization(easy3d_points, fillet_field);
     std::vector<double> labels;
     DEFILLET::run_graph_cut(eigen_points, array_faces, eigen_finite_vertices,
-                            fillet_poles, fillet_field,labels, 0.5,  0.1);
+                            fillet_poles, fillet_field,labels, 0.5,  0.24);
 
     RENDER::points_scalar_field_visualization(easy3d_points, labels);
+
+    std::vector<easy3d::vec3> sss;
+    std::vector<double> a;
+    for(int i = 0; i < eigen_points.size(); i++) {
+//        if(labels[i] + 0.1 > 1.0) {
+            int id = fillet_poles[i];
+            easy3d::vec3 v = easy3d::vec3(cgal_finite_vertices[id].x(), cgal_finite_vertices[id].y(),
+                                          cgal_finite_vertices[id].z());
+            sss.emplace_back(v);
+            a.emplace_back((v - easy3d_points[i]).norm());
+//        }
+    }
+
+    double sum = 0, var = 0;
+    for(int i = 0; i <a.size(); i++) {
+        sum += a[i];
+    }
+
+    double avg = sum / a.size();
+    for(int i = 0; i < a.size(); i++) {
+        var += ((a[i] - avg) * (a[i] - avg));
+    }
+    var /= a.size();
+    std::cout << avg << ' ' << var << std::endl;
+    RENDER::points_visualization(sss);
     return 0;
     std::vector<Eigen::Vector3d> fillet_points;
     std::vector<std::vector<size_t>> fillet_faces;

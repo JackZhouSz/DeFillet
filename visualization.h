@@ -45,6 +45,7 @@ namespace RENDER {
         Eigen::VectorXd Z(num);
         for (int i = 0; i < num; i++) {
             Z[i] = scalar_field[i];
+
         }
         Eigen::MatrixXd Ct;
         igl::jet(Z, true, Ct);
@@ -54,6 +55,7 @@ namespace RENDER {
         auto coloring = cloud->vertex_property<vec3>(color_name, vec3(0, 0, 0));
         auto drawable = cloud->renderer()->get_points_drawable("vertices");
         for (auto v: cloud->vertices()) {
+//            std::cout << Ct(v.idx(), 0) << ' ' << Ct(v.idx(), 1) << ' ' <<Ct(v.idx(), 2) <<std::endl;
             coloring[v] = easy3d::vec3(Ct(v.idx(), 0), Ct(v.idx(), 1), Ct(v.idx(), 2));
         }
 
@@ -402,7 +404,7 @@ namespace RENDER {
 //    Viewer viewer("scalar_field");
 //    viewer.add_model(mesh);
 //
-//    auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+    //    auto drawable = mesh->renderer()->get_triangles_drawable("faces");
 //    auto elevation = mesh->add_vertex_property<float>("v:elevation");
 //    for (auto v : mesh->vertices())
 //        elevation[v] = scalar_field[v.idx()];

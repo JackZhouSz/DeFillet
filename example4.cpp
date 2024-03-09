@@ -15,6 +15,7 @@
 
 #include <easy3d/algo/surface_mesh_curvature.h>
 
+int maxx = 0;
 bool is_connected(const easy3d::SurfaceMesh* mesh, const std::vector<int>& faces) {
     std::set<easy3d::SurfaceMesh::Face> face_set;
     std::set<easy3d::SurfaceMesh::Face> vis;
@@ -68,13 +69,14 @@ void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
             auto opp_f = mesh->face(mesh->opposite(h));
             if(opp_f.is_valid() && vis.find(opp_f) == vis.end()) {
                 double len = (center - sites[opp_f.idx()]).norm();
-                if(abs(axis_len - len) / axis_len < 0.1) {
+                if(abs(axis_len - len) / axis_len < 0.05) {
                     que.push(opp_f);
                 }
             }
         }
     }
-    if(1) {
+    maxx = std::max(maxx , (int)vis.size());
+    if(vis.size() > 50 || 1) {
         for (auto v: vis) {
             fillet[v] += 1.0;
         }
@@ -105,17 +107,21 @@ int main() {
     std::vector<easy3d::vec3> c;
     std::vector<easy3d::vec3> b;
     Box3 box = mesh->bounding_box();
+    int ct = 0;
     for(int i = 0; i < nb_vertices; i++) {
-        double len = (vertices[i] - sites[vertices2sites[i][0]]).norm();
-        if( box.contains(vertices[i]) &&is_connected(mesh, vertices2sites[i])) {
-            domain_region(mesh,  vertices[i], sites, vertices2sites[i][0]);
-            a.emplace_back(vertices[i]);
-            for(int j = 0; j < vertices2sites[i].size(); j++) {
-                int id = vertices2sites[i][j];
+        int x = i;
+        double len = (vertices[x] - sites[vertices2sites[x][0]]).norm();
+        if(len < 1.5 && box.contains(vertices[x]) &&is_connected(mesh, vertices2sites[x])) {
+            domain_region(mesh,  vertices[x], sites, vertices2sites[x][0]);
+            a.emplace_back(vertices[x]);
+            for(int j = 0; j < vertices2sites[x].size(); j++) {
+                int id = vertices2sites[x][j];
                 c.emplace_back(sites[id]);
-                b.emplace_back(vertices[i]);
+                b.emplace_back(vertices[id]);
                 b.emplace_back(sites[id]);
             }
+            ct++;
+            if(ct >10) break;
         }
     }
 
@@ -145,7 +151,7 @@ int main() {
 //    viewer.add_drawable(pd_vertices);
 //    viewer.add_drawable(pd_sites);
 //    viewer.add_drawable(lDrawable);
-
+    std::cout << maxx <<std::endl;
     viewer.run();
     return 0;
 }

@@ -46,6 +46,9 @@ bool is_connected(const easy3d::SurfaceMesh* mesh, const std::vector<int>& faces
 
 }
 
+
+
+
 void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
                    const std::vector<easy3d::vec3>& sites,  int st) {
     std::set<easy3d::SurfaceMesh::Face> vis;

@@ -47,10 +47,69 @@ bool is_connected(const easy3d::SurfaceMesh* mesh, const std::vector<int>& faces
 }
 
 
+double compute_score(const easy3d::SurfaceMesh* mesh,  const std::vector<easy3d::vec3>& sites,
+                   easy3d::vec3 center,  const std::vector<int>& faces) {
+    std::set<easy3d::SurfaceMesh::Face> vis;
+    std::queue<easy3d::SurfaceMesh::Face>que;
+    std::map<int,int> root;
+    for(auto f : faces) {
+        easy3d::SurfaceMesh::Face face_handle(f);
+        que.push(face_handle);
+        root[f] = f;
+    }
+    std::function<int(int)> get_root = [&](int k)-> int {
+        return root[k] == k ? k : (root[k] = get_root(root[k]));
+    };
+    double R = (sites[faces[0]] - center).norm();
+    double eps = R * 0.02;
+    double err = 0;
+    while(!que.empty()) {
+        auto cur = que.front(); que.pop();
+        if(vis.find(cur) != vis.end()) {
+            continue;
+        }
+        vis.insert(cur);
+        for(auto h : mesh->halfedges(cur)) {
+            auto opp_f = mesh->face(mesh->opposite(h));
+            if(opp_f.is_valid()) {
+                double len = (sites[opp_f.idx()] - center).norm();
+                if(len < R + eps) {
+                    if(vis.find(opp_f) == vis.end()) {
+                        err += fabs(len - R);
+                        que.push(opp_f);
+                        int r = get_root(cur.idx());
+                        root[opp_f.idx()] = r;
+                    } else {
+                        int r1 = get_root(cur.idx());
+                        int r2 = get_root(opp_f.idx());
+                        root[r1] = r2;
+                    }
+                }
+
+            }
+        }
+    }
+
+    int ct = 0;
+    for(auto item : root) {
+        root[item.first] = get_root(item.first);
+        if(item.first == item.second) {
+            ct++;
+            if(ct > 1) break;
+        }
+    }
+    if(ct > 1) {
+        return 0.0;
+    }
+    double x = 1.0 * err / vis.size();
+    return exp(-10* x);
+}
+
+
 
 
 void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
-                   const std::vector<easy3d::vec3>& sites,  int st) {
+                   const std::vector<easy3d::vec3>& sites,  int st, double score) {
     std::set<easy3d::SurfaceMesh::Face> vis;
     auto fillet = mesh->face_property<double>("f:fillet");
     double axis_len = (center - sites[st]).norm();
@@ -72,16 +131,16 @@ void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
             auto opp_f = mesh->face(mesh->opposite(h));
             if(opp_f.is_valid() && vis.find(opp_f) == vis.end()) {
                 double len = (center - sites[opp_f.idx()]).norm();
-                if(abs(axis_len - len) / axis_len < 0.05 && vis.find(opp_f) == vis.end()) {
+                if(abs(axis_len - len) / axis_len < 0.02 && vis.find(opp_f) == vis.end()) {
                     que.push(opp_f);
                 }
             }
         }
     }
     maxx = std::max(maxx , (int)vis.size());
-    if(vis.size() > 20) {
+    if(1) {
         for (auto v: vis) {
-            fillet[v] += 1.0;
+            fillet[v] += score;
         }
     }
 }
@@ -101,6 +160,23 @@ int main() {
     auto fillet = mesh->add_face_property<double>("f:fillet", 0);
     easy3d::Viewer viewer("ASD");
     viewer.add_model(mesh);
+    double minn = 1e9;
+    Box3 box = mesh->bounding_box();
+
+    for(int i = 0; i < nb_vertices; i++) {
+        double len = (vertices[i] - sites[vertices2sites[i][0]]).norm();
+        if(len < 3.0 && box.contains(vertices[i])) {
+            double score = compute_score(mesh, sites, vertices[i], vertices2sites[i]);
+            minn = min(score, minn);
+            if(score > 1e-3) {
+                domain_region(mesh, vertices[i], sites, vertices2sites[i][0], score);
+            }
+        } else {
+
+        }
+    }
+
+    std::cout << "minn=" <<minn <<std::endl;
 //    mesh->renderer()->get_triangles_drawable("faces")->set_visible(false);
 //    mesh->renderer()->get_lines_drawable("edges")->set_visible(true);
     easy3d::PointsDrawable* pd_vertices = new easy3d::PointsDrawable;
@@ -109,24 +185,25 @@ int main() {
     std::vector<easy3d::vec3> a;
     std::vector<easy3d::vec3> c;
     std::vector<easy3d::vec3> b;
-    Box3 box = mesh->bounding_box();
+
     int ct = 0;
-    for(int i = 0; i < nb_vertices; i++) {
-        int x = i;
-        double len = (vertices[x] - sites[vertices2sites[x][0]]).norm();
-        if(box.contains(vertices[x]) &&is_connected(mesh, vertices2sites[x])) {
-            domain_region(mesh,  vertices[x], sites, vertices2sites[x][0]);
-            a.emplace_back(vertices[x]);
-            for(int j = 0; j < vertices2sites[x].size(); j++) {
-                int id = vertices2sites[x][j];
-                c.emplace_back(sites[id]);
-                b.emplace_back(vertices[id]);
-                b.emplace_back(sites[id]);
-            }
-            ct++;
-//            if(ct >1000) break;
-        }
-    }
+
+//    for(int i = 0; i < nb_vertices; i++) {
+//        int x = i;
+//        double len = (vertices[x] - sites[vertices2sites[x][0]]).norm();
+//        if(box.contains(vertices[x]) &&is_connected(mesh, vertices2sites[x])) {
+//            domain_region(mesh,  vertices[x], sites, vertices2sites[x][0]);
+//            a.emplace_back(vertices[x]);
+//            for(int j = 0; j < vertices2sites[x].size(); j++) {
+//                int id = vertices2sites[x][j];
+//                c.emplace_back(sites[id]);
+//                b.emplace_back(vertices[id]);
+//                b.emplace_back(sites[id]);
+//            }
+//            ct++;
+////            if(ct >1000) break;
+//        }
+//    }
 
     Eigen::VectorXd Z(nb_sites);
     for (int i = 0; i < nb_sites; i++) {

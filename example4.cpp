@@ -69,14 +69,14 @@ void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
             auto opp_f = mesh->face(mesh->opposite(h));
             if(opp_f.is_valid() && vis.find(opp_f) == vis.end()) {
                 double len = (center - sites[opp_f.idx()]).norm();
-                if(abs(axis_len - len) / axis_len < 0.05) {
+                if(abs(axis_len - len) / axis_len < 0.05 && vis.find(opp_f) == vis.end()) {
                     que.push(opp_f);
                 }
             }
         }
     }
     maxx = std::max(maxx , (int)vis.size());
-    if(vis.size() > 50 || 1) {
+    if(vis.size() > 20) {
         for (auto v: vis) {
             fillet[v] += 1.0;
         }
@@ -84,7 +84,7 @@ void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
 }
 
 int main() {
-    std::string file_path = "../data/20431_27e7f151_2.ply";
+    std::string file_path = "../data/21681_cbbaafd2_3.ply";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(file_path);
     MeshVoronoi3d mv3d(mesh);
 
@@ -111,7 +111,7 @@ int main() {
     for(int i = 0; i < nb_vertices; i++) {
         int x = i;
         double len = (vertices[x] - sites[vertices2sites[x][0]]).norm();
-        if(len < 1.5 && box.contains(vertices[x]) &&is_connected(mesh, vertices2sites[x])) {
+        if(box.contains(vertices[x]) &&is_connected(mesh, vertices2sites[x])) {
             domain_region(mesh,  vertices[x], sites, vertices2sites[x][0]);
             a.emplace_back(vertices[x]);
             for(int j = 0; j < vertices2sites[x].size(); j++) {
@@ -121,7 +121,7 @@ int main() {
                 b.emplace_back(sites[id]);
             }
             ct++;
-            if(ct >10) break;
+//            if(ct >1000) break;
         }
     }
 

@@ -101,6 +101,31 @@ double compute_score(const easy3d::SurfaceMesh* mesh,  const std::vector<easy3d:
     if(ct > 1) {
         return 0.0;
     }
+    double minn = 1.0;
+    int pole1 = (*vis.begin()).idx();
+    easy3d::vec3 v1 = (sites[pole1] - center).normalize();
+    for(auto f : vis) {
+        easy3d::vec3 v2 = (sites[f.idx()] - center).normalize();
+        double dot_val = easy3d::dot(v1, v2);
+        if(dot_val < minn) {
+            minn = dot_val;
+            pole1 = f.idx();
+        }
+    }
+    int pole2 = pole1;
+    v1 = (sites[pole1] - center).normalize();
+    minn = 1.0;
+    for(auto f : vis) {
+        easy3d::vec3 v2 = (sites[f.idx()] - center).normalize();
+        double dot_val = easy3d::dot(v1, v2);
+        if(dot_val < minn) {
+            minn = dot_val;
+            pole2 = f.idx();
+        }
+    }
+    if(minn < -0.17) {
+        return 0.0;
+    }
     double x = 1.0 * err / vis.size();
     return exp(-10* x);
 }
@@ -120,9 +145,6 @@ void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
         auto cur = que.front(); que.pop();
         if(vis.find(cur) == vis.end()) {
             vis.insert(cur);
-//            if(vis.size() > 40) {
-//                break;
-//            }
         }
         else {
             continue;
@@ -138,10 +160,8 @@ void domain_region(easy3d::SurfaceMesh* mesh, easy3d::vec3 center,
         }
     }
     maxx = std::max(maxx , (int)vis.size());
-    if(1) {
-        for (auto v: vis) {
-            fillet[v] += score;
-        }
+    for (auto v: vis) {
+        fillet[v] += score;
     }
 }
 
@@ -165,10 +185,10 @@ int main() {
 
     for(int i = 0; i < nb_vertices; i++) {
         double len = (vertices[i] - sites[vertices2sites[i][0]]).norm();
-        if(len < 3.0 && box.contains(vertices[i])) {
+        if(len <2.0  && box.contains(vertices[i])) {
             double score = compute_score(mesh, sites, vertices[i], vertices2sites[i]);
             minn = min(score, minn);
-            if(score > 1e-3) {
+            if(score > 0.5) {
                 domain_region(mesh, vertices[i], sites, vertices2sites[i][0], score);
             }
         } else {

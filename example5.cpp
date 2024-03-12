@@ -4,16 +4,15 @@
 
 
 
-#include "visualization.h"
-#include "src/fillet_seg.h"
-
-
+#include <easy3d/util/logging.h>
+#include "viewer.h"
 
 int main() {
-    std::string file_path = "../data/21681_cbbaafd2_3.ply";
-    easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(file_path);
-    FilletSeg filletSeg(mesh);
-    filletSeg.face_scoring();
+    easy3d::logging::initialize();
+//    const std::string file_name = resource::directory() + "/data/easy3d.ply";
+    easy3d::ViewerImGui viewer("DeFillet");
 
-    easy3d::Viewer viewer("ASD");
+
+    viewer.resize(800, 600);
+    return viewer.run();
 }

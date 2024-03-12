@@ -4,6 +4,7 @@ project(defillet)
 set(CMAKE_CXX_STANDARD 14)
 
 
+
 # Eigen3
 find_package(Eigen3 CONFIG REQUIRED)
 
@@ -13,11 +14,10 @@ find_package(CGAL CONFIG REQUIRED)
 #Libigl
 find_package(libigl CONFIG REQUIRED)
 
-# Easy3D
-find_package(easy3d CONFIG REQUIRED)
 
 add_subdirectory(gcp)
 add_subdirectory(geodesic)
+add_subdirectory(lib-easy3d)
 
 #add_subdirectory(lib-easy3d)
 #add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
@@ -41,10 +41,10 @@ add_subdirectory(geodesic)
 
 set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp src/gcp.cpp src/viewer.cpp)
 add_executable(example5 example5.cpp ${DEFILLET_SOURCES})
-target_include_directories(example5 PUBLIC src)
-target_link_libraries(example5 PUBLIC gcp geodesic)
-target_link_libraries(example5 PUBLIC CGAL::CGAL Eigen3::Eigen igl::igl_core)
-target_link_libraries(example5 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+target_include_directories(example5 PRIVATE src)
+target_link_libraries(example5 PRIVATE gcp geodesic)
+target_link_libraries(example5 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(example5 PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
 
 
 #add_executable(segment segment.cpp)

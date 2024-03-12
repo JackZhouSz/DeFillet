@@ -48,8 +48,8 @@ MeshVoronoi3d::MeshVoronoi3d(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
     vertices_.clear(); regions_.clear(); poles_.clear();
     final_pole_.clear(); vertices2sites_.clear();
     regions_.resize(nb_sites);
-    poles_.resize(nb_sites);
-    final_pole_.resize(nb_sites);
+//    poles_.resize(nb_sites);
+//    final_pole_.resize(nb_sites);
 
     for(auto cell = T_.finite_cells_begin(); cell != T_.finite_cells_end(); cell++) {
         auto v = T_.dual(cell);
@@ -66,21 +66,21 @@ MeshVoronoi3d::MeshVoronoi3d(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
     }
 
 
-    for(int i = 0; i < nb_sites; i++) {
-        int num = regions_[i].size();
-        double maxx = 0;
-        int pole = -1;
-        easy3d::SurfaceMesh::Face f(i);
-        for(int j = 0; j < num; j++) {
-            easy3d::vec3 dir = vertices_[regions_[i][j]] - sites_[i];
-            double len = dir.norm();
-            if(box.contains(vertices_[regions_[i][j]]) &&easy3d::dot(face_normals[f], dir) / len < -0.5 && len > maxx) {
-                maxx = len;
-                pole = regions_[i][j];
-            }
-        }
-        final_pole_[i] = pole;
-    }
+//    for(int i = 0; i < nb_sites; i++) {
+//        int num = regions_[i].size();
+//        double maxx = 0;
+//        int pole = -1;
+//        easy3d::SurfaceMesh::Face f(i);
+//        for(int j = 0; j < num; j++) {
+//            easy3d::vec3 dir = vertices_[regions_[i][j]] - sites_[i];
+//            double len = dir.norm();
+//            if(box.contains(vertices_[regions_[i][j]]) &&easy3d::dot(face_normals[f], dir) / len < -0.5 && len > maxx) {
+//                maxx = len;
+//                pole = regions_[i][j];
+//            }
+//        }
+//        final_pole_[i] = pole;
+//    }
 
 
 

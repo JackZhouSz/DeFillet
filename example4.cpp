@@ -173,7 +173,7 @@ int main() {
     const std::vector<easy3d::vec3>& vertices = mv3d.get_vertices();
     const std::vector<easy3d::vec3>& sites = mv3d.get_sites();
     const std::vector<std::vector<int>>& regions = mv3d.get_regions();
-    const std::vector<int>& final_pole = mv3d.get_final_pole();
+    const std::vector<int> final_pole = mv3d.get_final_pole();
     const std::vector<std::vector<int>> vertices2sites = mv3d.get_vertices2sites();
     int nb_sites = sites.size();
     int nb_vertices = vertices.size();

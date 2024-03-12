@@ -5,7 +5,8 @@
 #ifndef DEFILLET_FILLET_SEG_H
 #define DEFILLET_FILLET_SEG_H
 
-#include <easy3d/core/surface_mesh.h>
+#include "easy3d/core/surface_mesh.h"
+#include "easy3d/core/point_cloud.h"
 
 class FilletSeg {
 public:
@@ -20,7 +21,7 @@ public:
     void seg();
 
     // main steps
-    void site_scoring();
+    void face_scoring();
     void run_gcp();
     void run_geodesic();
     void refine_fillet_boundary();
@@ -45,13 +46,15 @@ public:
     double get_boundary_time() { return boundary_refine_time_;}
     double get_target_normals_refine_time() { return target_normals_refine_time_;}
 
+    std::vector<double> get_vertices_scores() { return vertices_scores_; }
+
 private:
     easy3d::SurfaceMesh* mesh_;
     std::vector<easy3d::vec3> sites_;
     std::vector<easy3d::vec3> vertices_;
     std::vector<std::vector<int>> site_of_vertices_;
 
-    std::vector<double> vertex_scores_;
+    std::vector<double> vertices_scores_;
 
     easy3d::Box3 box;
     double eps_;

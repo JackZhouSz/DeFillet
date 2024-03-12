@@ -5,8 +5,8 @@
 #ifndef DEFILLET_MESHVORONOI3D_H
 #define DEFILLET_MESHVORONOI3D_H
 
-#include "common.h"
-#include <easy3d/core/surface_mesh.h>
+#include "../common.h"
+#include "easy3d/core/surface_mesh.h"
 
 class MeshVoronoi3d {
 public:

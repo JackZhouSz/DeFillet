@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include <GCoptimization.h>
+#include "GCoptimization.h"
 
 namespace GCP {
     class DataCost : public GCoptimization::DataCostFunctor {

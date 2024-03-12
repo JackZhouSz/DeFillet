@@ -2,7 +2,7 @@
 // Created by 13900K on 2024/3/5.
 //
 #include "common.h"
-#include "MeshVoronoi3d.h"
+#include "src/MeshVoronoi3d.h"
 #include "io.h"
 #include "utils.h"
 #include "visualization.h"

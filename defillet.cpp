@@ -3,7 +3,7 @@
 //
 
 #include "defillet.h"
-#include "gcp.h"
+#include "src/gcp.h"
 #include "optimize.h"
 #include <numeric>
 #include <easy3d/core/surface_mesh.h>

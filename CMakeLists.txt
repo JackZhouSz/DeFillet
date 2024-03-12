@@ -13,31 +13,42 @@ find_package(CGAL CONFIG REQUIRED)
 #Libigl
 find_package(libigl CONFIG REQUIRED)
 
+# Easy3D
+find_package(easy3d CONFIG REQUIRED)
+
 add_subdirectory(gcp)
-add_subdirectory(lib-easy3d)
 add_subdirectory(geodesic)
 
-add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
-target_link_libraries(example1 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#add_subdirectory(lib-easy3d)
+#add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
+#target_link_libraries(example1 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#
+#add_executable(example2 example2.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
+#target_link_libraries(example2 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#
+#
+#add_executable(example3 example3.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
+#target_link_libraries(example3 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#
+#
+#add_executable(example4 example4.cpp src/MeshVoronoi3d.cpp src/fillet_seg.cpp)
+#target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
-add_executable(example2 example2.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
-target_link_libraries(example2 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+
+set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp src/gcp.cpp src/viewer.cpp)
+add_executable(example5 example5.cpp ${DEFILLET_SOURCES})
+target_include_directories(example5 PUBLIC src)
+target_link_libraries(example5 PUBLIC gcp geodesic)
+target_link_libraries(example5 PUBLIC CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(example5 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
 
-add_executable(example3 example3.cpp defillet.cpp knn.cpp voronoi.cpp gcp.cpp optimize.cpp)
-target_link_libraries(example3 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-
-
-add_executable(example4 example4.cpp MeshVoronoi3d.cpp fillet_seg.cpp)
-target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-
-
-add_executable(segment segment.cpp)
-target_link_libraries(segment PUBLIC gcp easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#add_executable(segment segment.cpp)
+#target_link_libraries(segment PUBLIC gcp easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 #add_executable(defillet main.cpp knn.cpp voronoi.cpp defillet1.cpp)
 #target_link_libraries(defillet PUBLIC CGAL::CGAL easy3d::renderer
 #        easy3d::util easy3d::viewer ${OpenCV_LIBS} gcp geodesic Eigen3::Eigen igl::igl_core)

@@ -13,6 +13,6 @@ int main() {
     easy3d::ViewerImGui viewer("DeFillet");
 
 
-    viewer.resize(800, 600);
+    viewer.resize(1000, 800);
     return viewer.run();
 }

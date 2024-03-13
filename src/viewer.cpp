@@ -1,33 +1,8 @@
-/********************************************************************
- * Copyright (C) 2015 Liangliang Nan <liangliang.nan@gmail.com>
- * https://3d.bk.tudelft.nl/liangliang/
- *
- * This file is part of Easy3D. If it is useful in your research/work,
- * I would be grateful if you show your appreciation by citing it:
- * ------------------------------------------------------------------
- *      Liangliang Nan.
- *      Easy3D: a lightweight, easy-to-use, and efficient C++ library
- *      for processing and rendering 3D data.
- *      Journal of Open Source Software, 6(64), 3255, 2021.
- * ------------------------------------------------------------------
- *
- * Easy3D is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License Version 3
- * as published by the Free Software Foundation.
- *
- * Easy3D is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- ********************************************************************/
-
 #include "viewer.h"
 #include "easy3d/util/dialogs.h"
 
 #include <iostream>
+#include <cstdio>
 
 #include <easy3d/util/file_system.h>
 #include <easy3d/core/point_cloud.h>
@@ -71,7 +46,10 @@ namespace easy3d {
             , mesh(nullptr)
             , sites(nullptr)
             , vertices(nullptr)
-    {
+            , show_mesh(false)
+            , eps(0.03), s(10), radius(0.1)
+            , min_score(0.5), alpha(0.5) {
+//        fillet_seg = new FilletSeg();
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
@@ -280,45 +258,111 @@ namespace easy3d {
         static bool my_tool_active = true;
         int w, h;
         glfwGetWindowSize(window_, &w, &h);
-        ImGui::SetNextWindowSize(ImVec2(400, h), ImGuiCond_Always);
-        ImGui::SetNextWindowPos(ImVec2(w - 400, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(325, h), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(w - 325, 0), ImGuiCond_Always);
         ImGui::Begin("Dashboard", &my_tool_active, ImGuiWindowFlags_MenuBar);
         ImGui::SetNextWindowContentSize(ImVec2(0, 0));
         if (ImGui::CollapsingHeader("Open/Save", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-            if (ImGui::Button("Open", ImVec2(200, 30))) {
+            if (ImGui::Button("Open", ImVec2(150, 30))) {
                 const std::string title("Please choose a file");
                 const std::string &default_path = "../data/";
                 const std::vector<std::string> &filters = {
                         "Surface Mesh (*.obj *.ply)", "*.obj *.ply"
                 };
                 const std::vector<std::string> &file_names = easy3d::dialog::open(title, default_path, filters, true);
-                if(mesh) {
-                    delete mesh->renderer();
-                    delete mesh->manipulator();
-                    delete mesh;
+                if(file_names.size() > 0) {
+                    if (mesh) {
+                        fillet_seg->reset();
+                        delete mesh->renderer();
+                        delete mesh->manipulator();
+                        delete mesh;
+                    }
+                    if(fillet_seg) {
+                        delete fillet_seg;
+                    }
+                    fillet_seg = new FilletSeg();
+                    mesh = easy3d::SurfaceMeshIO::load(file_names[0]);
+                    auto renderer = new easy3d::Renderer(mesh, true);
+                    mesh->set_renderer(renderer);
+                    auto manipulator = new Manipulator(mesh);
+                    mesh->set_manipulator(manipulator);
+                    fillet_seg->set_mesh(mesh);
+                    show_mesh = true;
+                    Viewer::fit_screen(mesh);
                 }
-                mesh = easy3d::SurfaceMeshIO::load(file_names[0]);
-                auto renderer = new easy3d::Renderer(mesh, true);
-                mesh->set_renderer(renderer);
-                auto manipulator = new Manipulator(mesh);
-                mesh->set_manipulator(manipulator);
-                Viewer::fit_screen(mesh);
-
             }
             ImGui::SameLine();
-            if (ImGui::Button("Save", ImVec2(200, 30))) {
+            if (ImGui::Button("Save", ImVec2(150, 30))) {
 
             }
         }
+        ImGui::Separator();
         if (ImGui::CollapsingHeader("Visible", ImGuiTreeNodeFlags_DefaultOpen)) {
-            static bool show_mesh = true;
-            ImGui::Checkbox("Panel Movable", &show_mesh);
+
+            ImGui::Checkbox("mesh", &show_mesh);
             if(mesh && mesh->renderer()) {
                 mesh->renderer()->set_visible(show_mesh);
             }
+            ImGui::SameLine();
+            static bool show_sites = false;
+            ImGui::Checkbox("sites", &show_sites);
+            if(sites && sites->renderer()) {
+                sites->renderer()->set_visible(show_sites);
+            }
+            ImGui::SameLine();
+            static bool show_vertices = false;
+            ImGui::Checkbox("vertices", &show_vertices);
+            if(vertices && vertices->renderer()) {
+                vertices->renderer()->set_visible(show_vertices);
+            }
         }
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("FilletSeg", ImGuiTreeNodeFlags_DefaultOpen)) {
+            float width = 230;
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("eps", &eps, 0.01, 1.0f, "%.2f");
+            eps = std::clamp(eps, 0.0, 1.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("radius", &radius, 0.01, 1.0f, "%.2f");
+            radius = std::clamp(radius, 0.0, 1.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("s", &s, 0.1, 1.0f, "%.2f");
+            s = std::max(s, 1.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("min_score", &min_score, 0.1, 1.0f, "%.2f");
+            min_score = std::clamp(min_score, 0.0, 1.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("alpha", &alpha, 0.1, 1.0f, "%.2f");
+            alpha = std::clamp(alpha, 0.0, 10.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
+            angle = std::clamp(angle, 0.0, 10.0);
 
+            ImGui::Separator();
+            if (ImGui::Button("scoring", ImVec2(150, 30))) {
+                if(mesh) {
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("gcp", ImVec2(150, 30))) {
+
+            }
+
+            if (ImGui::Button("geodesic", ImVec2(310, 30))) {
+
+            }
+            if (ImGui::Button("refine_fillet_boundary", ImVec2(310, 30))) {
+
+            }
+            if (ImGui::Button("refine_target_normal", ImVec2(310, 30))) {
+
+            }
+        }
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("DeFillet", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        }
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

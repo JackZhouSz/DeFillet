@@ -10,18 +10,34 @@
 
 class FilletSeg {
 public:
-    FilletSeg(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
+    FilletSeg(){
         eps_ = 0.03; s_ = 10;
         scoring_time_ = 0.0; gcp_time_ = 0.0;
         boundary_refine_time_ = 0.0; target_normals_refine_time_ = 0.0;
         radius_ = 0.1;
+        alpha_ = 0.5;
+        angle_ = 40;
+        min_score_ = 0.5;
+        mesh_ = nullptr;
         box = mesh_->bounding_box();
+    }
+
+    void reset() {
+        eps_ = 0.03; s_ = 10;
+        scoring_time_ = 0.0; gcp_time_ = 0.0;
+        boundary_refine_time_ = 0.0; target_normals_refine_time_ = 0.0;
+        radius_ = 0.1;
+        alpha_ = 0.5;
+        angle_ = 40;
+        min_score_ = 0.5;
+        box.clear();
+        mesh_ = nullptr;
     }
 
     void seg();
 
     // main steps
-    void face_scoring();
+    void run_scoring();
     void run_gcp();
     void run_geodesic();
     void refine_fillet_boundary();
@@ -33,10 +49,13 @@ public:
 
 
     // geter and seter
+    void set_mesh(easy3d::SurfaceMesh* mesh) { mesh_ = mesh;}
     void set_eps(double eps) {eps_ = eps;}
     void set_s(double s) {s_ = s;}
     void set_radius(double radius) { radius_ = radius;}
     void set_min_score(double min_score) { min_score_ = min_score;}
+    void set_alpha(double alpha) {alpha_ = alpha;}
+    void set_angle(double angle) {angle_ = angle;}
 
     double get_runtime() {
         return scoring_time_ + gcp_time_ + geodesic_time_ + boundary_refine_time_ + target_normals_refine_time_;
@@ -61,6 +80,8 @@ private:
     double s_;
     double radius_;
     double min_score_;
+    double alpha_;
+    double angle_;
 
     double scoring_time_;
     double gcp_time_;

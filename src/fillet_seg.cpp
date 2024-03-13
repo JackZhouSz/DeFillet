@@ -6,13 +6,13 @@
 #include "MeshVoronoi3d.h"
 
 void FilletSeg::seg() {
-    face_scoring();
+    run_scoring();
     run_gcp();
     run_geodesic();
     refine_fillet_boundary();
 }
 
-void FilletSeg::face_scoring() {
+void FilletSeg::run_scoring() {
     MeshVoronoi3d mv3d(mesh_);
     sites_ = mv3d.get_sites();
     vertices_ = mv3d.get_vertices();
@@ -42,6 +42,7 @@ void FilletSeg::face_scoring() {
     }
 
 }
+
 
 void FilletSeg::run_gcp() {
 

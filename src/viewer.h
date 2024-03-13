@@ -6,7 +6,7 @@
 
 #include <easy3d/core/surface_mesh.h>
 #include <easy3d/core/point_cloud.h>
-
+#include <fillet_seg.h>
 // A very good tutorial for imgui:
 // https://eliasdaler.github.io/using-imgui-with-sfml-pt1/
 // https://eliasdaler.github.io/using-imgui-with-sfml-pt2/
@@ -56,9 +56,11 @@ namespace easy3d {
 
         void draw_dashboard();
 
-        void run_face_scoreing();
+        void run_scoreing();
         void run_gcp();
-        
+        void run_geodesic();
+        void run_refine_fillet_boundary();
+        void run_refine_target_normal();
 
     protected:
         // Ratio between the framebuffer size and the window size.
@@ -82,9 +84,17 @@ namespace easy3d {
 
 
     private:
+        FilletSeg* fillet_seg;
         easy3d::SurfaceMesh* mesh;
         easy3d::PointCloud* sites;
         easy3d::PointCloud* vertices;
+        bool show_mesh;
+        double eps;
+        double radius;
+        double s;
+        double min_score;
+        double alpha;
+        double angle;
     };
 
 }

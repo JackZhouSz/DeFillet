@@ -16,6 +16,7 @@
 #include <easy3d/algo/surface_mesh_curvature.h>
 
 int maxx = 0;
+int asd = 0;
 bool is_connected(const easy3d::SurfaceMesh* mesh, const std::vector<int>& faces) {
     std::set<easy3d::SurfaceMesh::Face> face_set;
     std::set<easy3d::SurfaceMesh::Face> vis;
@@ -99,33 +100,34 @@ double compute_score(const easy3d::SurfaceMesh* mesh,  const std::vector<easy3d:
         }
     }
     if(ct > 1) {
+        asd++;
         return 0.0;
     }
-    double minn = 1.0;
-    int pole1 = (*vis.begin()).idx();
-    easy3d::vec3 v1 = (sites[pole1] - center).normalize();
-    for(auto f : vis) {
-        easy3d::vec3 v2 = (sites[f.idx()] - center).normalize();
-        double dot_val = easy3d::dot(v1, v2);
-        if(dot_val < minn) {
-            minn = dot_val;
-            pole1 = f.idx();
-        }
-    }
-    int pole2 = pole1;
-    v1 = (sites[pole1] - center).normalize();
-    minn = 1.0;
-    for(auto f : vis) {
-        easy3d::vec3 v2 = (sites[f.idx()] - center).normalize();
-        double dot_val = easy3d::dot(v1, v2);
-        if(dot_val < minn) {
-            minn = dot_val;
-            pole2 = f.idx();
-        }
-    }
-    if(minn < -0.17) {
-        return 0.0;
-    }
+//    double minn = 1.0;
+//    int pole1 = (*vis.begin()).idx();
+//    easy3d::vec3 v1 = (sites[pole1] - center).normalize();
+//    for(auto f : vis) {
+//        easy3d::vec3 v2 = (sites[f.idx()] - center).normalize();
+//        double dot_val = easy3d::dot(v1, v2);
+//        if(dot_val < minn) {
+//            minn = dot_val;
+//            pole1 = f.idx();
+//        }
+//    }
+//    int pole2 = pole1;
+//    v1 = (sites[pole1] - center).normalize();
+//    minn = 1.0;
+//    for(auto f : vis) {
+//        easy3d::vec3 v2 = (sites[f.idx()] - center).normalize();
+//        double dot_val = easy3d::dot(v1, v2);
+//        if(dot_val < minn) {
+//            minn = dot_val;
+//            pole2 = f.idx();
+//        }
+//    }
+//    if(minn < -0.17) {
+//        return 0.0;
+//    }
     double x = 1.0 * err / vis.size();
     return exp(-10* x);
 }
@@ -207,7 +209,7 @@ int main() {
     std::vector<easy3d::vec3> b;
 
     int ct = 0;
-
+    std::cout << "asd=" << asd << std::endl;
 //    for(int i = 0; i < nb_vertices; i++) {
 //        int x = i;
 //        double len = (vertices[x] - sites[vertices2sites[x][0]]).norm();

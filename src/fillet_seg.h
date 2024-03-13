@@ -19,7 +19,7 @@ public:
         angle_ = 40;
         min_score_ = 0.5;
         mesh_ = nullptr;
-        box = mesh_->bounding_box();
+        asd = 0;
     }
 
     void reset() {
@@ -49,7 +49,10 @@ public:
 
 
     // geter and seter
-    void set_mesh(easy3d::SurfaceMesh* mesh) { mesh_ = mesh;}
+    void set_mesh(easy3d::SurfaceMesh* mesh) {
+        mesh_ = mesh;
+        box = mesh_->bounding_box();
+    }
     void set_eps(double eps) {eps_ = eps;}
     void set_s(double s) {s_ = s;}
     void set_radius(double radius) { radius_ = radius;}
@@ -60,12 +63,14 @@ public:
     double get_runtime() {
         return scoring_time_ + gcp_time_ + geodesic_time_ + boundary_refine_time_ + target_normals_refine_time_;
     }
-    double get_scoring_time() { return scoring_time_;}
-    double get_gcp_time() { return gcp_time_;}
-    double get_boundary_time() { return boundary_refine_time_;}
-    double get_target_normals_refine_time() { return target_normals_refine_time_;}
+    double get_scoring_time() const { return scoring_time_;}
+    double get_gcp_time() const { return gcp_time_;}
+    double get_boundary_time() const { return boundary_refine_time_;}
+    double get_target_normals_refine_time() const { return target_normals_refine_time_;}
 
-    std::vector<double> get_vertices_scores() { return vertices_scores_; }
+    const std::vector<double>& get_vertices_scores() const { return vertices_scores_; }
+    const std::vector<easy3d::vec3>& get_sites() const {return sites_;}
+    const std::vector<easy3d::vec3>& get_vertices() const {return vertices_;}
 
 private:
     easy3d::SurfaceMesh* mesh_;
@@ -88,6 +93,7 @@ private:
     double geodesic_time_;
     double boundary_refine_time_;
     double target_normals_refine_time_;
+    int asd;
 };
 
 

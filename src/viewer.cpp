@@ -26,6 +26,8 @@
 #include <3rd_party/glfw/include/GLFW/glfw3.h>
 
 
+#include <igl/jet.h>
+
 namespace easy3d {
 
     ImGuiContext* ViewerImGui::context_ = nullptr;
@@ -46,10 +48,10 @@ namespace easy3d {
             , mesh(nullptr)
             , sites(nullptr)
             , vertices(nullptr)
+            , fillet_seg(nullptr)
             , show_mesh(false)
             , eps(0.03), s(10), radius(0.1)
             , min_score(0.5), alpha(0.5) {
-//        fillet_seg = new FilletSeg();
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
@@ -253,7 +255,6 @@ namespace easy3d {
     }
 
 
-
     void ViewerImGui::draw_dashboard(){
         static bool my_tool_active = true;
         int w, h;
@@ -341,7 +342,8 @@ namespace easy3d {
 
             ImGui::Separator();
             if (ImGui::Button("scoring", ImVec2(150, 30))) {
-                if(mesh) {
+                if(mesh && fillet_seg) {
+                    run_scoring();
                 }
             }
             ImGui::SameLine();
@@ -366,5 +368,89 @@ namespace easy3d {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+    }
+
+    void ViewerImGui::run_scoring() {
+        fillet_seg->reset();
+        fillet_seg->set_mesh(mesh);
+        fillet_seg->set_eps(eps);fillet_seg->set_radius(radius);
+        fillet_seg->set_min_score(min_score);
+        fillet_seg->set_s(s);
+        fillet_seg->run_scoring();
+        auto scores = mesh->face_property<double>("f:scores");
+        int nb_faces = mesh->n_faces();
+        Eigen::VectorXd Z(nb_faces);
+        for (int i = 0; i < nb_faces; i++) {
+            Z[i] = scores.vector()[i];
+        }
+        Eigen::MatrixXd Ct;
+        igl::jet(Z, true, Ct);
+        auto coloring_mesh = mesh->face_property<vec3>("f:color", vec3(0, 0, 0));
+        for(auto f : mesh->faces()) {
+            coloring_mesh[f] = easy3d::vec3(Ct(f.idx(), 0),
+                                       Ct(f.idx(), 1), Ct(f.idx(), 2));
+        }
+        auto drawable_mesh = mesh->renderer()->get_triangles_drawable("faces");
+        drawable_mesh->set_property_coloring(State::FACE, "f:color");
+        drawable_mesh->update();
+
+        if (sites) {
+            delete sites->renderer();
+            delete sites->manipulator();
+            delete sites;
+        }
+        sites = new easy3d::PointCloud;
+        auto renderer_sites = new easy3d::Renderer(sites, true);
+        sites->set_renderer(renderer_sites);
+        auto manipulator_sites = new Manipulator(sites);
+        sites->set_manipulator(manipulator_sites);
+
+        auto& tmp_sites = fillet_seg->get_sites();
+        for(auto v : tmp_sites) {
+            sites->add_vertex(v);
+        }
+        auto coloring_sites= sites->vertex_property<vec3>("v:color", vec3(0, 0, 0));
+        for(auto v : sites->vertices()) {
+            coloring_sites[v] = easy3d::vec3(Ct(v.idx(), 0),
+                                            Ct(v.idx(), 1), Ct(v.idx(), 2));
+        }
+        auto drawable_sites = sites->renderer()->get_points_drawable("vertices");
+        drawable_sites->set_property_coloring(State::VERTEX, "v:color");
+        drawable_sites->update();
+
+        if (vertices) {
+            delete vertices->renderer();
+            delete vertices->manipulator();
+            delete vertices;
+        }
+        vertices = new easy3d::PointCloud;
+        auto renderer_vertices = new easy3d::Renderer(vertices, true);
+        vertices->set_renderer(renderer_vertices);
+        auto manipulator_vertices = new Manipulator(vertices);
+        vertices->set_manipulator(manipulator_vertices);
+        auto& tmp_vertices = fillet_seg->get_vertices();
+        auto& tmp_vertices_scores = fillet_seg->get_vertices_scores();
+        int nb_vertices = tmp_vertices.size();
+        Z.resize(nb_vertices);
+        for (int i = 0; i < nb_vertices; i++) {
+            Z[i] = tmp_vertices_scores[i];
+        }
+        igl::jet(Z, true, Ct);
+//        auto coloring_vertices = vertices->vertex_property<vec3>("v:color", vec3(0, 0, 0));
+        std::cout << "ASD" << std::endl;
+        easy3d::Box3 box = mesh->bounding_box();
+        for(int i = 0; i < nb_vertices; i++) {
+            if(box.contains(tmp_vertices[i])) {
+                vertices->add_vertex(tmp_vertices[i]);
+//                coloring_vertices[easy3d::PointCloud::Vertex(i)] = easy3d::vec3(Ct(i, 0),
+//                                                                                Ct(i, 1), Ct(i, 2));
+            }
+        }
+//        std::cout << "ASD" << std::endl;
+//        auto drawable_vertices = vertices->renderer()->get_points_drawable("vertices");
+//        drawable_vertices->set_property_coloring(State::VERTEX, "v:color");
+//        drawable_vertices->update();
+
+        update();
     }
 }

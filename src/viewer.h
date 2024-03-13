@@ -56,7 +56,8 @@ namespace easy3d {
 
         void draw_dashboard();
 
-        void run_scoreing();
+
+        void run_scoring();
         void run_gcp();
         void run_geodesic();
         void run_refine_fillet_boundary();

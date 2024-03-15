@@ -31,6 +31,12 @@ namespace easy3d {
                 int stencil_bits = 8
         );
 
+        enum STATE{
+            UPDATE_SCORING,
+            UPDATE_GCP,
+            NOTHING
+        };
+
     protected:
 
         // imgui plugins

@@ -17,6 +17,9 @@ find_package(libigl CONFIG REQUIRED)
 #CLI11
 find_package(CLI11 CONFIG REQUIRED)
 
+# nlohmann_json
+find_package(nlohmann_json CONFIG REQUIRED)
+
 add_subdirectory(gcp)
 add_subdirectory(geodesic)
 add_subdirectory(lib-easy3d)
@@ -55,4 +58,5 @@ target_link_libraries(scoring PRIVATE gcp geodesic)
 target_link_libraries(scoring PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(scoring PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
 target_link_libraries(scoring PRIVATE CLI11::CLI11)
+target_link_libraries(scoring PRIVATE nlohmann_json::nlohmann_json)
 

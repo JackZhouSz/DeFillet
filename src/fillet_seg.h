@@ -31,7 +31,7 @@ public:
         angle_ = 40;
         min_score_ = 0.5;
         box.clear();
-        mesh_ = nullptr;
+//        mesh_ = nullptr;
     }
 
     void seg();
@@ -71,6 +71,17 @@ public:
     const std::vector<double>& get_vertices_scores() const { return vertices_scores_; }
     const std::vector<easy3d::vec3>& get_sites() const {return sites_;}
     const std::vector<easy3d::vec3>& get_vertices() const {return vertices_;}
+    const easy3d::Box3& get_box() const { return box;}
+    const std::vector<int> get_vertices_index_inside_box() const {
+        std::vector<int> res;
+        int nb_vertices = vertices_.size();
+        for(int i = 0; i < nb_vertices; i++) {
+            if(box.contains(vertices_[i])) {
+                res.emplace_back(i);
+            }
+        }
+        return res;
+    }
 
 private:
     easy3d::SurfaceMesh* mesh_;

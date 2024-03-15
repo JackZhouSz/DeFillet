@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cstdio>
+#include <thread>
 
 #include <easy3d/util/file_system.h>
 #include <easy3d/core/point_cloud.h>
@@ -18,6 +19,7 @@
 #include <easy3d/renderer/drawable_lines.h>
 #include <easy3d/renderer/drawable_triangles.h>
 
+#include <easy3d/util/timer.h>
 
 #include <3rd_party/imgui/misc/fonts/imgui_fonts_droid_sans.h>
 #include <3rd_party/imgui/imgui.h>
@@ -274,6 +276,7 @@ namespace easy3d {
                 const std::vector<std::string> &file_names = easy3d::dialog::open(title, default_path, filters, true);
                 if(file_names.size() > 0) {
                     if (mesh) {
+                        mesh->renderer()->set_visible(false);
                         fillet_seg->reset();
                         delete mesh->renderer();
                         delete mesh->manipulator();
@@ -290,6 +293,18 @@ namespace easy3d {
                     mesh->set_manipulator(manipulator);
                     fillet_seg->set_mesh(mesh);
                     show_mesh = true;
+                    if (sites) {
+                        sites->renderer()->set_visible(false);
+                        delete sites->renderer();
+                        delete sites->manipulator();
+                        delete sites;
+                    }
+                    if (vertices) {
+                        vertices->renderer()->set_visible(false);
+                        delete vertices->renderer();
+                        delete vertices->manipulator();
+                        delete vertices;
+                    }
                     Viewer::fit_screen(mesh);
                 }
             }
@@ -300,19 +315,27 @@ namespace easy3d {
         }
         ImGui::Separator();
         if (ImGui::CollapsingHeader("Visible", ImGuiTreeNodeFlags_DefaultOpen)) {
-
+            if(mesh && mesh->renderer()) {
+                show_mesh = mesh->renderer()->is_visible();
+            }
             ImGui::Checkbox("mesh", &show_mesh);
             if(mesh && mesh->renderer()) {
                 mesh->renderer()->set_visible(show_mesh);
             }
             ImGui::SameLine();
             static bool show_sites = false;
+            if(sites && sites->renderer()) {
+                show_sites = sites->renderer()->is_visible();
+            }
             ImGui::Checkbox("sites", &show_sites);
             if(sites && sites->renderer()) {
                 sites->renderer()->set_visible(show_sites);
             }
             ImGui::SameLine();
             static bool show_vertices = false;
+            if(vertices && vertices->renderer()) {
+                show_vertices = vertices->renderer()->is_visible();
+            }
             ImGui::Checkbox("vertices", &show_vertices);
             if(vertices && vertices->renderer()) {
                 vertices->renderer()->set_visible(show_vertices);
@@ -320,7 +343,7 @@ namespace easy3d {
         }
         ImGui::Separator();
         if (ImGui::CollapsingHeader("FilletSeg", ImGuiTreeNodeFlags_DefaultOpen)) {
-            float width = 230;
+            float width = 200;
             ImGui::SetNextItemWidth(width);
             ImGui::InputDouble("eps", &eps, 0.01, 1.0f, "%.2f");
             eps = std::clamp(eps, 0.0, 1.0);
@@ -343,7 +366,8 @@ namespace easy3d {
             ImGui::Separator();
             if (ImGui::Button("scoring", ImVec2(150, 30))) {
                 if(mesh && fillet_seg) {
-                    run_scoring();
+                    std::thread t(std::bind(&ViewerImGui::run_scoring, this));
+                    t.detach();
                 }
             }
             ImGui::SameLine();
@@ -371,12 +395,15 @@ namespace easy3d {
     }
 
     void ViewerImGui::run_scoring() {
+
         fillet_seg->reset();
         fillet_seg->set_mesh(mesh);
         fillet_seg->set_eps(eps);fillet_seg->set_radius(radius);
         fillet_seg->set_min_score(min_score);
         fillet_seg->set_s(s);
         fillet_seg->run_scoring();
+        std::cout << "ASD" <<std::endl;
+        mesh->renderer()->set_visible(false);
         auto scores = mesh->face_property<double>("f:scores");
         int nb_faces = mesh->n_faces();
         Eigen::VectorXd Z(nb_faces);
@@ -392,7 +419,6 @@ namespace easy3d {
         }
         auto drawable_mesh = mesh->renderer()->get_triangles_drawable("faces");
         drawable_mesh->set_property_coloring(State::FACE, "f:color");
-        drawable_mesh->update();
 
         if (sites) {
             delete sites->renderer();
@@ -404,7 +430,7 @@ namespace easy3d {
         sites->set_renderer(renderer_sites);
         auto manipulator_sites = new Manipulator(sites);
         sites->set_manipulator(manipulator_sites);
-
+        sites->renderer()->set_visible(false);
         auto& tmp_sites = fillet_seg->get_sites();
         for(auto v : tmp_sites) {
             sites->add_vertex(v);
@@ -416,7 +442,7 @@ namespace easy3d {
         }
         auto drawable_sites = sites->renderer()->get_points_drawable("vertices");
         drawable_sites->set_property_coloring(State::VERTEX, "v:color");
-        drawable_sites->update();
+
 
         if (vertices) {
             delete vertices->renderer();
@@ -428,29 +454,32 @@ namespace easy3d {
         vertices->set_renderer(renderer_vertices);
         auto manipulator_vertices = new Manipulator(vertices);
         vertices->set_manipulator(manipulator_vertices);
+        vertices->renderer()->set_visible(false);
         auto& tmp_vertices = fillet_seg->get_vertices();
         auto& tmp_vertices_scores = fillet_seg->get_vertices_scores();
-        int nb_vertices = tmp_vertices.size();
-        Z.resize(nb_vertices);
-        for (int i = 0; i < nb_vertices; i++) {
-            Z[i] = tmp_vertices_scores[i];
+        auto& tmp_index = fillet_seg->get_vertices_index_inside_box();
+
+        int num = tmp_index.size();
+        Z.resize(num);
+        for(int i = 0; i < num; i++) {
+            vertices->add_vertex(tmp_vertices[tmp_index[i]]);
+            Z[i] = tmp_vertices_scores[tmp_index[i]];
         }
         igl::jet(Z, true, Ct);
-//        auto coloring_vertices = vertices->vertex_property<vec3>("v:color", vec3(0, 0, 0));
-        std::cout << "ASD" << std::endl;
-        easy3d::Box3 box = mesh->bounding_box();
-        for(int i = 0; i < nb_vertices; i++) {
-            if(box.contains(tmp_vertices[i])) {
-                vertices->add_vertex(tmp_vertices[i]);
-//                coloring_vertices[easy3d::PointCloud::Vertex(i)] = easy3d::vec3(Ct(i, 0),
-//                                                                                Ct(i, 1), Ct(i, 2));
-            }
+        auto drawable_vertices = vertices->renderer()->get_points_drawable("vertices");
+        drawable_vertices->set_property_coloring(State::VERTEX, "v:color");
+        auto coloring_vertices = vertices->vertex_property<vec3>("v:color", vec3(0, 0, 0));
+        for(auto v : vertices->vertices()) {
+            coloring_vertices[v] = easy3d::vec3(Ct(v.idx(), 0),
+                                                Ct(v.idx(), 1), Ct(v.idx(), 2));
         }
-//        std::cout << "ASD" << std::endl;
-//        auto drawable_vertices = vertices->renderer()->get_points_drawable("vertices");
-//        drawable_vertices->set_property_coloring(State::VERTEX, "v:color");
-//        drawable_vertices->update();
+        drawable_vertices->set_property_coloring(State::VERTEX, "v:color");
 
+
+        drawable_sites->update();
+        drawable_mesh->update();
+        drawable_vertices->update();
+        mesh->renderer()->set_visible(true);
         update();
     }
 }

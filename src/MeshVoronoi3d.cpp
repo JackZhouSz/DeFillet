@@ -4,6 +4,8 @@
 
 #include "MeshVoronoi3d.h"
 
+
+
 MeshVoronoi3d::MeshVoronoi3d(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
 
     int nb_sites = mesh_->n_faces();

@@ -29,9 +29,8 @@ add_subdirectory(lib-easy3d)
 #        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 #
 #
-#add_executable(example3 example3.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
-#target_link_libraries(example3 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+add_executable(example3 example3.cpp)
+target_link_libraries(example3 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 #
 #
 add_executable(example4 example4.cpp src/MeshVoronoi3d.cpp)

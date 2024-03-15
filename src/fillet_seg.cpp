@@ -32,10 +32,13 @@ void FilletSeg::run_scoring() {
         double R = (vertices_[i] - sites_[site_of_vertices_[i][0]]).norm();
         if(R < len && box.contains(vertices_[i])) {
             double score = cal_vertex_score(i);
+            vertices_scores_[i] = 0.0;
             if(score > min_score_) {
                 vertices_scores_[i] = score;
                 boardcast_vertex_domain(i, score);
             }
+        } else {
+            vertices_scores_[i] = 0.0;
         }
     }
 

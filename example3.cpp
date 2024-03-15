@@ -1,125 +1,85 @@
-//
-// Created by 13900K on 2024/3/4.
-//
-
-#include <iostream>
 #include <easy3d/viewer/viewer.h>
-#include <easy3d/core/surface_mesh.h>
-#include <easy3d/fileio/surface_mesh_io.h>
-#include <queue>
-#include <easy3d/viewer/viewer.h>
-#include <easy3d/core/surface_mesh.h>
+#include <easy3d/core/point_cloud.h>
+#include <easy3d/core/random.h>
 #include <easy3d/renderer/renderer.h>
 #include <easy3d/renderer/drawable_points.h>
-#include <easy3d/renderer/drawable_triangles.h>
-#include <easy3d/renderer/drawable_lines.h>
-#include <easy3d/renderer/texture_manager.h>
+//#include <easy3d/util/initializer.h>
+#include <easy3d/util/timer.h>
 
 
-using namespace std;
+using namespace easy3d;
 
-int main() {
-    std::string file_path = "../data/20440_27177360_1.ply";
-    easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(file_path);
-    auto face_normal = mesh->face_property<easy3d::vec3>("f:normal");
-    auto face_label = mesh->face_property<int>("f:label", -1);
-    for(auto f : mesh->faces()) {
-        face_normal[f] = mesh->compute_face_normal(f);
+// This example shows how to use another thread for
+//      - repeatedly modifying a model, and
+//      - notifying the viewer thread
+
+
+// a function that modifies the model.
+// in this simple example, we add more points (with per point colors) to a point cloud.
+void edit_model(PointCloud *cloud, Viewer *viewer) {
+    if (cloud->n_vertices() >= 1000000) // stop growing when the model is too big
+        return;
+
+    auto colors = cloud->vertex_property<vec3>("v:color");
+    for (int i = 0; i < 100; ++i) {
+        auto v = cloud->add_vertex(vec3(random_float(), random_float(), random_float()));
+        colors[v] = vec3(random_float(), random_float(), random_float()); // we use a random color
     }
-    int ct = 0;
-    for(auto f : mesh->faces()) {
-        if(face_label[f] == -1) {
-            std::queue<easy3d::SurfaceMesh::Face> que;
-            que.push(f);
-            while(!que.empty()) {
-                auto cur = que.front(); que.pop();
-                if(face_label[cur] != -1)
-                    continue;
-                face_label[cur] = ct;
-                for (auto h: mesh->halfedges(cur)) {
-                    auto opp = mesh->face(mesh->opposite(h));
-                    if (opp.is_valid() && face_label[opp] == -1) {
-                        if (easy3d::dot(face_normal[cur], face_normal[opp]) > 0.86) {
-                            que.push(opp);
-                        }
-                    }
-                }
-            }
-            ct++;
+
+    // notify the renderer to update the OpenGL buffers
+    cloud->renderer()->update();
+    // notify the viewer to update the display
+    viewer->update();
+
+    std::cout << "#points: " << cloud->n_vertices() << std::endl;
+}
+
+
+int main(int argc, char **argv) {
+    // initialize Easy3D.
+//    initialize();
+
+    // create the viewer
+    Viewer viewer("ASDF");
+
+    // create a point cloud (with a per point color property) from a set of random points
+    auto cloud = new PointCloud;
+    // add a per point color property
+    auto colors = cloud->add_vertex_property<vec3>("v:color");
+    for (int i = 0; i < 100; ++i) {
+        auto v = cloud->add_vertex(easy3d::vec3(random_float(), random_float(), random_float()));
+        // assign a color to each point (here simply a red color)
+        colors[v] = vec3(1.0f, 0.0f, 0.0f);
+    }
+    // add the point cloud to the viewer for visualization
+    viewer.add_model(cloud);
+
+    // set up visualization parameters
+    auto drawable = cloud->renderer()->get_points_drawable("vertices");
+    // set point size
+    drawable->set_point_size(10.0f);
+    // set coloring method: we want to visualize the point cloud using the per point color property
+    drawable->set_coloring(Drawable::COLOR_PROPERTY, Drawable::VERTEX, "v:color");
+
+    // run the process in another thread.
+#if 1   //  we use a timer to repeatedly edit the point cloud every 300 milliseconds
+    Timer<PointCloud *, Viewer *> timer;
+    timer.set_interval(300, edit_model, cloud, &viewer);
+
+    // stop editing the model after 20 seconds
+    Timer<>::single_shot(20000, &timer, &Timer<PointCloud*, Viewer*>::stop); // or Timer<>::single_shot(4900, [&]() -> void { timer.stop(); });
+#else   // use a simple for loop to repeat the editing a fix number of iterations
+    Timer<>::single_shot(0, [&]() {
+        // in this example, we modify the point cloud 50 times
+        for (int i = 0; i < 50; ++i) {
+            // allow sufficient time for each edit to complete (each edit runs in a separate thread)
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            std::thread t(edit_model, cloud, &viewer);
+            t.detach();
         }
-    }
+    });
+#endif
 
-
-    for(auto f : mesh->faces()) {
-        if(face_label[f] != 0) {
-            mesh->delete_face(f);
-        }
-    }
-    for(auto v : mesh->vertices()) {
-        int num = 0;
-        for(auto f : mesh->faces(v)) {
-            num++;
-        }
-        if(num == 0) {
-            mesh->delete_vertex(v);
-        }
-    }
-
-    std::vector<std::vector<size_t>> sites;
-    std::vector<std::vector<size_t>> faces;
-    faces.resize(ct);
-    sites.resize(ct);
-    for(auto f : mesh->faces()) {
-        int id = face_label[f];
-        faces[id].emplace_back(f.idx());
-    }
-    for(int i = 0; i < ct; i++) {
-        int num = faces[i].size();
-        std::set<size_t> s;
-        for(int j = 0; j < num; j++) {
-            easy3d::SurfaceMesh::Face f(faces[i][j]);
-            for(auto v : mesh->vertices(f)) {
-                s.insert(v.idx());
-            }
-        }
-        sites[i].insert(sites[i].end(), s.begin(), s.end());
-    }
-
-    easy3d::SurfaceMesh* mesh0 = new easy3d::SurfaceMesh;
-    std::map<int, int> mp;
-    for(int i = 0; i < sites[0].size(); i++) {
-        easy3d::SurfaceMesh::Vertex v(sites[0][i]);
-        easy3d::vec3 pos = mesh->position(v);
-        mesh0->add_vertex(pos);
-        mp[sites[0][i]] = i;
-    }
-    for(int i = 0; i < faces[0].size(); i++) {
-        easy3d::SurfaceMesh::Face f(faces[0][i]);
-        std::vector<int>tmp;
-        for(auto v : mesh->vertices(f)) {
-            tmp.emplace_back(mp[v.idx()]);
-        }
-        mesh0->add_triangle(easy3d::SurfaceMesh::Vertex(tmp[0]),
-                            easy3d::SurfaceMesh::Vertex(tmp[1]),
-                            easy3d::SurfaceMesh::Vertex(tmp[2]));
-    }
-    easy3d::Viewer viewer("binary_segmentation");
-    viewer.add_model(mesh0);
-//    auto drawable = mesh->renderer()->get_triangles_drawable("faces");
-//    std::string color_name = "f:color";
-//    auto coloring = mesh->face_property<easy3d::vec3>(color_name, easy3d::vec3(0, 0, 0));
-//    std::vector<easy3d::vec3> color_table(ct);
-//    for(int i = 0; i < ct; i++) {
-//        color_table[i] = easy3d::random_color();
-//    }
-//    for(auto f : mesh->faces()) {
-//        coloring[f] = color_table[face_label[f]];
-//    }
-//    drawable->set_property_coloring(easy3d::State::FACE, color_name);
-//    drawable->update();
-//    viewer.update();
-    viewer.run();
-//
-
-    return 0;
+    // run the viewer
+    return viewer.run();
 }

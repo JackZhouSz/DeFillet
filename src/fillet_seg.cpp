@@ -20,7 +20,7 @@ void FilletSeg::run_scoring() {
     site_of_vertices_ = mv3d.get_vertices2sites();
     int nb_sites = sites_.size();
     int nb_vertices = vertices_.size();
-    auto scores = mesh_->face_property<double>("f:scores");
+    auto scores = mesh_->face_property<float>("f:scores");
     auto counts = mesh_->face_property<int>("f:counts");
     for(auto f : mesh_->faces()) {
         scores[f] = 0.0;
@@ -130,7 +130,7 @@ double FilletSeg::cal_vertex_score(int vid) {
 
 
 void FilletSeg::boardcast_vertex_domain(int vid, double score) {
-    auto scores = mesh_->get_face_property<double>("f:scores");
+    auto scores = mesh_->get_face_property<float>("f:scores");
     auto counts = mesh_->get_face_property<int>("f:counts");
 
     std::set<easy3d::SurfaceMesh::Face> vis;

@@ -404,7 +404,7 @@ namespace easy3d {
         fillet_seg->run_scoring();
         std::cout << "ASD" <<std::endl;
         mesh->renderer()->set_visible(false);
-        auto scores = mesh->face_property<double>("f:scores");
+        auto scores = mesh->face_property<float>("f:scores");
         int nb_faces = mesh->n_faces();
         Eigen::VectorXd Z(nb_faces);
         for (int i = 0; i < nb_faces; i++) {

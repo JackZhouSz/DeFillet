@@ -68,7 +68,7 @@ public:
     double get_boundary_time() const { return boundary_refine_time_;}
     double get_target_normals_refine_time() const { return target_normals_refine_time_;}
 
-    const std::vector<double>& get_vertices_scores() const { return vertices_scores_; }
+    const std::vector<float>& get_vertices_scores() const { return vertices_scores_; }
     const std::vector<easy3d::vec3>& get_sites() const {return sites_;}
     const std::vector<easy3d::vec3>& get_vertices() const {return vertices_;}
     const easy3d::Box3& get_box() const { return box;}
@@ -89,7 +89,7 @@ private:
     std::vector<easy3d::vec3> vertices_;
     std::vector<std::vector<int>> site_of_vertices_;
 
-    std::vector<double> vertices_scores_;
+    std::vector<float> vertices_scores_;
 
     easy3d::Box3 box;
     double eps_;

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdio>
 #include <thread>
+#include <cstdlib>
 
 #include <easy3d/util/file_system.h>
 #include <easy3d/core/point_cloud.h>
@@ -13,11 +14,14 @@
 #include <easy3d/renderer/renderer.h>
 #include <easy3d/renderer/manipulator.h>
 #include <easy3d/fileio/surface_mesh_io.h>
+#include <easy3d/util/file_system.h>
 #include <easy3d/renderer/opengl_util.h>
 #include <easy3d/renderer/opengl_error.h>
 #include <easy3d/renderer/drawable_points.h>
 #include <easy3d/renderer/drawable_lines.h>
 #include <easy3d/renderer/drawable_triangles.h>
+
+
 
 #include <easy3d/util/timer.h>
 
@@ -291,7 +295,6 @@ namespace easy3d {
                     mesh->set_renderer(renderer);
                     auto manipulator = new Manipulator(mesh);
                     mesh->set_manipulator(manipulator);
-                    fillet_seg->set_mesh(mesh);
                     show_mesh = true;
                     if (sites) {
                         sites->renderer()->set_visible(false);
@@ -395,6 +398,12 @@ namespace easy3d {
     }
 
     void ViewerImGui::run_scoring() {
+        std::string cli = "../scoring.exe -i ";
+    }
 
+    void ViewerImGui::update_event() {
+        if(state == UPDATE_SCORING) {
+
+        }
     }
 }

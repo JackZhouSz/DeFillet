@@ -54,6 +54,8 @@ namespace easy3d {
 
         void post_resize(int w, int h) override;
 
+        void update_event();
+
         bool callback_event_cursor_pos(double x, double y) override;
         bool callback_event_mouse_button(int button, int action, int modifiers) override;
         bool callback_event_keyboard(int key, int action, int modifiers) override;
@@ -102,6 +104,7 @@ namespace easy3d {
         double min_score;
         double alpha;
         double angle;
+        STATE state;
     };
 
 }

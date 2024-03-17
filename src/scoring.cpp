@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
         coloring_mesh[f] = easy3d::vec3(Ct(f.idx(), 0),
                                         Ct(f.idx(), 1), Ct(f.idx(), 2));
     }
-    easy3d::io::save_ply(out_mesh_path, mesh, false);
+    easy3d::io::save_ply(out_mesh_path, mesh, true);
     easy3d::PointCloud* sites = new easy3d::PointCloud;
     auto& tmp_sites = fillet_seg.get_sites();
     for(auto v : tmp_sites) {

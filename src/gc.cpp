@@ -24,8 +24,38 @@ int main(int argc, char **argv) {
     app.add_option("-a, --alpha", args.alpha, "Alpha")->default_val(0.5);
     CLI11_PARSE(app, argc, argv);
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
+    bool scores = false;
+    bool normal = false;
     for(auto p : mesh->face_properties()) {
-        std::cout << p << std::endl;
+        if(p == "f:normal") {
+            normal = true;
+        }
+        if(p == "f:scores") {
+            scores = true;
+        }
     }
+    if(!scores) {
+        std::cout << "Please compute face score first." << std::endl;
+        return 0;
+    }
+    if(!normal) {
+        std::cout << "Please compute face normal first." << std::endl;
+        return 0;
+    }
+    FilletSeg fillet_seg;
+    fillet_seg.set_mesh(mesh);
+    fillet_seg.set_alpha(args.alpha);
+    fillet_seg.run_gcp();
+    auto gcp = mesh->face_property<int>("f:gcp_labels");
+    auto coloring_mesh = mesh->face_property<easy3d::vec3>("f:color", easy3d::vec3(0, 0, 0));
+    for(auto f : mesh->faces()) {
+        if(gcp[f] == 1)
+            coloring_mesh[f] = easy3d::vec3(1.0, 0.0, 0.0);
+        else
+            coloring_mesh[f] = easy3d::vec3(0.0, 0.0, 1.0);
+    }
+    std::string base_name = easy3d::file_system::base_name(args.input_mesh);
+    std::string out_gcp_path = args.output_dir + base_name + "_gcp.ply";
+    easy3d::io::save_ply(out_gcp_path, mesh, true);
     return 0;
 }

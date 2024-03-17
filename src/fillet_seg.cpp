@@ -144,7 +144,59 @@ void FilletSeg::run_scoring() {
 
 
 void FilletSeg::run_gcp() {
+    auto scores = mesh_->face_property<float>("f:scores");
+    auto normals = mesh_->face_property<easy3d::vec3>("f:normal");
+    auto gcp = mesh_->face_property<int>("f:gcp_labels");
+    double w_convex = 0.08, w_concave = 1.0;
+    double w1 = 0.3, w2 = 0.4;
 
+    int nb_face = mesh_->n_faces();
+    GCoptimizationGeneralGraph gc(nb_face, 2);
+
+    std::vector<double> data_cost(2 * nb_face);
+    for(auto f : mesh_->faces()) {
+        data_cost[f.idx()] = scores[f];
+        data_cost[f.idx()] = std::max(data_cost[f.idx()], w1);
+        data_cost[f.idx() + nb_face] = (1.0 - scores[f]);
+        data_cost[f.idx() + nb_face] = std::max(data_cost[f.idx() + nb_face], w1);
+    }
+    std::vector<std::pair<int,int>> edges;
+    std::vector<double> edge_weights;
+    for(auto e : mesh_->edges()) {
+        auto f0 = mesh_->face(e, 0);
+        auto f1 = mesh_->face(e, 1);
+        if(f0.is_valid() && f1.is_valid()) {
+            double w = acos(easy3d::dot(normals[f0], normals[f1]));
+            if(w < 0) {
+                w = std::fabs(w) * w_convex * alpha_;
+            } else {
+                w = std::fabs(w) * w_concave * alpha_;
+            }
+            w = std::max(w, w2);
+            int id1 = f0.idx(), id2 = f1.idx();
+            if(id1 > id2)
+                std::swap(id1, id2);
+            gc.setNeighbors(id1, id2);
+            edges.emplace_back(std::make_pair(id1, id2));
+            edge_weights.emplace_back(w);
+        }
+    }
+
+    GCP::DataCost data_item(data_cost, nb_face, 2);
+    GCP::SmoothCost smooth_item(edges, edge_weights);
+    gc.setDataCostFunctor(&data_item);
+    gc.setSmoothCostFunctor(&smooth_item);
+    std::cout << "Before optimization energy is " << gc.compute_energy() << std::endl;
+    gc.expansion(4);
+    std::cout << "After optimization energy is " << gc.compute_energy() << std::endl;
+    for(int i = 0; i < nb_face; i++) {
+        easy3d::SurfaceMesh::Face f(i);
+        if(gc.whatLabel(i) == 0) {
+            gcp[f] = 0;
+        } else {
+            gcp[f] = 1;
+        }
+    }
 }
 
 void FilletSeg::run_geodesic() {

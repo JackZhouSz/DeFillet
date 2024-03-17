@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     } args;
 
     CLI::App app{"DEFILLET Command Line"};
-    std::string input_path;
+
     app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
     app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
     app.add_option("-e,--eps", args.eps, "Eps")->default_val(0.03);
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
                                          Ct(v.idx(), 1), Ct(v.idx(), 2));
     }
     std::string out_sites_path = args.output_dir + base_name + "_sites_scoring.ply";
-    easy3d::io::save_ply(out_sites_path, sites, false);
+    easy3d::io::save_ply(out_sites_path, sites, true);
     easy3d::PointCloud* vertices = new easy3d::PointCloud;
     auto& tmp_vertices = fillet_seg.get_vertices();
     auto& tmp_vertices_scores = fillet_seg.get_vertices_scores();
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
                                             Ct(v.idx(), 1), Ct(v.idx(), 2));
     }
     std::string out_vertices_path = args.output_dir + base_name + "_vertices_scoring.ply";
-    easy3d::io::save_ply(out_vertices_path, vertices, false);
+    easy3d::io::save_ply(out_vertices_path, vertices, true);
 
     easy3d::PointCloud* sor_vertices = new easy3d::PointCloud;
     const std::vector<int> sor_labels = fillet_seg.get_sor_labels();
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
         }
     }
     std::string out_vertices_sor_path = args.output_dir + base_name + "_vertices_sor.ply";
-    easy3d::io::save_ply(out_vertices_sor_path, sor_vertices, false);
+    easy3d::io::save_ply(out_vertices_sor_path, sor_vertices, true);
 
     std::string scoring_info_path = args.output_dir + base_name + "_info.json";
     json info;

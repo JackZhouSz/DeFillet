@@ -5,7 +5,10 @@
 #include "fillet_seg.h"
 #include "MeshVoronoi3d.h"
 #include "knn.h"
+#include "gcp.h"
+
 #include <map>
+#include <omp.h>
 
 void FilletSeg::seg() {
     run_scoring();
@@ -22,6 +25,7 @@ void FilletSeg::run_sor() {
                      "standard deviation ratio must be positive." << std::endl;
     }
     auto start_time = std::chrono::high_resolution_clock::now();
+#pragma omp parallel for
     for(int i = 0; i < nb_vertices; i++) {
         if(box.contains(vertices_[i])) {
             sor_labels_[i] = 1;
@@ -29,20 +33,26 @@ void FilletSeg::run_sor() {
             sor_labels_[i] = 0;
         }
     }
+
     for(int i = 0; i < num_sor_iter_; i++) {
         std::vector<KNN::Point> knn_points;
         std::vector<int> indices;
+#pragma omp parallel for
         for(int j = 0; j < nb_vertices; j++) {
             if(sor_labels_[j]) {
-                knn_points.emplace_back(KNN::Point(vertices_[j].x,
-                                                   vertices_[j].y, vertices_[j].z));
-                indices.emplace_back(j);
+                #pragma omp critical
+                {
+                    knn_points.emplace_back(KNN::Point(vertices_[j].x,
+                                                       vertices_[j].y, vertices_[j].z));
+                    indices.emplace_back(j);
+                }
             }
         }
         KNN::KdSearch kds(knn_points);
         int num = knn_points.size();
         size_t valid_distances = 0;
         std::vector<double> avg_distances(num);
+#pragma omp parallel for
         for(int j = 0; j < num; j++) {
             std::vector<size_t> tmp_indices;
             std::vector<double> dist;
@@ -73,6 +83,7 @@ void FilletSeg::run_sor() {
                 });
         double std_dev = std::sqrt(sq_sum / (valid_distances - 1));
         double distance_threshold = cloud_mean + std_ratio_ * std_dev;
+#pragma omp parallel for
         for(int j = 0; j < num; j++) {
             if(avg_distances[j] > 0 && avg_distances[j] < distance_threshold) {
                 sor_labels_[indices[j]] = 1;
@@ -87,6 +98,7 @@ void FilletSeg::run_sor() {
 }
 
 void FilletSeg::run_scoring() {
+    omp_set_num_threads(10);
     auto start_time = std::chrono::high_resolution_clock::now();
     MeshVoronoi3d mv3d(mesh_);
     sites_ = mv3d.get_sites();
@@ -103,12 +115,13 @@ void FilletSeg::run_scoring() {
     }
     vertices_scores_.resize(nb_vertices, 0);
     double len = radius_ * box.diagonal_length();
-    for(int i = 0; i < nb_vertices; i++) {
+#pragma omp parallel for
+    for (int i = 0; i < nb_vertices; i++) {
         double R = (vertices_[i] - sites_[site_of_vertices_[i][0]]).norm();
-        if(R < len && sor_labels_[i]) {
+        if (R < len && sor_labels_[i]) {
             double score = cal_vertex_score(i);
             vertices_scores_[i] = 0.0;
-            if(score > min_score_) {
+            if (score > min_score_) {
                 vertices_scores_[i] = score;
                 boardcast_vertex_domain(i, score);
             }
@@ -116,12 +129,14 @@ void FilletSeg::run_scoring() {
             vertices_scores_[i] = 0.0;
         }
     }
-
-    for(auto f : mesh_->faces()) {
-        if(counts[f] > 0) {
-            scores[f] /= counts[f];
-        }
+    int nb_faces = mesh_->n_faces();
+#pragma omp parallel for
+    for(int i = 0; i < nb_faces; i++) {
+        easy3d::SurfaceMesh::Face f(i);
+        if (counts[f] > 0)
+            scores[f] /= 1.0 * counts[f];
     }
+
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     scoring_time_ = 1.0 * duration.count() / 1000000.0;

@@ -22,6 +22,7 @@ public:
         std_ratio_ = 0.3;
         nb_neighbors_ = 30;
         num_sor_iter_ = 3;
+
     }
 
     void reset() {

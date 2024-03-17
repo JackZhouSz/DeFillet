@@ -3,7 +3,12 @@ project(defillet)
 
 set(CMAKE_CXX_STANDARD 17)
 
-
+# OpenMP
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    message("asd")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 # Eigen3
 find_package(Eigen3 CONFIG REQUIRED)
@@ -43,8 +48,7 @@ target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
         igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
 
-set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp
-        src/gcp.cpp src/viewer.cpp src/knn.cpp)
+set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp src/viewer.cpp src/knn.cpp)
 
 
 add_executable(example5 example5.cpp ${DEFILLET_SOURCES})
@@ -58,5 +62,12 @@ target_include_directories(scoring PRIVATE src)
 target_link_libraries(scoring PRIVATE gcp geodesic)
 target_link_libraries(scoring PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(scoring PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
-target_link_libraries(scoring PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json)
+target_link_libraries(scoring PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
+
+add_executable(gc src/gc.cpp ${DEFILLET_SOURCES})
+target_include_directories(gc PRIVATE src)
+target_link_libraries(gc PRIVATE gcp geodesic)
+target_link_libraries(gc PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(gc PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
+target_link_libraries(gc PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

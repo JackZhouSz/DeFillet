@@ -336,7 +336,7 @@ namespace easy3d {
                 sim_name = easy3d::file_system::simple_name(file_name);
                 base_name = easy3d::file_system::base_name(file_name);
 
-                out_dir = cur_work_dir + "/" + oss.str() + "/";
+                out_dir = cur_work_dir + "/" + oss.str() +  "_" + base_name + "/";
                 scoring_mesh_path = out_dir + "/" + base_name + "_mesh_scoring.ply";
                 scoring_sites_path = out_dir + "/" + base_name + "_sites_scoring.ply";
                 scoring_vertices_path = out_dir + "/" + base_name + "_vertices_scoring.ply";

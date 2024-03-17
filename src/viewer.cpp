@@ -5,6 +5,9 @@
 #include <cstdio>
 #include <thread>
 #include <cstdlib>
+#include <chrono>
+#include <ctime>
+#include <filesystem>
 
 #include <easy3d/util/file_system.h>
 #include <easy3d/core/point_cloud.h>
@@ -61,6 +64,7 @@ namespace easy3d {
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
+        cur_work_dir = easy3d::file_system::current_working_directory();
     }
 
 
@@ -173,88 +177,25 @@ namespace easy3d {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        if(state == UPDATE_SCORING) {
+            for(auto m : models_) {
+                if(m) {
+                    delete_model(m);
+                }
+            }
+            models_.clear();
+            mesh = add_model(scoring_mesh_path);
+            sites = add_model(scoring_sites_path);
+            vertices = add_model(scoring_vertices_path);
+            state = NOTHING;
+        }
+
+
+
         Viewer::pre_draw();
     }
 
-    void ViewerImGui::draw() const {
-        if(mesh && mesh->renderer()->is_visible()) {
-            std::size_t count = 0;
-            for (auto d : mesh->renderer()->lines_drawables()) {
-                if (d->is_visible()) {
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-                    ++count;
-                }
-            }
 
-            for (auto d : mesh->renderer()->points_drawables()) {
-                if (d->is_visible())
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-            }
-
-            if (count > 0) {
-                glEnable(GL_POLYGON_OFFSET_FILL);
-                glPolygonOffset(0.5f, -0.0001f);
-            }
-            for (auto d : mesh->renderer()->triangles_drawables()) {
-                if (d->is_visible())
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-            }
-            if (count > 0)
-                glDisable(GL_POLYGON_OFFSET_FILL);
-        }
-
-        if(sites && sites->renderer()->is_visible()) {
-            std::size_t count = 0;
-            for (auto d : sites->renderer()->lines_drawables()) {
-                if (d->is_visible()) {
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-                    ++count;
-                }
-            }
-
-            for (auto d : sites->renderer()->points_drawables()) {
-                if (d->is_visible())
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-            }
-
-            if (count > 0) {
-                glEnable(GL_POLYGON_OFFSET_FILL);
-                glPolygonOffset(0.5f, -0.0001f);
-            }
-            for (auto d : sites->renderer()->triangles_drawables()) {
-                if (d->is_visible())
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-            }
-            if (count > 0)
-                glDisable(GL_POLYGON_OFFSET_FILL);
-        }
-
-        if(vertices && vertices->renderer()->is_visible()) {
-            std::size_t count = 0;
-            for (auto d : vertices->renderer()->lines_drawables()) {
-                if (d->is_visible()) {
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-                    ++count;
-                }
-            }
-
-            for (auto d : vertices->renderer()->points_drawables()) {
-                if (d->is_visible())
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-            }
-
-            if (count > 0) {
-                glEnable(GL_POLYGON_OFFSET_FILL);
-                glPolygonOffset(0.5f, -0.0001f);
-            }
-            for (auto d : vertices->renderer()->triangles_drawables()) {
-                if (d->is_visible())
-                    d->draw(camera()); easy3d_debug_log_gl_error;
-            }
-            if (count > 0)
-                glDisable(GL_POLYGON_OFFSET_FILL);
-        }
-    }
     void ViewerImGui::post_draw() {
         draw_dashboard();
         draw_corner_axes();
@@ -272,44 +213,7 @@ namespace easy3d {
         if (ImGui::CollapsingHeader("Open/Save", ImGuiTreeNodeFlags_DefaultOpen)) {
 
             if (ImGui::Button("Open", ImVec2(150, 30))) {
-                const std::string title("Please choose a file");
-                const std::string &default_path = "../data/";
-                const std::vector<std::string> &filters = {
-                        "Surface Mesh (*.obj *.ply)", "*.obj *.ply"
-                };
-                const std::vector<std::string> &file_names = easy3d::dialog::open(title, default_path, filters, true);
-                if(file_names.size() > 0) {
-                    if (mesh) {
-                        mesh->renderer()->set_visible(false);
-                        fillet_seg->reset();
-                        delete mesh->renderer();
-                        delete mesh->manipulator();
-                        delete mesh;
-                    }
-                    if(fillet_seg) {
-                        delete fillet_seg;
-                    }
-                    fillet_seg = new FilletSeg();
-                    mesh = easy3d::SurfaceMeshIO::load(file_names[0]);
-                    auto renderer = new easy3d::Renderer(mesh, true);
-                    mesh->set_renderer(renderer);
-                    auto manipulator = new Manipulator(mesh);
-                    mesh->set_manipulator(manipulator);
-                    show_mesh = true;
-                    if (sites) {
-                        sites->renderer()->set_visible(false);
-                        delete sites->renderer();
-                        delete sites->manipulator();
-                        delete sites;
-                    }
-                    if (vertices) {
-                        vertices->renderer()->set_visible(false);
-                        delete vertices->renderer();
-                        delete vertices->manipulator();
-                        delete vertices;
-                    }
-                    Viewer::fit_screen(mesh);
-                }
+                open();
             }
             ImGui::SameLine();
             if (ImGui::Button("Save", ImVec2(150, 30))) {
@@ -368,7 +272,7 @@ namespace easy3d {
 
             ImGui::Separator();
             if (ImGui::Button("scoring", ImVec2(150, 30))) {
-                if(mesh && fillet_seg) {
+                if(mesh) {
                     std::thread t(std::bind(&ViewerImGui::run_scoring, this));
                     t.detach();
                 }
@@ -397,8 +301,62 @@ namespace easy3d {
 
     }
 
+    bool ViewerImGui::open() {
+        const std::string title("Please choose a file");
+        const std::string &default_path =  "../data/";
+        const std::vector<std::string> &filters = {
+                "Surface Mesh (*.obj *.ply *.off *.stl *.sm *.geojson *.trilist)", "*.obj *.ply *.off *.stl *.sm *.geojson *.trilist"
+        };
+        const std::vector<std::string> &file_names = dialog::open(title, default_path, filters, true);
+
+        for(auto m : models_) {
+            delete_model(m);
+        }
+        models_.clear();
+        int count = 0;
+        for (const auto &file_name : file_names) {
+            if (add_model(file_name)) {
+                mesh = current_model();
+                ++count;
+                auto now = std::chrono::system_clock::now();
+                std::time_t time = std::chrono::system_clock::to_time_t(now);
+                std::tm tm;
+                localtime_s(&tm, &time); // Windows
+                std::ostringstream oss;
+                oss << std::put_time(&tm, "%Y-%m-%d_%H-%M-%S");
+                sim_name = easy3d::file_system::simple_name(file_name);
+                base_name = easy3d::file_system::base_name(file_name);
+
+                out_dir = cur_work_dir + "/" + oss.str() + "/";
+                scoring_mesh_path = out_dir + "/" + base_name + "_mesh_scoring.ply";
+                scoring_sites_path = out_dir + "/" + base_name + "_sites_scoring.ply";
+                scoring_vertices_path = out_dir + "/" + base_name + "_vertices_scoring.ply";
+                try {
+                    // 使用 create_directories 函数创建新的目录（包括父目录）
+                    std::filesystem::create_directories(out_dir);
+                    std::cout << "Folder created successfully." << std::endl;
+                    std::filesystem::copy_file(file_name, out_dir + sim_name);
+                } catch (const std::filesystem::filesystem_error& e) {
+                    std::cerr << "Failed to create folder: " << e.what() << std::endl;
+                }
+                break;
+            }
+        }
+
+        if (count > 0) {
+            fit_screen();
+            return true;
+        }
+        return false;
+    }
+
     void ViewerImGui::run_scoring() {
-        std::string cli = "../scoring.exe -i ";
+        std::string cli = "scoring.exe -i " + out_dir + sim_name + " -o " + out_dir
+                + " -e " + std::to_string(eps) + " -r " + std::to_string(radius)
+                + " -s " + std::to_string(s) + " -m " + std::to_string(min_score);
+        std::system(cli.c_str());
+        std::cout << "scoring done." <<std::endl;
+        state = UPDATE_SCORING;
     }
 
     void ViewerImGui::update_event() {

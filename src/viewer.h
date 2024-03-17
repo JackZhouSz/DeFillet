@@ -45,14 +45,14 @@ namespace easy3d {
         // draw the widgets
         void pre_draw() override;
 
-        void draw() const override;
-
         //  the widgets
         void post_draw() override;
 
         void cleanup() override;
 
         void post_resize(int w, int h) override;
+
+        bool open() override;
 
         void update_event();
 
@@ -93,10 +93,17 @@ namespace easy3d {
 
 
     private:
+        std::string cur_work_dir;
+        std::string out_dir;
+        std::string sim_name;
+        std::string base_name;
+        std::string scoring_mesh_path;
+        std::string scoring_sites_path;
+        std::string scoring_vertices_path;
         FilletSeg* fillet_seg;
-        easy3d::SurfaceMesh* mesh;
-        easy3d::PointCloud* sites;
-        easy3d::PointCloud* vertices;
+        easy3d::Model* mesh;
+        easy3d::Model* sites;
+        easy3d::Model* vertices;
         bool show_mesh;
         double eps;
         double radius;

@@ -111,6 +111,9 @@ namespace easy3d {
         double min_score;
         double alpha;
         double angle;
+        int nb_neighbors;
+        int num_sor_iter;
+        double std_ratio;
         STATE state;
     };
 

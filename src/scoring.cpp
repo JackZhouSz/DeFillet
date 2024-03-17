@@ -11,6 +11,10 @@
 #include <fillet_seg.h>
 #include <igl/jet.h>
 
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
 int main(int argc, char **argv) {
     struct {
         std::string input_mesh;
@@ -19,6 +23,9 @@ int main(int argc, char **argv) {
         double radius;
         double s;
         double min_score;
+        double std_ratio;
+        int num_sor_iter;
+        int nb_neighbors;
     } args;
 
     CLI::App app{"DEFILLET Command Line"};
@@ -26,11 +33,13 @@ int main(int argc, char **argv) {
     app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
     app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
     app.add_option("-e,--eps", args.eps, "Eps")->default_val(0.03);
-    app.add_option("-r,--radius", args.radius, "Radius")->default_val(0.1);
+    app.add_option("-r,--radius", args.radius, "Radius")->default_val(0.06);
     app.add_option("-s,--s", args.s, "S")->default_val(10.0);
-    app.add_option("-m,--min_score", args.min_score, "min_score")->default_val(0.5);
+    app.add_option("--min_score", args.min_score, "min_score")->default_val(0.5);
+    app.add_option("--nb_neighbors", args.nb_neighbors, "nb_neighbors")->default_val(30);
+    app.add_option("--num_sor_iter", args.num_sor_iter, "num_sor_iter")->default_val(3);
+    app.add_option("--std_ratio", args.std_ratio, "std_ratio")->default_val(0.3);
     CLI11_PARSE(app, argc, argv);
-
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
 
     FilletSeg fillet_seg;
@@ -87,5 +96,32 @@ int main(int argc, char **argv) {
     }
     std::string out_vertices_path = args.output_dir + base_name + "_vertices_scoring.ply";
     easy3d::io::save_ply(out_vertices_path, vertices, false);
+
+    easy3d::PointCloud* sor_vertices = new easy3d::PointCloud;
+    const std::vector<int> sor_labels = fillet_seg.get_sor_labels();
+    for(int i = 0; i < sor_labels.size(); i++) {
+        if(sor_labels[i]) {
+//            std::cout <<"ASD" <<std::endl;
+            sor_vertices->add_vertex(tmp_vertices[i]);
+        }
+    }
+    std::string out_vertices_sor_path = args.output_dir + base_name + "_vertices_sor.ply";
+    easy3d::io::save_ply(out_vertices_sor_path, sor_vertices, false);
+
+    std::string scoring_info_path = args.output_dir + base_name + "_info.json";
+    json info;
+    info["input_mesh"] = args.input_mesh;
+    info["output_dir"] = args.output_dir;
+    info["eps"] = args.eps;
+    info["radius"] = args.radius;
+    info["s"] = args.s;
+    info["min_score"] = args.min_score;
+    info["std_ratio"] = args.std_ratio;
+    info["nb_neighbors"] = args.nb_neighbors;
+    info["num_sor_iter"] = args.num_sor_iter;
+    info["sor_time"] = fillet_seg.get_sor_time();
+    info["scoring_time"] = fillet_seg.get_scoring_time();
+    std::ofstream file(scoring_info_path.c_str());
+    file << std::setw(4) << info << std::endl;
     return 0;
 }

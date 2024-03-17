@@ -43,7 +43,8 @@ target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
         igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
 
-set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp src/gcp.cpp src/viewer.cpp)
+set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp
+        src/gcp.cpp src/viewer.cpp src/knn.cpp)
 
 
 add_executable(example5 example5.cpp ${DEFILLET_SOURCES})
@@ -57,6 +58,5 @@ target_include_directories(scoring PRIVATE src)
 target_link_libraries(scoring PRIVATE gcp geodesic)
 target_link_libraries(scoring PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(scoring PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
-target_link_libraries(scoring PRIVATE CLI11::CLI11)
-target_link_libraries(scoring PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(scoring PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json)
 

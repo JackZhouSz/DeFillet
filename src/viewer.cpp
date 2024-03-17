@@ -59,8 +59,9 @@ namespace easy3d {
             , vertices(nullptr)
             , fillet_seg(nullptr)
             , show_mesh(false)
-            , eps(0.03), s(10), radius(0.1)
-            , min_score(0.5), alpha(0.5) {
+            , eps(0.03), s(10), radius(0.06)
+            , min_score(0.5), alpha(0.5)
+            , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30){
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
@@ -269,7 +270,15 @@ namespace easy3d {
             ImGui::SetNextItemWidth(width);
             ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
             angle = std::clamp(angle, 0.0, 10.0);
-
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputInt("nb_neighbors", &nb_neighbors, 1, 1.0f);
+            nb_neighbors = std::clamp(nb_neighbors, 0, 100);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputInt("num_sor_iter", &num_sor_iter, 1, 1.0f);
+            num_sor_iter = std::clamp(num_sor_iter, 0, 5);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("std_ratio", &std_ratio, 0.1, 1.0f, "%.2f");
+            std_ratio = std::clamp(std_ratio, 0.0, 1.0);
             ImGui::Separator();
             if (ImGui::Button("scoring", ImVec2(150, 30))) {
                 if(mesh) {
@@ -353,7 +362,10 @@ namespace easy3d {
     void ViewerImGui::run_scoring() {
         std::string cli = "scoring.exe -i " + out_dir + sim_name + " -o " + out_dir
                 + " -e " + std::to_string(eps) + " -r " + std::to_string(radius)
-                + " -s " + std::to_string(s) + " -m " + std::to_string(min_score);
+                + " -s " + std::to_string(s) + " --min_score " + std::to_string(min_score)
+                + " --nb_neighbors " + std::to_string(nb_neighbors)
+                + " --num_sor_iter " + std::to_string(num_sor_iter)
+                + " --std_ratio " + std::to_string(std_ratio);
         std::system(cli.c_str());
         std::cout << "scoring done." <<std::endl;
         state = UPDATE_SCORING;

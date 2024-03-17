@@ -4,6 +4,7 @@
 
 #include "fillet_seg.h"
 #include "MeshVoronoi3d.h"
+#include "knn.h"
 #include <map>
 
 void FilletSeg::seg() {
@@ -13,7 +14,80 @@ void FilletSeg::seg() {
     refine_fillet_boundary();
 }
 
+void FilletSeg::run_sor() {
+    int nb_vertices = vertices_.size();
+    sor_labels_.resize(nb_vertices);
+    if(nb_neighbors_ < 1 || std_ratio_ <= 0) {
+        std::cout << "Illegal input parameters, the number of neighbors and "
+                     "standard deviation ratio must be positive." << std::endl;
+    }
+    auto start_time = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < nb_vertices; i++) {
+        if(box.contains(vertices_[i])) {
+            sor_labels_[i] = 1;
+        } else {
+            sor_labels_[i] = 0;
+        }
+    }
+    for(int i = 0; i < num_sor_iter_; i++) {
+        std::vector<KNN::Point> knn_points;
+        std::vector<int> indices;
+        for(int j = 0; j < nb_vertices; j++) {
+            if(sor_labels_[j]) {
+                knn_points.emplace_back(KNN::Point(vertices_[j].x,
+                                                   vertices_[j].y, vertices_[j].z));
+                indices.emplace_back(j);
+            }
+        }
+        KNN::KdSearch kds(knn_points);
+        int num = knn_points.size();
+        size_t valid_distances = 0;
+        std::vector<double> avg_distances(num);
+        for(int j = 0; j < num; j++) {
+            std::vector<size_t> tmp_indices;
+            std::vector<double> dist;
+            kds.kth_search(knn_points[j], nb_neighbors_, tmp_indices, dist);
+            double mean = -1.0;
+
+            if(dist.size() > 0u) {
+                valid_distances++;
+                std::for_each(dist.begin(), dist.end(),
+                              [](double &d) { d = std::sqrt(d); });
+                mean = std::accumulate(dist.begin(), dist.end(), 0.0) / dist.size();
+            }
+            avg_distances[j] = mean;
+        }
+        if(valid_distances == 0) {
+            continue;
+        }
+        double cloud_mean = std::accumulate(
+                avg_distances.begin(), avg_distances.end(), 0.0,
+                [](double const &x, double const &y) { return y > 0 ? x + y : x; });
+
+        cloud_mean /= valid_distances;
+        double sq_sum = std::inner_product(
+                avg_distances.begin(), avg_distances.end(), avg_distances.begin(),
+                0.0, [](double const &x, double const &y) { return x + y; },
+                [cloud_mean](double const &x, double const &y) {
+                    return x > 0 ? (x - cloud_mean) * (y - cloud_mean) : 0;
+                });
+        double std_dev = std::sqrt(sq_sum / (valid_distances - 1));
+        double distance_threshold = cloud_mean + std_ratio_ * std_dev;
+        for(int j = 0; j < num; j++) {
+            if(avg_distances[j] > 0 && avg_distances[j] < distance_threshold) {
+                sor_labels_[indices[j]] = 1;
+            } else {
+                sor_labels_[indices[j]] = 0;
+            }
+        }
+    }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    sor_time_ = 1.0 * duration.count() / 1000000.0;
+}
+
 void FilletSeg::run_scoring() {
+    auto start_time = std::chrono::high_resolution_clock::now();
     MeshVoronoi3d mv3d(mesh_);
     sites_ = mv3d.get_sites();
     vertices_ = mv3d.get_vertices();
@@ -22,6 +96,7 @@ void FilletSeg::run_scoring() {
     int nb_vertices = vertices_.size();
     auto scores = mesh_->face_property<float>("f:scores");
     auto counts = mesh_->face_property<int>("f:counts");
+    run_sor();
     for(auto f : mesh_->faces()) {
         scores[f] = 0.0;
         counts[f] = 0;
@@ -30,7 +105,7 @@ void FilletSeg::run_scoring() {
     double len = radius_ * box.diagonal_length();
     for(int i = 0; i < nb_vertices; i++) {
         double R = (vertices_[i] - sites_[site_of_vertices_[i][0]]).norm();
-        if(R < len && box.contains(vertices_[i])) {
+        if(R < len && sor_labels_[i]) {
             double score = cal_vertex_score(i);
             vertices_scores_[i] = 0.0;
             if(score > min_score_) {
@@ -47,7 +122,9 @@ void FilletSeg::run_scoring() {
             scores[f] /= counts[f];
         }
     }
-
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    scoring_time_ = 1.0 * duration.count() / 1000000.0;
 }
 
 
@@ -59,7 +136,7 @@ void FilletSeg::run_geodesic() {
 
 }
 
-void FilletSeg::refine_fillet_boundary() {
+void FilletSeg::refine_fillet_boundary () {
 
 }
 

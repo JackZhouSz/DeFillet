@@ -7,7 +7,7 @@
 
 #include "common.h"
 #include <limits>
-#include "knn.h"
+#include "src/knn.h"
 
 #include <easy3d/core/types.h>
 

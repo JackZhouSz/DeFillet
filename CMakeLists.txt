@@ -49,7 +49,7 @@ target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
 
 
 set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp
-        src/viewer.cpp src/knn.cpp src/defillet.cpp)
+        src/viewer.cpp src/knn.cpp src/defillet.cpp src/surafce_mesh_segmenter.cpp)
 
 
 add_executable(example5 example5.cpp ${DEFILLET_SOURCES})

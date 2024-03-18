@@ -5,9 +5,18 @@
 #ifndef DEFILLET_SURAFCE_MESH_SEGMENTER_H
 #define DEFILLET_SURAFCE_MESH_SEGMENTER_H
 
+#include <easy3d/core/surface_mesh.h>
+
 namespace easy3d {
     class SurafceMeshSegmenter {
+    public:
+        SurafceMeshSegmenter(SurfaceMesh* mesh);
+        ~SurafceMeshSegmenter();
 
+        template<typename FT>
+        SurfaceMesh* segment(const SurfaceMesh::FaceProperty<FT>& segments, FT label);
+    private:
+        easy3d::SurfaceMesh* mesh_;
     };
 }
 

@@ -57,11 +57,11 @@ namespace easy3d {
             , mesh(nullptr)
             , sites(nullptr)
             , vertices(nullptr)
-            , fillet_seg(nullptr)
             , show_mesh(false)
             , eps(0.03), s(10), radius(0.06)
             , min_score(0.5), alpha(0.5)
-            , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30){
+            , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30)
+            , w_convex(0.08), w_concave(1.0), w1(0.3), w2(0.4){
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
@@ -178,19 +178,8 @@ namespace easy3d {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if(state == UPDATE_SCORING) {
-            for(auto m : models_) {
-                if(m) {
-                    delete_model(m);
-                }
-            }
-            models_.clear();
-            mesh = add_model(scoring_mesh_path);
-            sites = add_model(scoring_sites_path);
-            vertices = add_model(scoring_vertices_path);
-            state = NOTHING;
-        }
 
+        update_event();
 
 
         Viewer::pre_draw();
@@ -250,36 +239,51 @@ namespace easy3d {
             }
         }
         ImGui::Separator();
-        if (ImGui::CollapsingHeader("FilletSeg", ImGuiTreeNodeFlags_DefaultOpen)) {
-            float width = 200;
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("eps", &eps, 0.01, 1.0f, "%.2f");
-            eps = std::clamp(eps, 0.0, 1.0);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("radius", &radius, 0.01, 1.0f, "%.2f");
-            radius = std::clamp(radius, 0.0, 1.0);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("s", &s, 0.1, 1.0f, "%.2f");
-            s = std::max(s, 1.0);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("min_score", &min_score, 0.1, 1.0f, "%.2f");
-            min_score = std::clamp(min_score, 0.0, 1.0);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("alpha", &alpha, 0.1, 1.0f, "%.2f");
-            alpha = std::clamp(alpha, 0.0, 10.0);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
-            angle = std::clamp(angle, 0.0, 10.0);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputInt("nb_neighbors", &nb_neighbors, 1, 1.0f);
-            nb_neighbors = std::clamp(nb_neighbors, 0, 100);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputInt("num_sor_iter", &num_sor_iter, 1, 1.0f);
-            num_sor_iter = std::clamp(num_sor_iter, 0, 5);
-            ImGui::SetNextItemWidth(width);
-            ImGui::InputDouble("std_ratio", &std_ratio, 0.1, 1.0f, "%.2f");
-            std_ratio = std::clamp(std_ratio, 0.0, 1.0);
-            ImGui::Separator();
+        float width = 150;
+        if (ImGui::CollapsingHeader("FilletSeg")) {
+            if(ImGui::CollapsingHeader("sor_para")) {
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputInt("nb_neighbors", &nb_neighbors, 1, 1.0f);
+                nb_neighbors = std::clamp(nb_neighbors, 0, 100);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputInt("num_sor_iter", &num_sor_iter, 1, 1.0f);
+                num_sor_iter = std::clamp(num_sor_iter, 0, 5);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("std_ratio", &std_ratio, 0.1, 1.0f, "%.2f");
+                std_ratio = std::clamp(std_ratio, 0.0, 1.0);
+            }
+            if(ImGui::CollapsingHeader("scoring_para")) {
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("eps", &eps, 0.01, 1.0f, "%.2f");
+                eps = std::clamp(eps, 0.0, 1.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("radius", &radius, 0.01, 1.0f, "%.2f");
+                radius = std::clamp(radius, 0.0, 1.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("s", &s, 0.1, 1.0f, "%.2f");
+                s = std::max(s, 1.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("min_score", &min_score, 0.1, 1.0f, "%.2f");
+                min_score = std::clamp(min_score, 0.0, 1.0);
+            }
+            if(ImGui::CollapsingHeader("gcp_para")) {
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("alpha", &alpha, 0.1, 1.0f, "%.2f");
+                alpha = std::clamp(alpha, 0.0, 10.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("w_convex", &w_convex, 0.1, 1.0f, "%.2f");
+                w_convex = std::clamp(w_convex, 0.0, 1.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("w_convex", &w_concave, 0.1, 1.0f, "%.2f");
+                w_concave = std::clamp(w_concave, 0.0, 1.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("w1", &w1, 0.1, 1.0f, "%.2f");
+                w1 = std::clamp(w1, 0.0, 1.0);
+                ImGui::SetNextItemWidth(width);
+                ImGui::InputDouble("w2", &w2, 0.1, 1.0f, "%.2f");
+                w2 = std::clamp(w2, 0.0, 1.0);
+            }
+
             if (ImGui::Button("scoring", ImVec2(150, 30))) {
                 if(mesh) {
                     std::thread t(std::bind(&ViewerImGui::run_scoring, this));
@@ -288,9 +292,19 @@ namespace easy3d {
             }
             ImGui::SameLine();
             if (ImGui::Button("gcp", ImVec2(150, 30))) {
-
+                if(mesh) {
+                    std::thread t(std::bind(&ViewerImGui::run_gcp, this));
+                    t.detach();
+                }
             }
 
+
+        }
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("DeFillet")) {
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
+            angle = std::clamp(angle, 0.0, 10.0);
             if (ImGui::Button("geodesic", ImVec2(310, 30))) {
 
             }
@@ -300,10 +314,6 @@ namespace easy3d {
             if (ImGui::Button("refine_target_normal", ImVec2(310, 30))) {
 
             }
-        }
-        ImGui::Separator();
-        if (ImGui::CollapsingHeader("DeFillet", ImGuiTreeNodeFlags_DefaultOpen)) {
-
         }
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -337,9 +347,10 @@ namespace easy3d {
                 base_name = easy3d::file_system::base_name(file_name);
 
                 out_dir = cur_work_dir + "/" + oss.str() +  "_" + base_name + "/";
-                scoring_mesh_path = out_dir + "/" + base_name + "_mesh_scoring.ply";
-                scoring_sites_path = out_dir + "/" + base_name + "_sites_scoring.ply";
-                scoring_vertices_path = out_dir + "/" + base_name + "_vertices_scoring.ply";
+                scoring_mesh_path = out_dir  + "mesh_scoring.ply";
+                scoring_sites_path = out_dir + "sites_scoring.ply";
+                scoring_vertices_path = out_dir +  "vertices_scoring.ply";
+                gcp_mesh_path = out_dir +  "gcp.ply";
                 try {
                     // 使用 create_directories 函数创建新的目录（包括父目录）
                     std::filesystem::create_directories(out_dir);
@@ -366,14 +377,53 @@ namespace easy3d {
                 + " --nb_neighbors " + std::to_string(nb_neighbors)
                 + " --num_sor_iter " + std::to_string(num_sor_iter)
                 + " --std_ratio " + std::to_string(std_ratio);
-        std::system(cli.c_str());
-        std::cout << "scoring done." <<std::endl;
-        state = UPDATE_SCORING;
+        if(std::system(cli.c_str()) == 0) {
+            std::cout << "scoring done." << std::endl;
+            state = UPDATE_SCORING;
+        } else {
+            std::cout << "scoring error" << std::endl;
+        }
+    }
+    void ViewerImGui::run_gcp() {
+
+        std::string cli = "gc.exe -i " + scoring_mesh_path + " -o " + out_dir
+                          + " -a " + std::to_string(alpha)
+                          + " --w_convex " + std::to_string(w_convex)
+                          + " --w_concave " + std::to_string(w_concave)
+                          + " --w1 " + std::to_string(w1)
+                          + " --w2 " + std::to_string(w2);
+        if(std::system(cli.c_str()) == 0) {
+            std::cout << "gcp done." << std::endl;
+            state = UPDATE_GCP;
+        } else {
+            std::cout << "gcp error" << std::endl;
+        }
     }
 
     void ViewerImGui::update_event() {
         if(state == UPDATE_SCORING) {
-
+            for(auto m : models_) {
+                if(m) {
+                    delete_model(m);
+                }
+            }
+            models_.clear();
+            mesh = add_model(scoring_mesh_path);
+            sites = add_model(scoring_sites_path);
+            vertices = add_model(scoring_vertices_path);
+            state = NOTHING;
+        }
+        if(state == UPDATE_GCP) {
+            for(auto m : models_) {
+                if(m) {
+                    delete_model(m);
+                }
+            }
+            models_.clear();
+            mesh = add_model(gcp_mesh_path);
+            sites = add_model(scoring_sites_path);
+            vertices = add_model(scoring_vertices_path);
+            state = NOTHING;
         }
     }
 }

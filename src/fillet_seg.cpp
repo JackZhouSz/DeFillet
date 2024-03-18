@@ -13,8 +13,6 @@
 void FilletSeg::seg() {
     run_scoring();
     run_gcp();
-    run_geodesic();
-    refine_fillet_boundary();
 }
 
 void FilletSeg::run_sor() {
@@ -144,11 +142,10 @@ void FilletSeg::run_scoring() {
 
 
 void FilletSeg::run_gcp() {
+    auto start_time = std::chrono::high_resolution_clock::now();
     auto scores = mesh_->face_property<float>("f:scores");
     auto normals = mesh_->face_property<easy3d::vec3>("f:normal");
     auto gcp = mesh_->face_property<int>("f:gcp_labels");
-    double w_convex = 0.08, w_concave = 1.0;
-    double w1 = 0.3, w2 = 0.4;
 
     int nb_face = mesh_->n_faces();
     GCoptimizationGeneralGraph gc(nb_face, 2);
@@ -156,9 +153,9 @@ void FilletSeg::run_gcp() {
     std::vector<double> data_cost(2 * nb_face);
     for(auto f : mesh_->faces()) {
         data_cost[f.idx()] = scores[f];
-        data_cost[f.idx()] = std::max(data_cost[f.idx()], w1);
+        data_cost[f.idx()] = std::max(data_cost[f.idx()], w1_);
         data_cost[f.idx() + nb_face] = (1.0 - scores[f]);
-        data_cost[f.idx() + nb_face] = std::max(data_cost[f.idx() + nb_face], w1);
+        data_cost[f.idx() + nb_face] = std::max(data_cost[f.idx() + nb_face], w1_);
     }
     std::vector<std::pair<int,int>> edges;
     std::vector<double> edge_weights;
@@ -166,13 +163,13 @@ void FilletSeg::run_gcp() {
         auto f0 = mesh_->face(e, 0);
         auto f1 = mesh_->face(e, 1);
         if(f0.is_valid() && f1.is_valid()) {
-            double w = acos(easy3d::dot(normals[f0], normals[f1]));
+            double w = acos(easy3d::dot(normals[f0], normals[f1])) / M_PI;
             if(w < 0) {
-                w = std::fabs(w) * w_convex * alpha_;
+                w = std::fabs(w) * w_convex_ * alpha_;
             } else {
-                w = std::fabs(w) * w_concave * alpha_;
+                w = std::fabs(w) * w_concave_ * alpha_;
             }
-            w = std::max(w, w2);
+            w = std::max(w, w2_);
             int id1 = f0.idx(), id2 = f1.idx();
             if(id1 > id2)
                 std::swap(id1, id2);
@@ -189,6 +186,8 @@ void FilletSeg::run_gcp() {
     std::cout << "Before optimization energy is " << gc.compute_energy() << std::endl;
     gc.expansion(4);
     std::cout << "After optimization energy is " << gc.compute_energy() << std::endl;
+
+#pragma omp parallel for
     for(int i = 0; i < nb_face; i++) {
         easy3d::SurfaceMesh::Face f(i);
         if(gc.whatLabel(i) == 0) {
@@ -197,19 +196,13 @@ void FilletSeg::run_gcp() {
             gcp[f] = 1;
         }
     }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    gcp_time_ = 1.0 * duration.count() / 1000000.0;
 }
 
-void FilletSeg::run_geodesic() {
 
-}
-
-void FilletSeg::refine_fillet_boundary () {
-
-}
-
-void FilletSeg::refine_target_normal() {
-
-}
 
 double FilletSeg::cal_vertex_score(int vid) {
     std::set<easy3d::SurfaceMesh::Face> vis;

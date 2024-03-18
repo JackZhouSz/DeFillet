@@ -13,7 +13,6 @@ public:
     FilletSeg(){
         eps_ = 0.03; s_ = 10;
         scoring_time_ = 0.0; gcp_time_ = 0.0; sor_time_ = 0.0;
-        boundary_refine_time_ = 0.0; target_normals_refine_time_ = 0.0;
         radius_ = 0.05;
         alpha_ = 0.5;
         angle_ = 40;
@@ -22,13 +21,15 @@ public:
         std_ratio_ = 0.3;
         nb_neighbors_ = 30;
         num_sor_iter_ = 3;
-
+        w_convex_ = 0.08;
+        w_concave_ = 1.0;
+        w1_ = 0.3;
+        w2_ = 0.4;
     }
 
     void reset() {
         eps_ = 0.03; s_ = 10;
         scoring_time_ = 0.0; gcp_time_ = 0.0; sor_time_ = 0.0;
-        boundary_refine_time_ = 0.0; target_normals_refine_time_ = 0.0;
         radius_ = 0.1;
         alpha_ = 0.5;
         angle_ = 40;
@@ -38,6 +39,10 @@ public:
         nb_neighbors_ = 30;
         num_sor_iter_ = 3;
         mesh_ = nullptr;
+        w_convex_ = 0.08;
+        w_concave_ = 1.0;
+        w1_ = 0.3;
+        w2_ = 0.4;
     }
 
     void seg();
@@ -46,9 +51,6 @@ public:
     void run_sor();
     void run_scoring();
     void run_gcp();
-    void run_geodesic();
-    void refine_fillet_boundary();
-    void refine_target_normal();
 
     // tools
     double cal_vertex_score(int vid);
@@ -69,15 +71,18 @@ public:
     void set_num_sor_iter(int num_sor_iter) { num_sor_iter_ = num_sor_iter; }
     void set_std_ratio(double std_ratio) { std_ratio_ = std_ratio; }
     void set_nb_neighbors(double nb_neighbors) { nb_neighbors_ = nb_neighbors; }
+    void set_w_convex(double w_convex) {w_convex_ = w_convex;}
+    void set_w_concave(double w_concave) {w_concave_ = w_concave;}
+    void set_w1(double w1) {w1_ = w1;}
+    void set_w2(double w2) {w2_ = w2;}
 
     double get_runtime() {
-        return scoring_time_ + gcp_time_ + geodesic_time_ + boundary_refine_time_ + target_normals_refine_time_;
+        return scoring_time_ + gcp_time_;
     }
     double get_sor_time() const { return sor_time_;}
     double get_scoring_time() const { return scoring_time_;}
     double get_gcp_time() const { return gcp_time_;}
-    double get_boundary_time() const { return boundary_refine_time_;}
-    double get_target_normals_refine_time() const { return target_normals_refine_time_;}
+
 
     const std::vector<float>& get_vertices_scores() const { return vertices_scores_; }
     const std::vector<easy3d::vec3>& get_sites() const {return sites_;}
@@ -114,13 +119,13 @@ private:
     double min_score_;
     double alpha_;
     double angle_;
-
+    double w_convex_;
+    double w_concave_;
+    double w1_, w2_;
     double sor_time_;
     double scoring_time_;
     double gcp_time_;
-    double geodesic_time_;
-    double boundary_refine_time_;
-    double target_normals_refine_time_;
+
 };
 
 

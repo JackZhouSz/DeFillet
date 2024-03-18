@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     fillet_seg.set_min_score(args.min_score);
     fillet_seg.run_scoring();
     std::string base_name = easy3d::file_system::base_name(args.input_mesh);
-    std::string out_mesh_path = args.output_dir + base_name + "_mesh_scoring.ply";
+    std::string out_mesh_path = args.output_dir + "mesh_scoring.ply";
     auto scores = mesh->face_property<float>("f:scores");
     int nb_faces = mesh->n_faces();
     Eigen::VectorXd Z(nb_faces);
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
         coloring_sites[v] = easy3d::vec3(Ct(v.idx(), 0),
                                          Ct(v.idx(), 1), Ct(v.idx(), 2));
     }
-    std::string out_sites_path = args.output_dir + base_name + "_sites_scoring.ply";
+    std::string out_sites_path = args.output_dir + "sites_scoring.ply";
     easy3d::io::save_ply(out_sites_path, sites, true);
     easy3d::PointCloud* vertices = new easy3d::PointCloud;
     auto& tmp_vertices = fillet_seg.get_vertices();
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
         coloring_vertices[v] = easy3d::vec3(Ct(v.idx(), 0),
                                             Ct(v.idx(), 1), Ct(v.idx(), 2));
     }
-    std::string out_vertices_path = args.output_dir + base_name + "_vertices_scoring.ply";
+    std::string out_vertices_path = args.output_dir + "vertices_scoring.ply";
     easy3d::io::save_ply(out_vertices_path, vertices, true);
 
     easy3d::PointCloud* sor_vertices = new easy3d::PointCloud;
@@ -105,10 +105,10 @@ int main(int argc, char **argv) {
             sor_vertices->add_vertex(tmp_vertices[i]);
         }
     }
-    std::string out_vertices_sor_path = args.output_dir + base_name + "_vertices_sor.ply";
+    std::string out_vertices_sor_path = args.output_dir +  "vertices_sor.ply";
     easy3d::io::save_ply(out_vertices_sor_path, sor_vertices, true);
 
-    std::string scoring_info_path = args.output_dir + base_name + "_info.json";
+    std::string scoring_info_path = args.output_dir + "scoring_info.json";
     json info;
     info["input_mesh"] = args.input_mesh;
     info["output_dir"] = args.output_dir;

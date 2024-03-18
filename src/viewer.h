@@ -100,7 +100,7 @@ namespace easy3d {
         std::string scoring_mesh_path;
         std::string scoring_sites_path;
         std::string scoring_vertices_path;
-        FilletSeg* fillet_seg;
+        std::string gcp_mesh_path;
         easy3d::Model* mesh;
         easy3d::Model* sites;
         easy3d::Model* vertices;
@@ -114,6 +114,9 @@ namespace easy3d {
         int nb_neighbors;
         int num_sor_iter;
         double std_ratio;
+        double w_convex;
+        double w_concave;
+        double w1, w2;
         STATE state;
     };
 

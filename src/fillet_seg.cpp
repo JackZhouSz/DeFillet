@@ -147,6 +147,10 @@ void FilletSeg::run_gcp() {
     auto normals = mesh_->face_property<easy3d::vec3>("f:normal");
     auto gcp = mesh_->face_property<int>("f:gcp_labels");
 
+    for(auto f : mesh_->faces()) {
+        normals[f] = mesh_->compute_face_normal(f);
+    }
+
     int nb_face = mesh_->n_faces();
     GCoptimizationGeneralGraph gc(nb_face, 2);
 

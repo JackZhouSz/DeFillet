@@ -8,10 +8,10 @@
 #include <easy3d/core/surface_mesh.h>
 
 namespace easy3d {
-    class SurafceMeshSegmenter {
+    class SurfaceMeshSegmenter {
     public:
-        SurafceMeshSegmenter(SurfaceMesh* mesh);
-        ~SurafceMeshSegmenter();
+        SurfaceMeshSegmenter(SurfaceMesh* mesh);
+        ~SurfaceMeshSegmenter();
 
         template<typename FT>
         SurfaceMesh* segment(const SurfaceMesh::FaceProperty<FT>& segments, FT label);

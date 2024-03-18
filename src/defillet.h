@@ -23,7 +23,7 @@ public:
 
     void optimize();
 
-    void extract_interest_region();
+    void extract_fillet_region();
 
     // geter and seter
     void set_mesh(easy3d::SurfaceMesh* mesh) {
@@ -41,8 +41,9 @@ private:
     easy3d::Box3 box;
     easy3d::SurfaceMesh* mesh_;
     easy3d::SurfaceMesh* fillet_mesh_;
-    double angle_;
+    std::set<int> sources_;
 
+    double angle_;
     double beta_;
     int num_opt_iter_;
 

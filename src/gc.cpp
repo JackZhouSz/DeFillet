@@ -33,21 +33,13 @@ int main(int argc, char **argv) {
     CLI11_PARSE(app, argc, argv);
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
     bool scores = false;
-    bool normal = false;
     for(auto p : mesh->face_properties()) {
-        if(p == "f:normal") {
-            normal = true;
-        }
         if(p == "f:scores") {
             scores = true;
         }
     }
     if(!scores) {
         std::cout << "Please compute face score first." << std::endl;
-        return 0;
-    }
-    if(!normal) {
-        std::cout << "Please compute face normal first." << std::endl;
         return 0;
     }
     FilletSeg fillet_seg;

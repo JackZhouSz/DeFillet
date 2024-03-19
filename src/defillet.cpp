@@ -67,10 +67,55 @@ void DeFillet::run_geodesic() {
         face_sources[f] = alg.GetAncestor(i + nb_points);
         face_tar_normals[f] = sources_normals_[mp[face_sources[f]]];
     }
+//    std::cout << "ASD" <<std::endl;
+//    refine_target_normal();
 }
 
 void DeFillet::refine_target_normal() {
-
+    auto face_sources = fillet_mesh_->face_property<int>("f:sources");
+    auto face_tar_normals = fillet_mesh_->face_property<easy3d::vec3>("f:tar_normals");
+    int nb_points = fillet_mesh_->n_vertices();
+    std::vector<bool>vis(nb_points);
+    bool s = true;
+    int num = 0;
+    double thr = cos(angle_ * M_PI / 180.0);
+    do {
+        num = 0;
+        for (auto cur_v: fillet_mesh_->vertices()) {
+            if(vis[cur_v.idx()] == s) continue;
+            std::queue<easy3d::SurfaceMesh::Vertex>que;
+            que.push(cur_v);
+            while(!que.empty()) {
+                auto v = que.front(); que.pop();
+                if(vis[v.idx()] == s) continue;
+                vis[v.idx()] = s;
+                auto st_h = mesh_->out_halfedge(v);
+                auto it = st_h;
+                do {
+                    auto cur_f = mesh_->face(it);
+                    auto prev_f = mesh_->face(mesh_->prev_around_source(it));
+                    auto nxt_f = mesh_->face(mesh_->next_around_source(it));
+                    if (cur_f.is_valid() && prev_f.is_valid() && nxt_f.is_valid()) {
+                        auto v1 = face_tar_normals[cur_f];
+                        auto v2 = face_tar_normals[prev_f];
+                        auto v3 = face_tar_normals[nxt_f];
+                        if (easy3d::dot(v1, v2) < thr && easy3d::dot(v1, v3) < thr && easy3d::dot(v2, v3) > thr) {
+                            face_tar_normals[cur_f] = face_tar_normals[prev_f];
+                            face_sources[cur_f] = face_sources[prev_f];
+                            num++;
+                        }
+                    }
+                    auto tar_v = mesh_->target(it);
+                    if(vis[tar_v.idx()] != s) {
+                        que.push(tar_v);
+                    }
+                    it = mesh_->next_around_source(it);
+                } while (it != st_h);
+            }
+        }
+        s = (!s);
+        std::cout << "num=" << num <<std::endl;
+    } while(num != 0);
 }
 
 void DeFillet::run_defillet() {

@@ -34,6 +34,7 @@ namespace easy3d {
         enum STATE{
             UPDATE_SCORING,
             UPDATE_GCP,
+            UPDATE_GEO,
             NOTHING
         };
 
@@ -101,6 +102,7 @@ namespace easy3d {
         std::string scoring_sites_path;
         std::string scoring_vertices_path;
         std::string gcp_mesh_path;
+        std::string fillet_geo_path;
         easy3d::Model* mesh;
         easy3d::Model* sites;
         easy3d::Model* vertices;

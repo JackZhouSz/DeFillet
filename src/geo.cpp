@@ -29,11 +29,13 @@ int main(int argc, char **argv) {
     struct {
         std::string input_mesh;
         std::string output_dir;
+        double angle;
     } args;
     CLI::App app{"DEFILLET Command Line"};
 
     app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
     app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
+    app.add_option("--angle", args.angle, "Angle")->default_val(45);
     CLI11_PARSE(app, argc, argv);
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
     bool gcp_labels = false;
@@ -50,41 +52,53 @@ int main(int argc, char **argv) {
     defillet.set_mesh(mesh);
     defillet.run_geodesic();
     easy3d::SurfaceMesh* fillet_mesh = defillet.get_fillet_mesh();
+    std::string out_fillet_geo_path = args.output_dir +  "fillet_geo.ply";
+    easy3d::io::save_ply(out_fillet_geo_path, fillet_mesh, false);
+
+//    auto fillet_geo_dis = fillet_mesh->get_vertex_property<float>("v:geo_dis");
+//    auto fillet_original_index = fillet_mesh->get_vertex_property<int>("v:original_index");
+//    auto geo_dis = mesh->vertex_property<float>("v:geo_dis", 0.0);
+//    for(auto v : fillet_mesh->vertices()) {
+//        easy3d::SurfaceMesh::Vertex vv(fillet_original_index[v]);
+//        geo_dis[vv] = fillet_geo_dis[v];
+//    }
+
+
+    return 0;
     std::string out_geo_path = args.output_dir +  "geo.ply";
-    easy3d::io::save_ply(out_geo_path, fillet_mesh, false);
     easy3d::Viewer viewer("asdsad");
-    viewer.add_model(fillet_mesh);
-    auto geo_dis = fillet_mesh->get_vertex_property<float>("v:geo_dis");
-
-    auto drawable = fillet_mesh->renderer()->get_triangles_drawable("faces");
+    viewer.add_model(mesh);
+//    auto geo_dis = fillet_mesh->get_vertex_property<float>("v:geo_dis");
+//
+    auto drawable = mesh->renderer()->get_triangles_drawable("faces");
     drawable->set_scalar_coloring(easy3d::State::VERTEX, "v:geo_dis", nullptr, 0.0f, 0.0f);
-
+//
     const std::string texture_file = "D:\\code\\defillet\\lib-easy3d\\resources\\colormaps\\rainbow.png";
     easy3d::Texture *texture = easy3d::TextureManager::request(texture_file);
     if (!texture) {
         return 0;
     }
-    std::cout << "ASD" <<std::endl;
-    // Use the texture
+//    std::cout << "ASD" <<std::endl;
+//    // Use the texture
     drawable->set_texture(texture);
-    auto face_tar_normals = fillet_mesh->face_property<easy3d::vec3>("f:tar_normals");
-    const easy3d::Box3 &box = fillet_mesh->bounding_box();
-    float length = norm(box.max_point() - box.min_point()) * 0.02f;
-    std::vector<easy3d::vec3> tmp;
-    for(auto f : fillet_mesh->faces()) {
-        int num = 0;
-        easy3d::vec3 center(0,0,0);
-        for(auto v : fillet_mesh->vertices(f)) {
-            center += fillet_mesh->position(v);
-            num++;
-        }
-        center /= num;
-        tmp.emplace_back(center);
-        tmp.emplace_back(center + face_tar_normals[f] * length);
-    }
-    easy3d::LinesDrawable* line = new easy3d::LinesDrawable;
-    line->update_vertex_buffer(tmp);
-    viewer.add_drawable(line);
+//    auto face_tar_normals = fillet_mesh->face_property<easy3d::vec3>("f:tar_normals");
+//    const easy3d::Box3 &box = fillet_mesh->bounding_box();
+//    float length = norm(box.max_point() - box.min_point()) * 0.02f;
+//    std::vector<easy3d::vec3> tmp;
+//    for(auto f : fillet_mesh->faces()) {
+//        int num = 0;
+//        easy3d::vec3 center(0,0,0);
+//        for(auto v : fillet_mesh->vertices(f)) {
+//            center += fillet_mesh->position(v);
+//            num++;
+//        }
+//        center /= num;
+//        tmp.emplace_back(center);
+//        tmp.emplace_back(center + face_tar_normals[f] * length);
+//    }
+//    easy3d::LinesDrawable* line = new easy3d::LinesDrawable;
+//    line->update_vertex_buffer(tmp);
+//    viewer.add_drawable(line);
     viewer.update();
     viewer.run();
     

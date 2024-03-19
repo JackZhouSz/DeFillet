@@ -23,7 +23,7 @@
 #include <easy3d/renderer/drawable_points.h>
 #include <easy3d/renderer/drawable_lines.h>
 #include <easy3d/renderer/drawable_triangles.h>
-
+#include <easy3d/renderer/texture_manager.h>
 
 
 #include <easy3d/util/timer.h>
@@ -304,9 +304,12 @@ namespace easy3d {
         if (ImGui::CollapsingHeader("DeFillet")) {
             ImGui::SetNextItemWidth(width);
             ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
-            angle = std::clamp(angle, 0.0, 10.0);
+            angle = std::clamp(angle, 0.0, 180.0);
             if (ImGui::Button("geodesic", ImVec2(310, 30))) {
-
+                if(mesh) {
+                    std::thread t(std::bind(&ViewerImGui::run_geodesic, this));
+                    t.detach();
+                }
             }
             if (ImGui::Button("refine_fillet_boundary", ImVec2(310, 30))) {
 
@@ -351,6 +354,7 @@ namespace easy3d {
                 scoring_sites_path = out_dir + "sites_scoring.ply";
                 scoring_vertices_path = out_dir +  "vertices_scoring.ply";
                 gcp_mesh_path = out_dir +  "gcp.ply";
+                fillet_geo_path = out_dir + "fillet_geo.ply";
                 try {
                     // 使用 create_directories 函数创建新的目录（包括父目录）
                     std::filesystem::create_directories(out_dir);
@@ -384,6 +388,7 @@ namespace easy3d {
             std::cout << "scoring error" << std::endl;
         }
     }
+
     void ViewerImGui::run_gcp() {
 
         std::string cli = "gc.exe -i " + scoring_mesh_path + " -o " + out_dir
@@ -400,6 +405,17 @@ namespace easy3d {
         }
     }
 
+    void ViewerImGui::run_geodesic() {
+        std::string cli = "geo.exe -i " + gcp_mesh_path + " -o " + out_dir
+                          + " --angle " + std::to_string(angle);
+        if(std::system(cli.c_str()) == 0) {
+            std::cout << "geo done." << std::endl;
+            state = UPDATE_GEO;
+        } else {
+            std::cout << "geo error" << std::endl;
+        }
+    }
+
     void ViewerImGui::update_event() {
         if(state == UPDATE_SCORING) {
             for(auto m : models_) {
@@ -411,6 +427,7 @@ namespace easy3d {
             mesh = add_model(scoring_mesh_path);
             sites = add_model(scoring_sites_path);
             vertices = add_model(scoring_vertices_path);
+            model_idx_ = 0;
             state = NOTHING;
         }
         if(state == UPDATE_GCP) {
@@ -423,6 +440,50 @@ namespace easy3d {
             mesh = add_model(gcp_mesh_path);
             sites = add_model(scoring_sites_path);
             vertices = add_model(scoring_vertices_path);
+            model_idx_ = 0;
+            state = NOTHING;
+        }
+
+        if(state == UPDATE_GEO) {
+            easy3d::SurfaceMesh* fillet_mesh = easy3d::SurfaceMeshIO::load(fillet_geo_path);
+            auto fillet_geo_dis = fillet_mesh->get_vertex_property<float>("v:geo_dis");
+            auto fillet_original_index = fillet_mesh->get_vertex_property<int>("v:original_index");
+            auto geo_dis = dynamic_cast<easy3d::SurfaceMesh*>(mesh)->vertex_property<float>("v:geo_dis", 0.0);
+            for(auto v : fillet_mesh->vertices()) {
+                easy3d::SurfaceMesh::Vertex vv(fillet_original_index[v]);
+                geo_dis[vv] = fillet_geo_dis[v];
+            }
+            auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+            drawable->set_scalar_coloring(easy3d::State::VERTEX, "v:geo_dis", nullptr, 0.0f, 0.0f);
+            const std::string texture_file = "D:\\code\\defillet\\lib-easy3d\\resources\\colormaps\\rainbow.png";
+            easy3d::Texture *texture = easy3d::TextureManager::request(texture_file);
+            drawable->set_texture(texture);
+            drawable->update();
+
+            auto face_tar_normals_x = fillet_mesh->face_property<float>("f:tar_normals_x");
+            auto face_tar_normals_y = fillet_mesh->face_property<float>("f:tar_normals_y");
+            auto face_tar_normals_z = fillet_mesh->face_property<float>("f:tar_normals_z");
+            const easy3d::Box3 &box = fillet_mesh->bounding_box();
+            float length = norm(box.max_point() - box.min_point()) * 0.02f;
+            std::vector<easy3d::vec3> tmp;
+            for(auto f : fillet_mesh->faces()) {
+                int num = 0;
+                easy3d::vec3 center(0,0,0);
+                for(auto v : fillet_mesh->vertices(f)) {
+                    center += fillet_mesh->position(v);
+                    num++;
+                }
+                center /= num;
+                tmp.emplace_back(center);
+                easy3d::vec3 n(face_tar_normals_x[f], face_tar_normals_y[f], face_tar_normals_z[f]);
+                tmp.emplace_back(center + n * length);
+            }
+            easy3d::LinesDrawable* line = mesh->renderer()->add_lines_drawable("target_normals");
+            line->update_vertex_buffer(tmp);
+            line->set_impostor_type(easy3d::LinesDrawable::ImposterType::CYLINDER);
+            line->set_line_width(1.0);
+            line->set_uniform_coloring(easy3d::vec4(0.0, 1.0, 0.0, 1.0));
+            line->set_visible(true);
             state = NOTHING;
         }
     }

@@ -2,7 +2,7 @@
 // Created by 13900K on 2024/3/19.
 //
 
-#include "defillet.h"
+#include <defillet.h>
 
 
 #include <CLI/CLI.hpp>
@@ -16,12 +16,12 @@
 #include <nlohmann/json.hpp>
 
 
-#include <easy3d/viewer/viewer.h>
-#include <easy3d/renderer/renderer.h>
-#include <easy3d/renderer/drawable_points.h>
-#include <easy3d/renderer/drawable_triangles.h>
-#include <easy3d/renderer/drawable_lines.h>
-#include <easy3d/renderer/texture_manager.h>
+//#include <easy3d/viewer/viewer.h"
+//#include "easy3d/renderer/renderer.h"
+//#include "easy3d/renderer/drawable_points.h"
+//#include "easy3d/renderer/drawable_triangles.h"
+//#include "easy3d/renderer/drawable_lines.h"
+//#include "easy3d/renderer/texture_manager.h"
 
 using json = nlohmann::json;
 
@@ -50,13 +50,22 @@ int main(int argc, char **argv) {
     }
     DeFillet defillet;
     defillet.set_mesh(mesh);
+    defillet.set_angle(args.angle);
     defillet.run_geodesic();
     easy3d::SurfaceMesh* fillet_mesh = defillet.get_fillet_mesh();
     std::string out_fillet_geo_path = args.output_dir +  "fillet_geo.ply";
-    easy3d::io::save_ply(out_fillet_geo_path, fillet_mesh, false);
+    easy3d::io::save_ply(out_fillet_geo_path, fillet_mesh, true);
 
 
-
+    std::string scoring_info_path = args.output_dir +  "geo_info.json";
+    json info;
+    info["input_mesh"] = args.input_mesh;
+    info["output_dir"] = args.output_dir;
+    info["angle"] = args.angle;
+    info["geo_time"] = defillet.get_geodesic_time();
+    info["target_refine_time"] = defillet.get_target_normals_refine_time();
+    std::ofstream file(scoring_info_path.c_str());
+    file << std::setw(4) << info << std::endl;
 
 
     return 0;

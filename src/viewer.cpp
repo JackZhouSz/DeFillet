@@ -61,7 +61,8 @@ namespace easy3d {
             , eps(0.03), s(10), radius(0.06)
             , min_score(0.5), alpha(0.5)
             , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30)
-            , w_convex(0.08), w_concave(1.0), w1(0.3), w2(0.4){
+            , w_convex(0.08), w_concave(1.0), w1(0.3), w2(0.4)
+            , angle(60){
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();

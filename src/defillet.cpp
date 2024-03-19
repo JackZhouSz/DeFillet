@@ -7,7 +7,12 @@
 
 #include <Xin_Wang.h>
 
+#include <igl/cat.h>
+
+
+
 void DeFillet::run_geodesic() {
+    auto start_time = std::chrono::high_resolution_clock::now();
     extract_fillet_region();
     sources_.clear();
     sources_normals_.clear();
@@ -67,21 +72,25 @@ void DeFillet::run_geodesic() {
         face_sources[f] = alg.GetAncestor(i + nb_points);
         face_tar_normals[f] = sources_normals_[mp[face_sources[f]]];
     }
-//    std::cout << "ASD" <<std::endl;
-//    refine_target_normal();
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    geodesic_time_ = 1.0 * duration.count() / 1000000.0;
+    refine_target_normal();
 }
 
 void DeFillet::refine_target_normal() {
+    auto start_time = std::chrono::high_resolution_clock::now();
     auto face_sources = fillet_mesh_->face_property<int>("f:sources");
     auto face_tar_normals = fillet_mesh_->face_property<easy3d::vec3>("f:tar_normals");
     int nb_points = fillet_mesh_->n_vertices();
-    std::vector<bool>vis(nb_points);
+    std::vector<bool>vis(nb_points, false);
     bool s = true;
     int num = 0;
     double thr = cos(angle_ * M_PI / 180.0);
     do {
         num = 0;
         for (auto cur_v: fillet_mesh_->vertices()) {
+
             if(vis[cur_v.idx()] == s) continue;
             std::queue<easy3d::SurfaceMesh::Vertex>que;
             que.push(cur_v);
@@ -89,12 +98,12 @@ void DeFillet::refine_target_normal() {
                 auto v = que.front(); que.pop();
                 if(vis[v.idx()] == s) continue;
                 vis[v.idx()] = s;
-                auto st_h = mesh_->out_halfedge(v);
+                auto st_h = fillet_mesh_->out_halfedge(v);
                 auto it = st_h;
                 do {
-                    auto cur_f = mesh_->face(it);
-                    auto prev_f = mesh_->face(mesh_->prev_around_source(it));
-                    auto nxt_f = mesh_->face(mesh_->next_around_source(it));
+                    auto cur_f = fillet_mesh_->face(it);
+                    auto prev_f = fillet_mesh_->face(fillet_mesh_->prev_around_source(it));
+                    auto nxt_f = fillet_mesh_->face(fillet_mesh_->next_around_source(it));
                     if (cur_f.is_valid() && prev_f.is_valid() && nxt_f.is_valid()) {
                         auto v1 = face_tar_normals[cur_f];
                         auto v2 = face_tar_normals[prev_f];
@@ -105,24 +114,161 @@ void DeFillet::refine_target_normal() {
                             num++;
                         }
                     }
-                    auto tar_v = mesh_->target(it);
+                    auto tar_v = fillet_mesh_->target(it);
                     if(vis[tar_v.idx()] != s) {
                         que.push(tar_v);
                     }
-                    it = mesh_->next_around_source(it);
+                    it = fillet_mesh_->next_around_source(it);
                 } while (it != st_h);
             }
         }
         s = (!s);
         std::cout << "num=" << num <<std::endl;
     } while(num != 0);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    target_normals_refine_time_ = 1.0 * duration.count() / 1000000.0;
 }
 
-void DeFillet::run_defillet() {
+bool DeFillet::run_defillet() {
 
+    init_opt();
+
+    for(int i = 0; i < num_opt_iter_; i++) {
+        std::cout << "iter " << i + 1 << " is processing." << std::endl;
+        if(!opt()) {
+            std::cout << "opt error." << std::endl;
+            return false;
+        }
+    }
+    return true;
 }
 
-void DeFillet::optimize(){
+void DeFillet::init_opt(){
+    int nb_points = fillet_mesh_->n_vertices();
+    int nb_edges = fillet_mesh_->n_edges();
+    int nb_faces = fillet_mesh_->n_faces();
+    auto nx = fillet_mesh_->face_property<float>("f:tar_normals_x");
+    auto ny = fillet_mesh_->face_property<float>("f:tar_normals_y");
+    auto nz = fillet_mesh_->face_property<float>("f:tar_normals_z");
+    auto face_sources = fillet_mesh_->face_property<int>("f:sources");
+
+    std::vector<Eigen::Triplet<double>> triplets;
+
+    int row = 0;
+    for(auto e : fillet_mesh_->edges()) {
+        int v0 = fillet_mesh_->vertex(e, 0).idx();
+        int v1 = fillet_mesh_->vertex(e, 1).idx();
+        auto f0 = fillet_mesh_->face(e, 0);
+        auto f1 = fillet_mesh_->face(e, 1);
+        if(f0.is_valid() && f1.is_valid()) {
+            triplets.emplace_back(Eigen::Triplet<double>(row, v0, nx[f0]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v0 + nb_points, ny[f0]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v0 + 2 * nb_points, nz[f0]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v1, -nx[f0]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v1 + nb_points, -ny[f0]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v1 + 2 * nb_points, -nz[f0]));
+
+            row++;
+
+            triplets.emplace_back(Eigen::Triplet<double>(row, v0, nx[f1]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v0 + nb_points, ny[f1]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v0 + 2 * nb_points, nz[f1]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v1, -nx[f1]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v1 + nb_points, -ny[f1]));
+            triplets.emplace_back(Eigen::Triplet<double>(row, v1 + 2 * nb_points, -nz[f1]));
+        }
+    }
+    Eigen::SparseMatrix<double> E1(row, nb_points * 3);
+
+    E1.setFromTriplets(triplets.begin(), triplets.end());
+
+    triplets.clear();
+    for(auto f : fillet_mesh_->faces()) {
+        int num = 0;
+        easy3d::vec3 center = easy3d::vec3(0,0,0);
+        for(auto v : fillet_mesh_->vertices(f)) {
+            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), v.idx(), beta_ * nx[f]));
+            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), v.idx() + nb_points, beta_ * ny[f]));
+            triplets.emplace_back(Eigen::Triplet<double>(f.idx(), v.idx() + 2 * nb_points, beta_ * nz[f]));
+            num++;
+        }
+
+        triplets.emplace_back(Eigen::Triplet<double>(f.idx(), face_sources[f], -nx[f] * beta_ * num));
+        triplets.emplace_back(Eigen::Triplet<double>(f.idx(), face_sources[f] + nb_points, -ny[f] * beta_ * num));
+        triplets.emplace_back(Eigen::Triplet<double>(f.idx(), face_sources[f] + 2 * nb_points, -nz[f] * beta_ * num));
+    }
+    Eigen::SparseMatrix<double> E2(nb_faces, nb_points * 3);
+    E2.setFromTriplets(triplets.begin(), triplets.end());
+
+    std::vector<easy3d::SurfaceMesh::Vertex> fixed_points;
+    row = 0;
+    d_ = Eigen::VectorXd(nb_points * 3);
+    triplets.clear();
+    for(auto v : fillet_mesh_->vertices()) {
+        if(mesh_->is_border(v)) {
+            fixed_points.emplace_back(v);
+            auto pos = fillet_mesh_->position(v);
+            triplets.emplace_back(Eigen::Triplet<double>(row, v.idx() , 1.0));
+            d_[row++] = pos.x;
+            triplets.emplace_back(Eigen::Triplet<double>(row, v.idx() + nb_points, 1.0));
+            d_[row++] = pos.y;
+            triplets.emplace_back(Eigen::Triplet<double>(row,  v.idx() + nb_points * 2, 1.0));
+            d_[row++] = pos.z;
+        }
+    }
+
+    Eigen::SparseMatrix<double> FIX(row, nb_points * 3);
+    FIX.setFromTriplets(triplets.begin(), triplets.end());
+    d_.resize(row);
+
+    Eigen::SparseMatrix<double> A;
+    igl::cat(1, E1, E2, A);
+    Eigen::SparseMatrix<double> AT = A.transpose();
+    Eigen::SparseMatrix<double> ATA = AT * A;
+    Eigen::SparseMatrix<double> I(ATA.rows(), ATA.cols()); I.setIdentity();
+    I = gamma_ * I;
+
+    Eigen::SparseMatrix<double> Q = I + ATA;
+    Eigen::SparseMatrix<double> zero(row, row);
+    Eigen::SparseMatrix<double> FIXT = FIX.transpose();
+    Eigen::SparseMatrix<double> tempMat1;
+    Eigen::SparseMatrix<double> tempMat2;
+    Eigen::SparseMatrix<double> E;
+    igl::cat(1, Q, FIX, tempMat1);
+    igl::cat(1, FIXT, zero, tempMat2);
+    igl::cat(0, tempMat1, tempMat2, E);
+
+    solver_.compute(E);
+    if(solver_.info()!= Eigen::Success) {
+        std::cout << "decomposition failed" << std::endl;
+    }
+}
+
+bool DeFillet::opt() {
+    auto& points = fillet_mesh_->points();
+    int nb_points = points.size();
+
+    Eigen::VectorXd p(nb_points * 3);
+    for(int i = 0; i < nb_points; i++) {
+        p[i] = points[i].x;
+        p[i + nb_points] = points[i].y;
+        p[i + 2 * nb_points] = points[i].z;
+    }
+    Eigen::VectorXd b(nb_points * 3 + d_.size());
+    b << beta_ * p, d_;
+    Eigen::VectorXd x = solver_.solve(b);
+    if(solver_.info()!= Eigen::Success) {
+        // solving failed
+        std::cout << "solving failed" << std::endl;
+        return false;
+    }
+
+    for(auto v : fillet_mesh_->vertices()) {
+        int id = v.idx();
+        fillet_mesh_->position(v) = easy3d::vec3(x[id],
+                                          x[id + nb_points], x[id + 2 * nb_points]);
+    }
 
 }
 

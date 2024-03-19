@@ -8,21 +8,33 @@
 #include "easy3d/core/surface_mesh.h"
 #include "easy3d/core/point_cloud.h"
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+#include <Eigen/SparseLU>
+#include <Eigen/SparseQR>
+#include <Eigen/SparseCholesky>
+
 class DeFillet {
 public:
     DeFillet() {
         angle_ = 45;
         mesh_ = nullptr;
         fillet_mesh_ = nullptr;
+        beta_ = 0.1;
+        gamma_ = 1.0;
+        num_opt_iter_ = 5;
     }
 
     void run_geodesic();
 
     void refine_target_normal();
 
-    void run_defillet();
+    bool run_defillet();
 
-    void optimize();
+    void init_opt();
+
+    bool opt();
 
     void extract_fillet_region();
 
@@ -31,8 +43,12 @@ public:
         mesh_ = mesh;
         box = mesh_->bounding_box();
     }
+    void set_fillet_mesh(easy3d::SurfaceMesh* fillet_mesh) {
+        fillet_mesh_ = fillet_mesh;
+    }
     void set_angle(double angle) {angle_ = angle;}
     void set_beta(double beta) { beta_ = beta;}
+    void set_gamma(double gamma) {gamma_ = gamma;}
     void set_num_opt_iter(double num_opt_iter) { num_opt_iter_ = num_opt_iter;}
 
     easy3d::SurfaceMesh* get_fillet_mesh() { return fillet_mesh_;}
@@ -46,10 +62,14 @@ private:
     easy3d::SurfaceMesh* fillet_mesh_;
     std::vector<int> sources_;
     std::vector<easy3d::vec3> sources_normals_;
+    Eigen::VectorXd d_;
 
     double angle_;
     double beta_;
+    double gamma_;
     int num_opt_iter_;
+
+    Eigen::SparseLU<Eigen::SparseMatrix<double>> solver_;
 
     double geodesic_time_;
     double boundary_refine_time_;

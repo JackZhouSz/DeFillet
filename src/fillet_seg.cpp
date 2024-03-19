@@ -97,7 +97,7 @@ void FilletSeg::run_sor() {
 
 void FilletSeg::run_scoring() {
     omp_set_num_threads(10);
-    auto start_time = std::chrono::high_resolution_clock::now();
+
     MeshVoronoi3d mv3d(mesh_);
     sites_ = mv3d.get_sites();
     vertices_ = mv3d.get_vertices();
@@ -113,6 +113,7 @@ void FilletSeg::run_scoring() {
     }
     vertices_scores_.resize(nb_vertices, 0);
     double len = radius_ * box.diagonal_length();
+    auto start_time = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for
     for (int i = 0; i < nb_vertices; i++) {
         double R = (vertices_[i] - sites_[site_of_vertices_[i][0]]).norm();

@@ -1,13 +1,12 @@
 #include <CLI/CLI.hpp>
+#include <fillet_seg.h>
+#include <nlohmann/json.hpp>
+
 #include <easy3d/core/surface_mesh.h>
 #include <easy3d/core/point_cloud.h>
 #include <easy3d/fileio/surface_mesh_io.h>
 #include <easy3d/fileio/point_cloud_io.h>
 #include <easy3d/util/file_system.h>
-#include <fillet_seg.h>
-#include <igl/jet.h>
-
-#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 

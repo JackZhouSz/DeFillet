@@ -39,26 +39,26 @@ add_subdirectory(lib-easy3d)
 #        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
 
-add_executable(example3 example3.cpp)
-target_link_libraries(example3 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#add_executable(example3 example3.cpp)
+#target_link_libraries(example3 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
 
-add_executable(example4 example4.cpp src/MeshVoronoi3d.cpp)
-target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+#add_executable(example4 example4.cpp src/MeshVoronoi3d.cpp)
+#target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
+#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
 
 
 set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp
         src/viewer.cpp src/knn.cpp src/defillet.cpp src/surafce_mesh_segmenter.cpp)
 
 
-add_executable(example5 example5.cpp ${DEFILLET_SOURCES})
-target_include_directories(example5 PRIVATE src)
-target_link_libraries(example5 PRIVATE gcp geodesic)
-target_link_libraries(example5 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
-target_link_libraries(example5 PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
+add_executable(gui app/gui.cpp ${DEFILLET_SOURCES})
+target_include_directories(gui PRIVATE src)
+target_link_libraries(gui PRIVATE gcp geodesic)
+target_link_libraries(gui PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(gui PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
 
-add_executable(scoring src/scoring.cpp ${DEFILLET_SOURCES})
+add_executable(scoring app/scoring.cpp ${DEFILLET_SOURCES})
 target_include_directories(scoring PRIVATE src)
 target_link_libraries(scoring PRIVATE gcp geodesic)
 target_link_libraries(scoring PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
@@ -66,7 +66,7 @@ target_link_libraries(scoring PRIVATE easy3d::algo easy3d::util easy3d::viewer e
 target_link_libraries(scoring PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
 
-add_executable(gc src/gc.cpp ${DEFILLET_SOURCES})
+add_executable(gc app/gc.cpp ${DEFILLET_SOURCES})
 target_include_directories(gc PRIVATE src)
 target_link_libraries(gc PRIVATE gcp geodesic)
 target_link_libraries(gc PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
@@ -74,9 +74,16 @@ target_link_libraries(gc PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d
 target_link_libraries(gc PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
 
-add_executable(geo src/geo.cpp ${DEFILLET_SOURCES})
+add_executable(geo app/geo.cpp ${DEFILLET_SOURCES})
 target_include_directories(geo PRIVATE src)
 target_link_libraries(geo PRIVATE gcp geodesic)
 target_link_libraries(geo PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(geo PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
 target_link_libraries(geo PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+add_executable(defillet app/defillet.cpp ${DEFILLET_SOURCES})
+target_include_directories(defillet PRIVATE src)
+target_link_libraries(defillet PRIVATE gcp geodesic)
+target_link_libraries(defillet PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(defillet PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
+target_link_libraries(defillet PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

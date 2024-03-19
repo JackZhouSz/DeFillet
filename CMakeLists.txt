@@ -33,16 +33,16 @@ add_subdirectory(lib-easy3d)
 #add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
 #target_link_libraries(example1 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
 #        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-#
+
 #add_executable(example2 example2.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
 #target_link_libraries(example2 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
 #        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-#
-#
+
+
 add_executable(example3 example3.cpp)
 target_link_libraries(example3 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-#
-#
+
+
 add_executable(example4 example4.cpp src/MeshVoronoi3d.cpp)
 target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
         igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
@@ -72,3 +72,11 @@ target_link_libraries(gc PRIVATE gcp geodesic)
 target_link_libraries(gc PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(gc PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
 target_link_libraries(gc PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(geo src/geo.cpp ${DEFILLET_SOURCES})
+target_include_directories(geo PRIVATE src)
+target_link_libraries(geo PRIVATE gcp geodesic)
+target_link_libraries(geo PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(geo PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
+target_link_libraries(geo PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

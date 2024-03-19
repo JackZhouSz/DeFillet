@@ -12,7 +12,8 @@ class DeFillet {
 public:
     DeFillet() {
         angle_ = 45;
-
+        mesh_ = nullptr;
+        fillet_mesh_ = nullptr;
     }
 
     void run_geodesic();
@@ -34,6 +35,8 @@ public:
     void set_beta(double beta) { beta_ = beta;}
     void set_num_opt_iter(double num_opt_iter) { num_opt_iter_ = num_opt_iter;}
 
+    easy3d::SurfaceMesh* get_fillet_mesh() { return fillet_mesh_;}
+
     double get_geodesic_time() { return geodesic_time_;}
     double get_defillet_time() { return defillet_time_;}
     double get_target_normals_refine_time() { return target_normals_refine_time_;}
@@ -41,7 +44,8 @@ private:
     easy3d::Box3 box;
     easy3d::SurfaceMesh* mesh_;
     easy3d::SurfaceMesh* fillet_mesh_;
-    std::set<int> sources_;
+    std::vector<int> sources_;
+    std::vector<easy3d::vec3> sources_normals_;
 
     double angle_;
     double beta_;

@@ -6,7 +6,7 @@
 
 #include <easy3d/core/surface_mesh.h>
 #include <easy3d/core/point_cloud.h>
-#include <fillet_seg.h>
+#include "fillet_seg.h"
 // A very good tutorial for imgui:
 // https://eliasdaler.github.io/using-imgui-with-sfml-pt1/
 // https://eliasdaler.github.io/using-imgui-with-sfml-pt2/

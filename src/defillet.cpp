@@ -10,9 +10,16 @@
 void DeFillet::run_geodesic() {
     extract_fillet_region();
     sources_.clear();
+    sources_normals_.clear();
+    auto original_point_index = fillet_mesh_->vertex_property<int>("v:original_index");
+    std::map<int, int> mp;
     for(auto v : fillet_mesh_->vertices()) {
-        if(mesh_->is_border(v)) {
-            sources_.insert(v.idx());
+        if(fillet_mesh_->is_border(v)) {
+            sources_.emplace_back(v.idx());
+            easy3d::SurfaceMesh::Vertex origin_v(original_point_index[v]);
+            mp[v.idx()] = sources_normals_.size();
+            sources_normals_.emplace_back(mesh_->compute_vertex_normal(origin_v));
+
         }
     }
     int nb_points = fillet_mesh_->n_vertices();
@@ -43,22 +50,22 @@ void DeFillet::run_geodesic() {
         }
     }
     CRichModel xin_mesh(xin_points, xin_faces);
-    CXin_Wang alg(xin_mesh, sources_);
+    std::set<int> xin_sources(sources_.begin(), sources_.end());
+    CXin_Wang alg(xin_mesh, xin_sources);
     alg.Execute();
-
-    auto normals = fillet_mesh_->face_property<easy3d::vec3>("f:normal");
-
-    for(auto f : fillet_mesh_->faces()) {
-        normals[f] = fillet_mesh_->compute_face_normal(f);
-    }
 
     auto face_sources = fillet_mesh_->face_property<int>("f:sources");
     auto face_tar_normals = fillet_mesh_->face_property<easy3d::vec3>("f:tar_normals");
-    for(int i = nb_points; i < nb_points + nb_faces; i++) {
-        easy3d::SurfaceMesh::Face f(i - nb_points);
-        face_sources[f] = alg.GetAncestor(i);
-        mesh_->compute_vertex_normal()
-        face_tar_normals[f] = normals[easy3d::SurfaceMesh::Face(face_sources[f])]
+    auto point_geo_dis = fillet_mesh_->vertex_property<float>("v:geo_dis");
+    for(int i = 0; i < nb_points; i++) {
+        easy3d::SurfaceMesh::Vertex v(i);
+        point_geo_dis[v] = alg.GetDistanceField()[i];
+    }
+
+    for(int i = 0; i < nb_faces; i++) {
+        easy3d::SurfaceMesh::Face f(i );
+        face_sources[f] = alg.GetAncestor(i + nb_points);
+        face_tar_normals[f] = sources_normals_[mp[face_sources[f]]];
     }
 }
 
@@ -79,6 +86,6 @@ void DeFillet::extract_fillet_region() {
     easy3d::SurfaceMeshSegmenter seg(mesh_);
     if(fillet_mesh_)
         delete fillet_mesh_;
-    fillet_mesh_ = seg.segment(gcp, 1);
 
+    fillet_mesh_ = seg.segment<int>(gcp, 1);
 }

@@ -57,14 +57,14 @@ int main(int argc, char **argv) {
     easy3d::io::save_ply(out_fillet_geo_path, fillet_mesh, true);
 
 
-    std::string scoring_info_path = args.output_dir +  "geo_info.json";
+    std::string info_path = args.output_dir +  "geo_info.json";
     json info;
     info["input_mesh"] = args.input_mesh;
     info["output_dir"] = args.output_dir;
     info["angle"] = args.angle;
     info["geo_time"] = defillet.get_geodesic_time();
     info["target_refine_time"] = defillet.get_target_normals_refine_time();
-    std::ofstream file(scoring_info_path.c_str());
+    std::ofstream file(info_path.c_str());
     file << std::setw(4) << info << std::endl;
 
 

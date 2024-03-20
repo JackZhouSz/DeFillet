@@ -9,10 +9,11 @@
 
 #include <igl/cat.h>
 
+#include <easy3d/util/stop_watch.h>
 
 
 void DeFillet::run_geodesic() {
-    auto start_time = std::chrono::high_resolution_clock::now();
+    easy3d::StopWatch sw; sw.start();
     extract_fillet_region();
     sources_.clear();
     sources_normals_.clear();
@@ -72,14 +73,12 @@ void DeFillet::run_geodesic() {
         face_sources[f] = alg.GetAncestor(i + nb_points);
         face_tar_normals[f] = sources_normals_[mp[face_sources[f]]];
     }
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    geodesic_time_ = 1.0 * duration.count() / 1000000.0;
+    geodesic_time_ = sw.elapsed_seconds(3);
     refine_target_normal();
 }
 
 void DeFillet::refine_target_normal() {
-    auto start_time = std::chrono::high_resolution_clock::now();
+    easy3d::StopWatch sw; sw.start();
     auto face_sources = fillet_mesh_->face_property<int>("f:sources");
     auto face_tar_normals = fillet_mesh_->face_property<easy3d::vec3>("f:tar_normals");
     int nb_points = fillet_mesh_->n_vertices();
@@ -125,15 +124,14 @@ void DeFillet::refine_target_normal() {
         s = (!s);
         std::cout << "num=" << num <<std::endl;
     } while(num != 0);
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    target_normals_refine_time_ = 1.0 * duration.count() / 1000000.0;
+    target_normals_refine_time_ = sw.elapsed_seconds(3);
 }
 
 bool DeFillet::run_defillet() {
 
     init_opt();
 
+    easy3d::StopWatch sw;
     for(int i = 0; i < num_opt_iter_; i++) {
         std::cout << "iter " << i + 1 << " is processing." << std::endl;
         if(!opt()) {
@@ -141,12 +139,13 @@ bool DeFillet::run_defillet() {
             return false;
         }
     }
+    defillet_iter_time_ = sw.elapsed_seconds(3);
     return true;
 }
 
 void DeFillet::init_opt(){
+    easy3d::StopWatch sw; sw.start();
     int nb_points = fillet_mesh_->n_vertices();
-    int nb_edges = fillet_mesh_->n_edges();
     int nb_faces = fillet_mesh_->n_faces();
     auto nx = fillet_mesh_->face_property<float>("f:tar_normals_x");
     auto ny = fillet_mesh_->face_property<float>("f:tar_normals_y");
@@ -180,13 +179,11 @@ void DeFillet::init_opt(){
         }
     }
     Eigen::SparseMatrix<double> E1(row, nb_points * 3);
-
     E1.setFromTriplets(triplets.begin(), triplets.end());
 
     triplets.clear();
     for(auto f : fillet_mesh_->faces()) {
         int num = 0;
-        easy3d::vec3 center = easy3d::vec3(0,0,0);
         for(auto v : fillet_mesh_->vertices(f)) {
             triplets.emplace_back(Eigen::Triplet<double>(f.idx(), v.idx(), beta_ * nx[f]));
             triplets.emplace_back(Eigen::Triplet<double>(f.idx(), v.idx() + nb_points, beta_ * ny[f]));
@@ -203,10 +200,10 @@ void DeFillet::init_opt(){
 
     std::vector<easy3d::SurfaceMesh::Vertex> fixed_points;
     row = 0;
-    d_ = Eigen::VectorXd(nb_points * 3);
+    d_.resize(nb_points * 3);
     triplets.clear();
     for(auto v : fillet_mesh_->vertices()) {
-        if(mesh_->is_border(v)) {
+        if(fillet_mesh_->is_border(v)) {
             fixed_points.emplace_back(v);
             auto pos = fillet_mesh_->position(v);
             triplets.emplace_back(Eigen::Triplet<double>(row, v.idx() , 1.0));
@@ -217,10 +214,10 @@ void DeFillet::init_opt(){
             d_[row++] = pos.z;
         }
     }
+    d_.conservativeResize(row);
 
     Eigen::SparseMatrix<double> FIX(row, nb_points * 3);
     FIX.setFromTriplets(triplets.begin(), triplets.end());
-    d_.resize(row);
 
     Eigen::SparseMatrix<double> A;
     igl::cat(1, E1, E2, A);
@@ -243,6 +240,7 @@ void DeFillet::init_opt(){
     if(solver_.info()!= Eigen::Success) {
         std::cout << "decomposition failed" << std::endl;
     }
+    defillet_init_time_ = sw.elapsed_seconds(3);
 }
 
 bool DeFillet::opt() {

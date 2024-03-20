@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD 17)
 # OpenMP
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
-    message("asd")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
@@ -28,25 +27,6 @@ find_package(nlohmann_json CONFIG REQUIRED)
 add_subdirectory(gcp)
 add_subdirectory(geodesic)
 add_subdirectory(lib-easy3d)
-
-#add_subdirectory(lib-easy3d)
-#add_executable(example1 example1.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
-#target_link_libraries(example1 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-
-#add_executable(example2 example2.cpp defillet.cpp knn.cpp voronoi.cpp src/gcp.cpp optimize.cpp)
-#target_link_libraries(example2 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-
-
-#add_executable(example3 example3.cpp)
-#target_link_libraries(example3 PUBLIC easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-
-
-#add_executable(example4 example4.cpp src/MeshVoronoi3d.cpp)
-#target_link_libraries(example4 PUBLIC gcp geodesic CGAL::CGAL Eigen3::Eigen
-#        igl::igl_core easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
-
 
 set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp
         src/viewer.cpp src/knn.cpp src/defillet.cpp src/surafce_mesh_segmenter.cpp)

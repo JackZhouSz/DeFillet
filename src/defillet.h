@@ -21,7 +21,7 @@ public:
         angle_ = 45;
         mesh_ = nullptr;
         fillet_mesh_ = nullptr;
-        beta_ = 0.1;
+        beta_ = 1.0;
         gamma_ = 1.0;
         num_opt_iter_ = 5;
     }
@@ -54,7 +54,8 @@ public:
     easy3d::SurfaceMesh* get_fillet_mesh() { return fillet_mesh_;}
 
     double get_geodesic_time() { return geodesic_time_;}
-    double get_defillet_time() { return defillet_time_;}
+    double get_defillet_init_time() { return defillet_init_time_;}
+    double get_defillet_iter_time() { return defillet_iter_time_;}
     double get_target_normals_refine_time() { return target_normals_refine_time_;}
 private:
     easy3d::Box3 box;
@@ -74,7 +75,8 @@ private:
     double geodesic_time_;
     double boundary_refine_time_;
     double target_normals_refine_time_;
-    double defillet_time_;
+    double defillet_init_time_;
+    double defillet_iter_time_;
 
 };
 

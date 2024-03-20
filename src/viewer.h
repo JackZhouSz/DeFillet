@@ -35,6 +35,7 @@ namespace easy3d {
             UPDATE_SCORING,
             UPDATE_GCP,
             UPDATE_GEO,
+            UPDATE_DEFILLET,
             NOTHING
         };
 
@@ -69,8 +70,7 @@ namespace easy3d {
         void run_scoring();
         void run_gcp();
         void run_geodesic();
-        void run_refine_fillet_boundary();
-        void run_refine_target_normal();
+        void run_defillet();
 
     protected:
         // Ratio between the framebuffer size and the window size.
@@ -103,6 +103,8 @@ namespace easy3d {
         std::string scoring_vertices_path;
         std::string gcp_mesh_path;
         std::string fillet_geo_path;
+        std::string fiilet_defillet_path;
+        std::string defillet_path;
         easy3d::Model* mesh;
         easy3d::Model* sites;
         easy3d::Model* vertices;
@@ -112,13 +114,17 @@ namespace easy3d {
         double s;
         double min_score;
         double alpha;
-        double angle;
         int nb_neighbors;
         int num_sor_iter;
         double std_ratio;
         double w_convex;
         double w_concave;
         double w1, w2;
+
+        double angle;
+        double beta;
+        double gamma;
+        int num_opt_iter;
         STATE state;
     };
 

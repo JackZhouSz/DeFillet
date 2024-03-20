@@ -62,7 +62,7 @@ namespace easy3d {
             , min_score(0.5), alpha(0.5)
             , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30)
             , w_convex(0.08), w_concave(1.0), w1(0.3), w2(0.4)
-            , angle(60){
+            , angle(60), beta(1.0), gamma(1.0), num_opt_iter(10){
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
@@ -306,17 +306,26 @@ namespace easy3d {
             ImGui::SetNextItemWidth(width);
             ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
             angle = std::clamp(angle, 0.0, 180.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("beta", &beta, 1.0, 1.0f, "%.2f");
+            beta = std::clamp(beta, 1.0, 10.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputDouble("gamma", &gamma, 1.0, 1.0f, "%.2f");
+            gamma = std::clamp(gamma, 1.0, 10.0);
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputInt("num_opt_iter", &num_opt_iter, 1, 1.0f);
+            num_opt_iter = std::clamp(num_opt_iter, 1, 20);
             if (ImGui::Button("geodesic", ImVec2(310, 30))) {
                 if(mesh) {
                     std::thread t(std::bind(&ViewerImGui::run_geodesic, this));
                     t.detach();
                 }
             }
-            if (ImGui::Button("refine_fillet_boundary", ImVec2(310, 30))) {
-
-            }
-            if (ImGui::Button("refine_target_normal", ImVec2(310, 30))) {
-
+            if (ImGui::Button("defillet", ImVec2(310, 30))) {
+                if(mesh) {
+                    std::thread t(std::bind(&ViewerImGui::run_defillet, this));
+                    t.detach();
+                }
             }
         }
         ImGui::Render();
@@ -356,6 +365,8 @@ namespace easy3d {
                 scoring_vertices_path = out_dir +  "vertices_scoring.ply";
                 gcp_mesh_path = out_dir +  "gcp.ply";
                 fillet_geo_path = out_dir + "fillet_geo.ply";
+                fiilet_defillet_path = out_dir + "fillet_defillet.ply";
+                defillet_path = out_dir + "defillet.ply";
                 try {
                     // 使用 create_directories 函数创建新的目录（包括父目录）
                     std::filesystem::create_directories(out_dir);
@@ -417,6 +428,21 @@ namespace easy3d {
         }
     }
 
+    void ViewerImGui::run_defillet() {
+        std::string cli = "defillet.exe -i " + gcp_mesh_path
+                          + " -f " + fillet_geo_path
+                          + " -o " + out_dir
+                          + " --beta " + std::to_string(beta)
+                          + " --gamma " + std::to_string(gamma);
+                          + " --num_opt_iter " + std::to_string(num_opt_iter);
+        if(std::system(cli.c_str()) == 0) {
+            std::cout << "defillet done." << std::endl;
+            state = UPDATE_DEFILLET;
+        } else {
+            std::cout << "defillet error" << std::endl;
+        }
+    }
+
     void ViewerImGui::update_event() {
         if(state == UPDATE_SCORING) {
             for(auto m : models_) {
@@ -444,7 +470,6 @@ namespace easy3d {
             model_idx_ = 0;
             state = NOTHING;
         }
-
         if(state == UPDATE_GEO) {
             easy3d::SurfaceMesh* fillet_mesh = easy3d::SurfaceMeshIO::load(fillet_geo_path);
             auto fillet_geo_dis = fillet_mesh->get_vertex_property<float>("v:geo_dis");
@@ -486,6 +511,21 @@ namespace easy3d {
             line->set_uniform_coloring(easy3d::vec4(0.0, 1.0, 0.0, 1.0));
             line->set_visible(true);
             state = NOTHING;
+        }
+        if(state == UPDATE_DEFILLET) {
+
+            for(auto m : models_) {
+                if(m) {
+                    delete_model(m);
+                }
+            }
+            models_.clear();
+            mesh = add_model(defillet_path);
+            sites = add_model(scoring_sites_path);
+            vertices = add_model(scoring_vertices_path);
+            model_idx_ = 0;
+            state = NOTHING;
+
         }
     }
 }

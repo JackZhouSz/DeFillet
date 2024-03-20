@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
     app.add_option("-f,--fillet_mesh", args.fillet_mesh, "Fillet Mesh")->required();
     app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
-    app.add_option("--beta", args.beta, "Beta")->default_val(0.1);
+    app.add_option("--beta", args.beta, "Beta")->default_val(1.0);
     app.add_option("--gamma", args.gamma, "Gamma")->default_val(1.0);
     app.add_option("--num_opt_iter", args.num_opt_iter, "num_opt_iter")->default_val(10);
     CLI11_PARSE(app, argc, argv);
@@ -44,7 +44,27 @@ int main(int argc, char **argv) {
     defillet.set_gamma(args.gamma);
     defillet.set_num_opt_iter(args.num_opt_iter);
     defillet.run_defillet();
+    std::string out_fillet_defillet_path = args.output_dir +  "fillet_defillet.ply";
+    easy3d::io::save_ply(out_fillet_defillet_path, fillet_mesh, true);
+    auto original_point_index = fillet_mesh->vertex_property<int>("v:original_index");
+
+    for(auto v : fillet_mesh->vertices()) {
+        easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
+        mesh->position(vv) = fillet_mesh->position(v);
+    }
     std::string out_defillet_path = args.output_dir +  "defillet.ply";
-    easy3d::io::save_ply(out_defillet_path, fillet_mesh, true);
+    easy3d::io::save_ply(out_defillet_path, mesh, true);
+
+
+    std::string info_path = args.output_dir +  "defillet_info.json";
+    json info;
+    info["input_mesh"] = args.input_mesh;
+    info["fillet_mesh"] = args.fillet_mesh;
+    info["output_dir"] = args.output_dir;
+    info["beta"] = args.beta;
+    info["init_time"] = defillet.get_defillet_init_time();
+    info["iter_time"] = defillet.get_defillet_iter_time();
+    std::ofstream file(info_path.c_str());
+    file << std::setw(4) << info << std::endl;
     return 0;
 }

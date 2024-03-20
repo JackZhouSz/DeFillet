@@ -132,8 +132,14 @@ void FilletSeg::run_scoring() {
 #pragma omp parallel for
     for(int i = 0; i < nb_faces; i++) {
         easy3d::SurfaceMesh::Face f(i);
-        if (counts[f] > 0)
-            scores[f] /= 1.0 * counts[f];
+        if (counts[f] > 0) {
+            if(counts[f] == 1) {
+                scores[f] = 0.0;
+            }
+            else {
+                scores[f] /= 1.0 * counts[f];
+            }
+        }
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -168,7 +174,12 @@ void FilletSeg::run_gcp() {
         auto f0 = mesh_->face(e, 0);
         auto f1 = mesh_->face(e, 1);
         if(f0.is_valid() && f1.is_valid()) {
-            double w = acos(easy3d::dot(normals[f0], normals[f1])) / M_PI;
+            double dot_val = easy3d::dot(normals[f0], normals[f1]);
+            dot_val = std::clamp(dot_val, -0.99999, 0.99999);
+            double w = acos(dot_val) / M_PI;
+//            if(isnan(w)) {
+//                std::cout << dot_val << ' ' <<  normals[f0].norm() << ' ' << normals[f1].norm() <<std::endl;
+//            }
             if(w < 0) {
                 w = std::fabs(w) * w_convex_ * alpha_;
             } else {

@@ -176,8 +176,11 @@ void DeFillet::init_opt(){
             triplets.emplace_back(Eigen::Triplet<double>(row, v1, -nx[f1]));
             triplets.emplace_back(Eigen::Triplet<double>(row, v1 + nb_points, -ny[f1]));
             triplets.emplace_back(Eigen::Triplet<double>(row, v1 + 2 * nb_points, -nz[f1]));
+
+            row++;
         }
     }
+
     Eigen::SparseMatrix<double> E1(row, nb_points * 3);
     E1.setFromTriplets(triplets.begin(), triplets.end());
 
@@ -216,6 +219,7 @@ void DeFillet::init_opt(){
     }
     d_.conservativeResize(row);
 
+    std::cout << "ASD" <<std::endl;
     Eigen::SparseMatrix<double> FIX(row, nb_points * 3);
     FIX.setFromTriplets(triplets.begin(), triplets.end());
 
@@ -234,7 +238,7 @@ void DeFillet::init_opt(){
     Eigen::SparseMatrix<double> E;
     igl::cat(1, Q, FIX, tempMat1);
     igl::cat(1, FIXT, zero, tempMat2);
-    igl::cat(0, tempMat1, tempMat2, E);
+    igl::cat(2, tempMat1, tempMat2, E);
 
     solver_.compute(E);
     if(solver_.info()!= Eigen::Success) {
@@ -267,7 +271,7 @@ bool DeFillet::opt() {
         fillet_mesh_->position(v) = easy3d::vec3(x[id],
                                           x[id + nb_points], x[id + 2 * nb_points]);
     }
-
+    return true;
 }
 
 void DeFillet::extract_fillet_region() {

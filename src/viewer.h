@@ -63,6 +63,13 @@ namespace easy3d {
         bool callback_event_keyboard(int key, int action, int modifiers) override;
         bool callback_event_character(unsigned int codepoint) override;
         bool callback_event_scroll(double dx, double dy) override;
+        /// Mouse button press event handler
+        bool mouse_press_event(int x, int y, int button, int modifiers) override;
+        /// Mouse button release event handler
+        bool mouse_release_event(int x, int y, int button, int modifiers) override;
+        /// Mouse drag (i.e., a mouse button was pressed) event handler
+        bool mouse_drag_event(int x, int y, int dx, int dy, int button, int modifiers) override;
+
 
         void draw_dashboard();
 
@@ -126,6 +133,10 @@ namespace easy3d {
         double gamma;
         int num_opt_iter;
         STATE state;
+
+        easy3d::Polygon2 polygon_;
+        bool interactive_;
+
     };
 
 }

@@ -24,7 +24,7 @@
 #include <easy3d/renderer/drawable_lines.h>
 #include <easy3d/renderer/drawable_triangles.h>
 #include <easy3d/renderer/texture_manager.h>
-
+#include <easy3d/gui/picker_surface_mesh.h>
 
 #include <easy3d/util/timer.h>
 
@@ -62,7 +62,7 @@ namespace easy3d {
             , min_score(0.5), alpha(0.5)
             , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30)
             , w_convex(0.08), w_concave(1.0), w1(0.3), w2(0.4)
-            , angle(60), beta(1.0), gamma(1.0), num_opt_iter(10){
+            , angle(60), beta(1.0), gamma(1.0), num_opt_iter(10), interactive_(false){
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
@@ -527,5 +527,53 @@ namespace easy3d {
             state = NOTHING;
 
         }
+    }
+
+    bool ViewerImGui::mouse_drag_event(int x, int y, int dx, int dy, int button, int modifiers) {
+        if (interactive_ && mesh) {
+//#if USE_LASSO
+            polygon_.push_back(vec2(x, y));
+//#else   // rectangle
+//            const vec2 first_point = polygon_[0];
+//            polygon_.clear();
+//            polygon_.push_back(first_point);
+//            polygon_.push_back(vec2(first_point.x, y));
+//            polygon_.push_back(vec2(x, y));
+//            polygon_.push_back(vec2(x, first_point.y));
+//#endif
+            return false;
+        } else
+            return Viewer::mouse_drag_event(x, y, dx, dy, button, modifiers);
+    }
+
+    bool ViewerImGui::mouse_release_event(int x, int y, int button, int modifiers) {
+        if (interactive_ && mesh) {
+            if (polygon_.size() >= 3) {
+                auto cloud = dynamic_cast<PointCloud *>(current_model());
+                if (cloud) {
+//                    PointCloudPicker picker(camera());
+//#if USE_LASSO
+//                    picker.pick_vertices(cloud, polygon_, button == GLFW_MOUSE_BUTTON_RIGHT);
+//#else
+//                    picker.pick_vertices(model, Rect(polygon_[0], polygon_[2]), false);
+//#endif
+//                    mark_selection(cloud);
+
+                    polygon_.clear();
+                }
+            }
+            return false;
+        } else
+            return Viewer::mouse_release_event(x, y, button, modifiers);
+    }
+
+    /// Mouse button press event handler
+    bool ViewerImGui::mouse_press_event(int x, int y, int button, int modifiers) {
+        if (interactive_ && mesh) {
+            polygon_.clear();
+            polygon_.push_back(vec2(x, y));
+            return false;
+        } else
+            return Viewer::mouse_press_event(x, y, button, modifiers);
     }
 }

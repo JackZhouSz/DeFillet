@@ -20,7 +20,8 @@ void DeFillet::run_geodesic() {
     auto original_point_index = fillet_mesh_->vertex_property<int>("v:original_index");
     std::map<int, int> mp;
     for(auto v : fillet_mesh_->vertices()) {
-        if(fillet_mesh_->is_border(v)) {
+        easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
+        if(fillet_mesh_->is_border(v) && ! mesh_->is_border(vv)) {
             sources_.emplace_back(v.idx());
             easy3d::SurfaceMesh::Vertex origin_v(original_point_index[v]);
             mp[v.idx()] = sources_normals_.size();
@@ -151,6 +152,7 @@ void DeFillet::init_opt(){
     auto ny = fillet_mesh_->face_property<float>("f:tar_normals_y");
     auto nz = fillet_mesh_->face_property<float>("f:tar_normals_z");
     auto face_sources = fillet_mesh_->face_property<int>("f:sources");
+    auto original_point_index = fillet_mesh_->vertex_property<int>("v:original_index");
 
     std::vector<Eigen::Triplet<double>> triplets;
 
@@ -206,7 +208,8 @@ void DeFillet::init_opt(){
     d_.resize(nb_points * 3);
     triplets.clear();
     for(auto v : fillet_mesh_->vertices()) {
-        if(fillet_mesh_->is_border(v)) {
+        easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
+        if(fillet_mesh_->is_border(v) && !mesh_->is_border(vv)) {
             fixed_points.emplace_back(v);
             auto pos = fillet_mesh_->position(v);
             triplets.emplace_back(Eigen::Triplet<double>(row, v.idx() , 1.0));
@@ -219,7 +222,6 @@ void DeFillet::init_opt(){
     }
     d_.conservativeResize(row);
 
-    std::cout << "ASD" <<std::endl;
     Eigen::SparseMatrix<double> FIX(row, nb_points * 3);
     FIX.setFromTriplets(triplets.begin(), triplets.end());
 

@@ -133,7 +133,7 @@ void FilletSeg::run_scoring() {
     for(int i = 0; i < nb_faces; i++) {
         easy3d::SurfaceMesh::Face f(i);
         if (counts[f] > 0) {
-            if(counts[f] == 1) {
+            if(counts[f] < 10) {
                 scores[f] = 0.0;
             }
             else {

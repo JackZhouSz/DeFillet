@@ -67,3 +67,14 @@ target_link_libraries(defillet PRIVATE gcp geodesic)
 target_link_libraries(defillet PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(defillet PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
 target_link_libraries(defillet PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+add_executable(decompose app/decompose.cpp src/surafce_mesh_segmenter.cpp)
+target_include_directories(decompose PRIVATE src)
+target_link_libraries(decompose PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+target_link_libraries(decompose PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(compose app/compose.cpp src/surafce_mesh_segmenter.cpp)
+target_include_directories(compose PRIVATE src)
+target_link_libraries(compose PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer)
+target_link_libraries(compose PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

@@ -53,8 +53,7 @@ int main(int argc, char **argv) {
         mesh->position(vv) = fillet_mesh->position(v);
     }
     std::string out_defillet_path = args.output_dir +  "defillet.ply";
-    easy3d::io::save_ply(out_defillet_path, mesh, true);
-
+    easy3d::io::save_ply(out_defillet_path, mesh, false);
 
     std::string info_path = args.output_dir +  "defillet_info.json";
     json info;

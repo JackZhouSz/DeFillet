@@ -36,7 +36,7 @@ add_executable(gui app/gui.cpp ${DEFILLET_SOURCES})
 target_include_directories(gui PRIVATE src)
 target_link_libraries(gui PRIVATE gcp geodesic)
 target_link_libraries(gui PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
-target_link_libraries(gui PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer 3rd_imgui)
+target_link_libraries(gui PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer easy3d::gui 3rd_imgui)
 
 add_executable(scoring app/scoring.cpp ${DEFILLET_SOURCES})
 target_include_directories(scoring PRIVATE src)

@@ -25,7 +25,7 @@
 #include <easy3d/renderer/drawable_triangles.h>
 #include <easy3d/renderer/texture_manager.h>
 #include <easy3d/gui/picker_surface_mesh.h>
-
+#include <easy3d/renderer/shapes.h>
 #include <easy3d/util/timer.h>
 
 #include <3rd_party/imgui/misc/fonts/imgui_fonts_droid_sans.h>
@@ -36,6 +36,13 @@
 
 
 #include <igl/jet.h>
+// To have the same shortcut behavior on macOS and other platforms (i.e., Windows, Linux)
+#ifdef __APPLE__
+#define EASY3D_MOD_CONTROL GLFW_MOD_SUPER
+#else
+#define EASY3D_MOD_CONTROL GLFW_MOD_CONTROL
+#endif
+
 
 namespace easy3d {
 
@@ -66,6 +73,10 @@ namespace easy3d {
         camera()->setUpVector(vec3(0, 1, 0));
         camera()->setViewDirection(vec3(0, 0, -1));
         camera_->showEntireScene();
+        fillet_color = easy3d::vec3(1.0, 0, 0);
+        non_fillet_color = easy3d::vec3(0.0, 0.0, 1.0);
+        selected_color = easy3d::vec3(0.0,1.0,0.0);
+        easy3d::vec3 selected_color;
         cur_work_dir = easy3d::file_system::current_working_directory();
     }
 
@@ -190,6 +201,15 @@ namespace easy3d {
     void ViewerImGui::post_draw() {
         draw_dashboard();
         draw_corner_axes();
+        if (polygon_.size() >= 3) {
+            // draw the boundary of the rect/lasso
+            shapes::draw_polygon_wire(polygon_, vec4(1.0f, 0.0f, 0.0f, 1.0f), width(), height(), -1.0f);
+            // draw its transparent face
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            shapes::draw_polygon_filled(polygon_, vec4(1.0f, 0.0f, 0.0f, 0.2f), width(), height(), -0.9f);
+            glDisable(GL_BLEND);
+        }
     }
 
 
@@ -328,6 +348,9 @@ namespace easy3d {
                 }
             }
         }
+        if (ImGui::CollapsingHeader("Interactive")) {
+            ImGui::Checkbox("interactive", &interactive_);
+        }
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -397,7 +420,7 @@ namespace easy3d {
             std::cout << "scoring done." << std::endl;
             state = UPDATE_SCORING;
         } else {
-            std::cout << "scoring error" << std::endl;
+            std::cout << "scoring error." << std::endl;
         }
     }
 
@@ -549,15 +572,42 @@ namespace easy3d {
     bool ViewerImGui::mouse_release_event(int x, int y, int button, int modifiers) {
         if (interactive_ && mesh) {
             if (polygon_.size() >= 3) {
-                auto cloud = dynamic_cast<PointCloud *>(current_model());
-                if (cloud) {
-//                    PointCloudPicker picker(camera());
-//#if USE_LASSO
-//                    picker.pick_vertices(cloud, polygon_, button == GLFW_MOUSE_BUTTON_RIGHT);
-//#else
-//                    picker.pick_vertices(model, Rect(polygon_[0], polygon_[2]), false);
-//#endif
-//                    mark_selection(cloud);
+                auto mesh_ = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
+                if (mesh_) {
+                    easy3d::SurfaceMeshPicker picker(camera());
+                    auto face = picker.pick_face( mesh_, x,y);
+                    std::cout << face.idx() << std::endl;
+                    std::vector<easy3d::SurfaceMesh::Face> faces;
+                    faces.push_back(face);
+                    auto select = mesh_->face_property<bool>("f:select");
+                    auto colors = mesh_->face_property<vec3>("f:color");
+                    auto gcp_label = mesh_->face_property<int>("f:gcp_labels");
+                    int num = faces.size();
+
+                    auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+                    for(int i = 0; i < num ; i++) {
+                        if(modifiers == EASY3D_MOD_CONTROL) {
+                            select[faces[i]] = true;
+                        }
+                        else {
+                            select[faces[i]] = false;
+                        }
+                    }
+                    for(auto f : mesh_->faces()) {
+                        if(select[f]) {
+                            colors[f] = selected_color;
+                        }
+                        else {
+                            if(gcp_label[f]) {
+                                colors[f] = fillet_color;
+                            }
+                            else {
+                                colors[f] = non_fillet_color;
+                            }
+                        }
+                    }
+                    drawable->set_property_coloring(easy3d::State::FACE, "f:color");
+                    drawable->update();
 
                     polygon_.clear();
                 }

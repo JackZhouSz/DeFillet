@@ -136,7 +136,9 @@ namespace easy3d {
 
         easy3d::Polygon2 polygon_;
         bool interactive_;
-
+        easy3d::vec3 fillet_color;
+        easy3d::vec3 non_fillet_color;
+        easy3d::vec3 selected_color;
     };
 
 }

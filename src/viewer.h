@@ -60,6 +60,8 @@ namespace easy3d {
 
         void pick_faces(int button, int modifiers);
 
+        void update_select(easy3d::SurfaceMesh* model, bool is_fillet);
+
         bool callback_event_cursor_pos(double x, double y) override;
         bool callback_event_mouse_button(int button, int action, int modifiers) override;
         bool callback_event_keyboard(int key, int action, int modifiers) override;

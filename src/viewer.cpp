@@ -28,6 +28,7 @@
 #include <easy3d/gui/picker_surface_mesh.h>
 #include <easy3d/renderer/shapes.h>
 #include <easy3d/util/timer.h>
+#include <easy3d/fileio/resources.h>
 
 #include <3rd_party/imgui/misc/fonts/imgui_fonts_droid_sans.h>
 #include <3rd_party/imgui/imgui.h>
@@ -45,6 +46,7 @@
 #else
 #define EASY3D_MOD_CONTROL GLFW_MOD_CONTROL
 #endif
+
 
 
 namespace easy3d {
@@ -219,6 +221,7 @@ namespace easy3d {
 
     void ViewerImGui::draw_dashboard(){
         static bool my_tool_active = true;
+        static bool tmp = false;
         int w, h;
         glfwGetWindowSize(window_, &w, &h);
         ImGui::SetNextWindowSize(ImVec2(325, h), ImGuiCond_Always);
@@ -353,7 +356,33 @@ namespace easy3d {
             }
         }
         if (ImGui::CollapsingHeader("Interactive")) {
+            if (ImGui::Button("fillet", ImVec2(310, 30))) {
+                if(mesh) {
+                    update_select(dynamic_cast<easy3d::SurfaceMesh*>(mesh) ,true);
+                }
+            }
+            if (ImGui::Button("non-fillet", ImVec2(310, 30))) {
+                if(mesh) {
+                    update_select(dynamic_cast<easy3d::SurfaceMesh*>(mesh), false);
+                }
+            }
+            tmp = interactive_;
             ImGui::Checkbox("interactive", &interactive_);
+            if(interactive_ != tmp) {
+                easy3d::SurfaceMesh* model = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
+                auto select = model->face_property<bool>("f:select");
+                auto colors = model->face_property<vec3>("f:color");
+                auto gcp_label = model->face_property<int>("f:gcp_labels");
+
+                auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+
+                for(auto f : model->faces()) {
+                    select[f] = false;
+                    colors[f] = gcp_label[f] ? fillet_color : non_fillet_color;
+                }
+                drawable->set_property_coloring(easy3d::State::FACE, "f:color");
+                drawable->update();
+            }
         }
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -445,6 +474,7 @@ namespace easy3d {
     }
 
     void ViewerImGui::run_geodesic() {
+        easy3d::io::save_ply(gcp_mesh_path,  dynamic_cast<easy3d::SurfaceMesh*>(mesh), false);
         std::string cli = "geo.exe -i " + gcp_mesh_path + " -o " + out_dir
                           + " --angle " + std::to_string(angle);
         if(std::system(cli.c_str()) == 0) {
@@ -508,7 +538,8 @@ namespace easy3d {
             }
             auto drawable = mesh->renderer()->get_triangles_drawable("faces");
             drawable->set_scalar_coloring(easy3d::State::VERTEX, "v:geo_dis", nullptr, 0.0f, 0.0f);
-            const std::string texture_file = "D:\\code\\defillet\\lib-easy3d\\resources\\colormaps\\rainbow.png";
+//            std::cout << EASY3D_RESOURCES_DIR << std::endl;
+            const std::string texture_file = SCALAR_COLOR_TEXTURE;
             easy3d::Texture *texture = easy3d::TextureManager::request(texture_file);
             drawable->set_texture(texture);
             drawable->update();
@@ -600,16 +631,6 @@ namespace easy3d {
 
             auto drawable = mesh->renderer()->get_triangles_drawable("faces");
 
-//            for(auto f : mesh_->faces()) {
-//                if(modifiers == EASY3D_MOD_CONTROL && select[f]) {
-//                    select[f] = true;
-//                }
-//                else {
-//                    select[f] = false;
-//                }
-//
-//            }
-
             for(auto f : mesh_->faces()) {
                 if(select[f]) {
                     colors[f] = selected_color;
@@ -628,5 +649,23 @@ namespace easy3d {
 
             polygon_.clear();
         }
+    }
+
+    void ViewerImGui::update_select(easy3d::SurfaceMesh* model, bool is_fillet) {
+        auto select = model->face_property<bool>("f:select");
+        auto colors = model->face_property<vec3>("f:color");
+        auto gcp_label = model->face_property<int>("f:gcp_labels");
+
+        auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+
+        for(auto f : model->faces()) {
+            if(select[f]) {
+                gcp_label[f] = is_fillet ? 1 : 0;
+                colors[f] = is_fillet ? fillet_color : non_fillet_color;
+                select[f] = false;
+            }
+        }
+        drawable->set_property_coloring(easy3d::State::FACE, "f:color");
+        drawable->update();
     }
 }

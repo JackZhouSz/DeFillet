@@ -28,11 +28,13 @@ add_subdirectory(gcp)
 add_subdirectory(geodesic)
 add_subdirectory(lib-easy3d)
 
+add_compile_definitions(SCALAR_COLOR_TEXTURE="${CMAKE_CURRENT_LIST_DIR}/lib-easy3d/resources/colormaps/rainbow.png")
+
 set(DEFILLET_SOURCES src/MeshVoronoi3d.cpp src/fillet_seg.cpp
-        src/viewer.cpp src/knn.cpp src/defillet.cpp src/surafce_mesh_segmenter.cpp)
+        src/viewer.cpp src/knn.cpp src/defillet.cpp src/surafce_mesh_segmenter.cpp src/my_picker.cpp)
 
 
-add_executable(gui app/gui.cpp ${DEFILLET_SOURCES} src/my_picker.cpp)
+add_executable(gui app/gui.cpp ${DEFILLET_SOURCES})
 target_include_directories(gui PRIVATE src)
 target_link_libraries(gui PRIVATE gcp geodesic)
 target_link_libraries(gui PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)

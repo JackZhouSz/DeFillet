@@ -32,7 +32,7 @@ int seg_via_sharp_feature(easy3d::SurfaceMesh* mesh, double angle) {
                     auto nxt_f = mesh->face(mesh->opposite(h));
                     if(nxt_f.is_valid() && segs[nxt_f] == -1) {
                         double dot_val = easy3d::dot(normals[cur], normals[nxt_f]);
-                        dot_val = std::fabs(std::clamp(dot_val, -0.99999,0.99999));
+                        dot_val = std::clamp(dot_val, -0.99999,0.99999);
                         double di_angle = std::acos(dot_val) * 180 / M_PI;
                         if(di_angle < angle) {
                             que.push(nxt_f);

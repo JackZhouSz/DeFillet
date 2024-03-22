@@ -35,6 +35,8 @@
 #include <3rd_party/glfw/include/GLFW/glfw3.h>
 
 
+#include <omp.h>
+
 #include <igl/jet.h>
 // To have the same shortcut behavior on macOS and other platforms (i.e., Windows, Linux)
 #ifdef __APPLE__
@@ -78,6 +80,7 @@ namespace easy3d {
         selected_color = easy3d::vec3(0.0,1.0,0.0);
         easy3d::vec3 selected_color;
         cur_work_dir = easy3d::file_system::current_working_directory();
+        omp_set_num_threads(10);
     }
 
 
@@ -554,16 +557,7 @@ namespace easy3d {
 
     bool ViewerImGui::mouse_drag_event(int x, int y, int dx, int dy, int button, int modifiers) {
         if (interactive_ && mesh) {
-//#if USE_LASSO
             polygon_.push_back(vec2(x, y));
-//#else   // rectangle
-//            const vec2 first_point = polygon_[0];
-//            polygon_.clear();
-//            polygon_.push_back(first_point);
-//            polygon_.push_back(vec2(first_point.x, y));
-//            polygon_.push_back(vec2(x, y));
-//            polygon_.push_back(vec2(x, first_point.y));
-//#endif
             return false;
         } else
             return Viewer::mouse_drag_event(x, y, dx, dy, button, modifiers);
@@ -572,45 +566,9 @@ namespace easy3d {
     bool ViewerImGui::mouse_release_event(int x, int y, int button, int modifiers) {
         if (interactive_ && mesh) {
             if (polygon_.size() >= 3) {
-                auto mesh_ = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
-                if (mesh_) {
-                    easy3d::SurfaceMeshPicker picker(camera());
-                    auto face = picker.pick_face( mesh_, x,y);
-                    std::cout << face.idx() << std::endl;
-                    std::vector<easy3d::SurfaceMesh::Face> faces;
-                    faces.push_back(face);
-                    auto select = mesh_->face_property<bool>("f:select");
-                    auto colors = mesh_->face_property<vec3>("f:color");
-                    auto gcp_label = mesh_->face_property<int>("f:gcp_labels");
-                    int num = faces.size();
 
-                    auto drawable = mesh->renderer()->get_triangles_drawable("faces");
-                    for(int i = 0; i < num ; i++) {
-                        if(modifiers == EASY3D_MOD_CONTROL) {
-                            select[faces[i]] = true;
-                        }
-                        else {
-                            select[faces[i]] = false;
-                        }
-                    }
-                    for(auto f : mesh_->faces()) {
-                        if(select[f]) {
-                            colors[f] = selected_color;
-                        }
-                        else {
-                            if(gcp_label[f]) {
-                                colors[f] = fillet_color;
-                            }
-                            else {
-                                colors[f] = non_fillet_color;
-                            }
-                        }
-                    }
-                    drawable->set_property_coloring(easy3d::State::FACE, "f:color");
-                    drawable->update();
-
-                    polygon_.clear();
-                }
+                pick_faces(modifiers);
+                return true;
             }
             return false;
         } else
@@ -625,5 +583,76 @@ namespace easy3d {
             return false;
         } else
             return Viewer::mouse_press_event(x, y, button, modifiers);
+    }
+
+
+    void ViewerImGui::pick_faces(int modifiers) {
+        auto mesh_ = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
+
+        if (mesh_) {
+            easy3d::SurfaceMeshPicker picker(camera());
+            int win_width = camera()->screenWidth();
+            int win_height = camera()->screenHeight();
+            const Box2& box = polygon_.bbox();
+            int xmin = box.min_point().x;
+            int ymin = box.min_point().y;
+            int xmax = box.max_point().x;
+            int ymax = box.max_point().y;
+            if (xmin > xmax) std::swap(xmin, xmax);
+            if (ymin > ymax) std::swap(ymin, ymax);
+
+            std::vector<vec2> region; // the transformed selection region
+            for (std::size_t i = 0; i < polygon_.size(); ++i) {
+                const vec2 &p = polygon_[i];
+                float x = p.x;
+                float y = p.y;
+                region.push_back(vec2(x, y));
+            }
+            std::vector<easy3d::SurfaceMesh::Face> faces;
+            for(int x = xmin; x <= xmax; x++) {
+                for(int y = ymin; y <= ymax; y++) {
+
+                    if (geom::point_in_polygon(vec2(x, y), region)) {
+                        auto f = picker.pick_face(mesh_, x, y);
+                        if(f.is_valid()) {
+                            faces.emplace_back(f);
+                        }
+                    }
+
+                }
+            }
+
+            auto select = mesh_->face_property<bool>("f:select");
+            auto colors = mesh_->face_property<vec3>("f:color");
+            auto gcp_label = mesh_->face_property<int>("f:gcp_labels");
+            int num = faces.size();
+
+            auto drawable = mesh->renderer()->get_triangles_drawable("faces");
+            for(int i = 0; i < num ; i++) {
+                if(modifiers == EASY3D_MOD_CONTROL) {
+                    select[faces[i]] = true;
+                }
+                else {
+                    select[faces[i]] = false;
+                }
+            }
+            for(auto f : mesh_->faces()) {
+                if(select[f]) {
+                    colors[f] = selected_color;
+                }
+                else {
+                    if(gcp_label[f]) {
+                        colors[f] = fillet_color;
+                    }
+                    else {
+                        colors[f] = non_fillet_color;
+                    }
+                }
+            }
+            drawable->set_property_coloring(easy3d::State::FACE, "f:color");
+            drawable->update();
+
+            polygon_.clear();
+        }
     }
 }

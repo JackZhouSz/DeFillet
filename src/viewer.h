@@ -58,6 +58,8 @@ namespace easy3d {
 
         void update_event();
 
+        void pick_faces(int modifiers);
+
         bool callback_event_cursor_pos(double x, double y) override;
         bool callback_event_mouse_button(int button, int action, int modifiers) override;
         bool callback_event_keyboard(int key, int action, int modifiers) override;

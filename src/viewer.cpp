@@ -1,5 +1,6 @@
 #include "viewer.h"
-#include "easy3d/util/dialogs.h"
+#include "my_picker.h"
+#include <easy3d/util/dialogs.h>
 
 #include <iostream>
 #include <cstdio>
@@ -567,7 +568,7 @@ namespace easy3d {
         if (interactive_ && mesh) {
             if (polygon_.size() >= 3) {
 
-                pick_faces(modifiers);
+                pick_faces(button,modifiers);
                 return true;
             }
             return false;
@@ -586,56 +587,29 @@ namespace easy3d {
     }
 
 
-    void ViewerImGui::pick_faces(int modifiers) {
+    void ViewerImGui::pick_faces(int button, int modifiers) {
         auto mesh_ = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
 
         if (mesh_) {
-            easy3d::SurfaceMeshPicker picker(camera());
-            int win_width = camera()->screenWidth();
-            int win_height = camera()->screenHeight();
-            const Box2& box = polygon_.bbox();
-            int xmin = box.min_point().x;
-            int ymin = box.min_point().y;
-            int xmax = box.max_point().x;
-            int ymax = box.max_point().y;
-            if (xmin > xmax) std::swap(xmin, xmax);
-            if (ymin > ymax) std::swap(ymin, ymax);
-
-            std::vector<vec2> region; // the transformed selection region
-            for (std::size_t i = 0; i < polygon_.size(); ++i) {
-                const vec2 &p = polygon_[i];
-                float x = p.x;
-                float y = p.y;
-                region.push_back(vec2(x, y));
-            }
-            std::vector<easy3d::SurfaceMesh::Face> faces;
-            for(int x = xmin; x <= xmax; x++) {
-                for(int y = ymin; y <= ymax; y++) {
-
-                    if (geom::point_in_polygon(vec2(x, y), region)) {
-                        auto f = picker.pick_face(mesh_, x, y);
-                        if(f.is_valid()) {
-                            faces.emplace_back(f);
-                        }
-                    }
-
-                }
-            }
-
+            MySurfaceMeshPicker picker(camera());
+            picker.pick_faces(mesh_, polygon_, button == GLFW_MOUSE_BUTTON_RIGHT);
             auto select = mesh_->face_property<bool>("f:select");
             auto colors = mesh_->face_property<vec3>("f:color");
             auto gcp_label = mesh_->face_property<int>("f:gcp_labels");
-            int num = faces.size();
+
 
             auto drawable = mesh->renderer()->get_triangles_drawable("faces");
-            for(int i = 0; i < num ; i++) {
-                if(modifiers == EASY3D_MOD_CONTROL) {
-                    select[faces[i]] = true;
-                }
-                else {
-                    select[faces[i]] = false;
-                }
-            }
+
+//            for(auto f : mesh_->faces()) {
+//                if(modifiers == EASY3D_MOD_CONTROL && select[f]) {
+//                    select[f] = true;
+//                }
+//                else {
+//                    select[f] = false;
+//                }
+//
+//            }
+
             for(auto f : mesh_->faces()) {
                 if(select[f]) {
                     colors[f] = selected_color;

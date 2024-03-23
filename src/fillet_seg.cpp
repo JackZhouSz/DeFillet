@@ -177,9 +177,6 @@ void FilletSeg::run_gcp() {
             double dot_val = easy3d::dot(normals[f0], normals[f1]);
             dot_val = std::clamp(dot_val, -0.99999, 0.99999);
             double w = acos(dot_val) / M_PI;
-//            if(isnan(w)) {
-//                std::cout << dot_val << ' ' <<  normals[f0].norm() << ' ' << normals[f1].norm() <<std::endl;
-//            }
             if(w < 0) {
                 w = std::fabs(w) * w_convex_ * alpha_;
             } else {
@@ -210,6 +207,17 @@ void FilletSeg::run_gcp() {
             gcp[f] = 0;
         } else {
             gcp[f] = 1;
+        }
+    }
+
+    auto sources = mesh_->vertex_property<int>("v:sources");
+    auto fixed_points = mesh_->vertex_property<int>("v:fixed_points");
+
+    for(auto e : mesh_->edges()) {
+        auto f0 = mesh_->face(e, 0);
+        auto f1 = mesh_->face(e, 1);
+        if(f0.is_valid() && f1.is_valid()) {
+
         }
     }
 

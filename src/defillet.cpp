@@ -18,10 +18,11 @@ void DeFillet::run_geodesic() {
     sources_.clear();
     sources_normals_.clear();
     auto original_point_index = fillet_mesh_->vertex_property<int>("v:original_index");
+    auto fillet_sources = fillet_mesh_->vertex_property<int>("v:sources");
     std::map<int, int> mp;
     for(auto v : fillet_mesh_->vertices()) {
         easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
-        if(fillet_mesh_->is_border(v) && ! mesh_->is_border(vv)) {
+        if(fillet_sources[v] == 1) {
             sources_.emplace_back(v.idx());
             easy3d::SurfaceMesh::Vertex origin_v(original_point_index[v]);
             mp[v.idx()] = sources_normals_.size();
@@ -204,12 +205,13 @@ void DeFillet::init_opt(){
     E2.setFromTriplets(triplets.begin(), triplets.end());
 
     std::vector<easy3d::SurfaceMesh::Vertex> fixed_points;
+    auto fillet_sources = fillet_mesh_->vertex_property<int>("v:sources");
     row = 0;
     d_.resize(nb_points * 3);
     triplets.clear();
     for(auto v : fillet_mesh_->vertices()) {
         easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
-        if(fillet_mesh_->is_border(v) && !mesh_->is_border(vv)) {
+        if(fillet_sources[v] == 1) {
             fixed_points.emplace_back(v);
             auto pos = fillet_mesh_->position(v);
             triplets.emplace_back(Eigen::Triplet<double>(row, v.idx() , 1.0));
@@ -283,4 +285,14 @@ void DeFillet::extract_fillet_region() {
         delete fillet_mesh_;
 
     fillet_mesh_ = seg.segment<int>(gcp, 1);
+
+    auto mesh_sources = mesh_->vertex_property<int>("v:sources");
+    auto fillet_sources = fillet_mesh_->vertex_property<int>("v:sources");
+    auto original_point_index = fillet_mesh_->vertex_property<int>("v:original_index");
+
+    for(auto v : fillet_mesh_->vertices()) {
+        easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
+        fillet_sources[v] = mesh_sources[vv];
+    }
+
 }

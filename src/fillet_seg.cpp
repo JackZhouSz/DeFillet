@@ -211,13 +211,22 @@ void FilletSeg::run_gcp() {
     }
 
     auto sources = mesh_->vertex_property<int>("v:sources");
-    auto fixed_points = mesh_->vertex_property<int>("v:fixed_points");
 
     for(auto e : mesh_->edges()) {
         auto f0 = mesh_->face(e, 0);
         auto f1 = mesh_->face(e, 1);
+        auto v0 = mesh_->vertex(e, 0);
+        auto v1 = mesh_->vertex(e, 1);
         if(f0.is_valid() && f1.is_valid()) {
-
+            double dot_val = easy3d::dot(normals[f0], normals[f1]);
+            dot_val = std::clamp(dot_val, -0.99999, 0.99999);
+            double di_angle = acos(dot_val) / M_PI;
+            if(di_angle > 0.5) {
+                sources[v0] = 1; sources[v1] = 1;
+            }
+            else {
+                sources[v0] = 0; sources[v1] = 0;
+            }
         }
     }
 

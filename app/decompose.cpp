@@ -53,11 +53,13 @@ int main(int argc, char **argv) {
         std::string output_dir;
     } args;
 
-    CLI::App app{"DEFILLET Command Line"};
-
-    app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
-    app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
-    CLI11_PARSE(app, argc, argv);
+//    CLI::App app{"DEFILLET Command Line"};
+//
+//    app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
+//    app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
+//    CLI11_PARSE(app, argc, argv);
+    args.input_mesh = "D:\\code\\defillet\\data\\20501_ae5143b3_0.ply";
+    args.output_dir = "D:\\code\\defillet\\data\\20501_ae5143b3_0_parts\\";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
     int num = seg_via_sharp_feature(mesh, 60);
     auto segs = mesh->get_face_property<int>("f:seg_label");

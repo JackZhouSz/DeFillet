@@ -30,6 +30,7 @@ void DeFillet::run_geodesic() {
 
         }
     }
+    std::cout << sources_.size() << std::endl;
     int nb_points = fillet_mesh_->n_vertices();
     int nb_faces = fillet_mesh_->n_faces();
     std::vector<CPoint3D> xin_points;
@@ -294,5 +295,4 @@ void DeFillet::extract_fillet_region() {
         easy3d::SurfaceMesh::Vertex vv(original_point_index[v]);
         fillet_sources[v] = mesh_sources[vv];
     }
-
 }

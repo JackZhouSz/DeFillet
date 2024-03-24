@@ -140,6 +140,9 @@ void FilletSeg::run_scoring() {
                 scores[f] /= 1.0 * counts[f];
             }
         }
+        else {
+            scores[f] = 0.0;
+        }
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -197,7 +200,7 @@ void FilletSeg::run_gcp() {
     gc.setDataCostFunctor(&data_item);
     gc.setSmoothCostFunctor(&smooth_item);
     std::cout << "Before optimization energy is " << gc.compute_energy() << std::endl;
-    gc.expansion(4);
+    gc.expansion(10);
     std::cout << "After optimization energy is " << gc.compute_energy() << std::endl;
 
 #pragma omp parallel for
@@ -211,26 +214,23 @@ void FilletSeg::run_gcp() {
     }
 
     auto sources = mesh_->vertex_property<int>("v:sources");
-
-    for(auto e : mesh_->edges()) {
-        auto f0 = mesh_->face(e, 0);
-        auto f1 = mesh_->face(e, 1);
-        auto v0 = mesh_->vertex(e, 0);
-        auto v1 = mesh_->vertex(e, 1);
-        if(f0.is_valid() && f1.is_valid() && gcp[f0] != gcp[f1]) {
-            double dot_val = easy3d::dot(normals[f0], normals[f1]);
-            dot_val = std::clamp(dot_val, -0.99999, 0.99999);
-            double di_angle = acos(dot_val) / M_PI;
-            if(di_angle > 0.5) {
-                sources[v0] = 1; sources[v1] = 1;
+    auto fixed = mesh_->vertex_property<int>("v:fixed");
+    for(auto v : mesh_->vertices()) {
+        bool is_sources = false, is_fixed = false;
+        for(auto h : mesh_->halfedges(v)) {
+            auto f0 = mesh_->face(h);
+            auto f1 = mesh_->face(mesh_->opposite(h));
+            if(f0.is_valid() && f1.is_valid()) {
+                if(gcp[f0] != gcp[f1]) {
+                    is_sources = true;
+                }
             }
             else {
-                sources[v0] = 0; sources[v1] = 0;
+                is_fixed = true;
             }
         }
-        else {
-            sources[v0] = 0; sources[v1] = 0;
-        }
+        sources[v] = is_sources ? 1 : 0;
+        fixed[v] = is_fixed ? 1 : 0;
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();

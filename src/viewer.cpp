@@ -474,6 +474,30 @@ namespace easy3d {
     }
 
     void ViewerImGui::run_geodesic() {
+//        easy3d::SurfaceMesh* model = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
+//        auto sources = model->vertex_property<int>("v:sources");
+//        auto normals = model->face_property<easy3d::vec3>("f:normal");
+//        auto gcp = model->face_property<int>("f:gcp_labels");
+//        for(auto e : model->edges()) {
+//            auto f0 = model->face(e, 0);
+//            auto f1 = model->face(e, 1);
+//            auto v0 = model->vertex(e, 0);
+//            auto v1 = model->vertex(e, 1);
+//            if(f0.is_valid() && f1.is_valid() && gcp[f0] != gcp[f1]) {
+//                double dot_val = easy3d::dot(normals[f0], normals[f1]);
+//                dot_val = std::clamp(dot_val, -0.99999, 0.99999);
+//                double di_angle = acos(dot_val) * 180.0 / M_PI;
+//                if(1) {
+//                    sources[v0] = 1; sources[v1] = 1;
+//                }
+//                else {
+//                    sources[v0] = 0; sources[v1] = 0;
+//                }
+//            }
+//            else {
+//                sources[v0] = 0; sources[v1] = 0;
+//            }
+//        }
         easy3d::io::save_ply(gcp_mesh_path,  dynamic_cast<easy3d::SurfaceMesh*>(mesh), false);
         std::string cli = "geo.exe -i " + gcp_mesh_path + " -o " + out_dir
                           + " --angle " + std::to_string(angle);
@@ -547,6 +571,7 @@ namespace easy3d {
             auto face_tar_normals_x = fillet_mesh->face_property<float>("f:tar_normals_x");
             auto face_tar_normals_y = fillet_mesh->face_property<float>("f:tar_normals_y");
             auto face_tar_normals_z = fillet_mesh->face_property<float>("f:tar_normals_z");
+
             const easy3d::Box3 &box = fillet_mesh->bounding_box();
             float length = norm(box.max_point() - box.min_point()) * 0.02f;
             std::vector<easy3d::vec3> tmp;
@@ -568,6 +593,20 @@ namespace easy3d {
             line->set_line_width(1.0);
             line->set_uniform_coloring(easy3d::vec4(0.0, 1.0, 0.0, 1.0));
             line->set_visible(true);
+
+            auto sources = fillet_mesh->vertex_property<int>("v:sources");
+            tmp.clear();
+            for(auto v : fillet_mesh->vertices()) {
+                if(sources[v] == 1) {
+                    tmp.emplace_back(fillet_mesh->position(v));
+                }
+            }
+            easy3d::PointsDrawable* points = mesh->renderer()->add_points_drawable("sources");
+            points->update_vertex_buffer(tmp);
+            points->set_impostor_type(easy3d::PointsDrawable::ImposterType::SPHERE);
+            points->set_point_size(10.0);
+            points->set_uniform_coloring(easy3d::vec4(0.5, 1.0, 0.5, 1.0));
+            points->set_visible(true);
             state = NOTHING;
         }
         if(state == UPDATE_DEFILLET) {

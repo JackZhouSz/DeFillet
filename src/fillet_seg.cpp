@@ -133,7 +133,7 @@ void FilletSeg::run_scoring() {
     for(int i = 0; i < nb_faces; i++) {
         easy3d::SurfaceMesh::Face f(i);
         if (counts[f] > 0) {
-            if(counts[f] < 10) {
+            if(counts[f] < 5) {
                 scores[f] = 0.0;
             }
             else {
@@ -165,12 +165,15 @@ void FilletSeg::run_gcp() {
     GCoptimizationGeneralGraph gc(nb_face, 2);
 
     std::vector<double> data_cost(2 * nb_face);
+    float maxx = 0;
     for(auto f : mesh_->faces()) {
         data_cost[f.idx()] = scores[f];
+        maxx = std::max(scores[f], maxx);
         data_cost[f.idx()] = std::max(data_cost[f.idx()], w1_);
         data_cost[f.idx() + nb_face] = (1.0 - scores[f]);
         data_cost[f.idx() + nb_face] = std::max(data_cost[f.idx() + nb_face], w1_);
     }
+    std::cout << maxx <<std::endl;
     std::vector<std::pair<int,int>> edges;
     std::vector<double> edge_weights;
     for(auto e : mesh_->edges()) {

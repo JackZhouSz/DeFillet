@@ -474,30 +474,27 @@ namespace easy3d {
     }
 
     void ViewerImGui::run_geodesic() {
-//        easy3d::SurfaceMesh* model = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
-//        auto sources = model->vertex_property<int>("v:sources");
-//        auto normals = model->face_property<easy3d::vec3>("f:normal");
-//        auto gcp = model->face_property<int>("f:gcp_labels");
-//        for(auto e : model->edges()) {
-//            auto f0 = model->face(e, 0);
-//            auto f1 = model->face(e, 1);
-//            auto v0 = model->vertex(e, 0);
-//            auto v1 = model->vertex(e, 1);
-//            if(f0.is_valid() && f1.is_valid() && gcp[f0] != gcp[f1]) {
-//                double dot_val = easy3d::dot(normals[f0], normals[f1]);
-//                dot_val = std::clamp(dot_val, -0.99999, 0.99999);
-//                double di_angle = acos(dot_val) * 180.0 / M_PI;
-//                if(1) {
-//                    sources[v0] = 1; sources[v1] = 1;
-//                }
-//                else {
-//                    sources[v0] = 0; sources[v1] = 0;
-//                }
-//            }
-//            else {
-//                sources[v0] = 0; sources[v1] = 0;
-//            }
-//        }
+        easy3d::SurfaceMesh* model = dynamic_cast<easy3d::SurfaceMesh*>(mesh);
+        auto sources = model->vertex_property<int>("v:sources");
+        auto fixed = model->vertex_property<int>("v:fixed");
+        auto gcp = model->face_property<int>("f:gcp_labels");
+        for(auto v : model->vertices()) {
+            bool is_sources = false, is_fixed = false;
+            for(auto h : model->halfedges(v)) {
+                auto f0 = model->face(h);
+                auto f1 = model->face(model->opposite(h));
+                if(f0.is_valid() && f1.is_valid()) {
+                    if(gcp[f0] != gcp[f1]) {
+                        is_sources = true;
+                    }
+                }
+                else {
+                    is_fixed = true;
+                }
+            }
+            sources[v] = is_sources ? 1 : 0;
+            fixed[v] = is_fixed ? 1 : 0;
+        }
         easy3d::io::save_ply(gcp_mesh_path,  dynamic_cast<easy3d::SurfaceMesh*>(mesh), false);
         std::string cli = "geo.exe -i " + gcp_mesh_path + " -o " + out_dir
                           + " --angle " + std::to_string(angle);

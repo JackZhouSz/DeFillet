@@ -58,10 +58,10 @@ int main(int argc, char **argv) {
 //    app.add_option("-i,--input_mesh", args.input_mesh, "Input Mesh")->required();
 //    app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
 //    CLI11_PARSE(app, argc, argv);
-    args.input_mesh = "E:\\defillet_case\\21231_eb9826e5_9\\21231_eb9826e5_9.ply";
-    args.output_dir = "E:\\defillet_case\\21231_eb9826e5_9\\21231_eb9826e5_9_parts\\";
+    args.input_mesh = "E:\\defillet_case\\21624_3fe6bea4_2\\21624_3fe6bea4_2.ply";
+    args.output_dir = "E:\\defillet_case\\21624_3fe6bea4_2\\21624_3fe6bea4_2_parts\\";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
-    int num = seg_via_sharp_feature(mesh, 60);
+    int num = seg_via_sharp_feature(mesh, 30);
     auto segs = mesh->get_face_property<int>("f:seg_label");
     std::string base_name = easy3d::file_system::base_name(args.input_mesh);
     easy3d::SurfaceMeshSegmenter segmenter(mesh);

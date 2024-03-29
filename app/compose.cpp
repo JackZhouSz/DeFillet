@@ -23,9 +23,9 @@ int main(int argc, char **argv) {
 //    app.add_option("-p,--part_mesh", args.part_mesh, "Part Mesh")->required();
 //    app.add_option("-o,--output_dir", args.output_dir, "Output Directory")->required();
 //    CLI11_PARSE(app, argc, argv);
-    args.input_mesh = "E:\\defillet_case\\21767_53eaa558_12\\21767_53eaa558_12.ply";
-    args.part_mesh = "E:\\defillet_case\\21767_53eaa558_12\\2024-03-26_00-31-31_21767_53eaa558_12_part_0\\defillet.ply";
-    args.output_dir = "E:\\defillet_case\\21767_53eaa558_12\\";
+    args.input_mesh = "E:\\defillet_case\\22162_439af02a_0\\22162_439af02a_0.ply";
+    args.part_mesh = "E:\\defillet_case\\22162_439af02a_0\\2024-03-26_22-48-36_22162_439af02a_0_part_0\\defillet.ply";
+    args.output_dir = "E:\\defillet_case\\22162_439af02a_0\\";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(args.input_mesh);
     easy3d::SurfaceMesh* part_mesh = easy3d::SurfaceMeshIO::load(args.part_mesh);
 

@@ -5,7 +5,7 @@
 
 
 #include "easy3d/util/logging.h"
-#include <viewer.h>
+#include "my_viewer.h"
 
 int main() {
     easy3d::logging::initialize();

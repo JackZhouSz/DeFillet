@@ -263,7 +263,7 @@ bool DeFillet::opt() {
         p[i + 2 * nb_points] = points[i].z;
     }
     Eigen::VectorXd b(nb_points * 3 + d_.size());
-    b << beta_ * p, d_;
+    b << gamma_ * p, d_;
     Eigen::VectorXd x = solver_.solve(b);
     if(solver_.info()!= Eigen::Success) {
         // solving failed

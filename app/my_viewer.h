@@ -1,12 +1,12 @@
-#ifndef EASY3D_TUTORIAL_IMGUI_VIEWER_H
-#define EASY3D_TUTORIAL_IMGUI_VIEWER_H
+#ifndef EASY3D_TUTORIAL_IMGUI_VIEWER_H1
+#define EASY3D_TUTORIAL_IMGUI_VIEWER_H1
 
 
 #include <easy3d/viewer/viewer.h>
 
 #include <easy3d/core/surface_mesh.h>
 #include <easy3d/core/point_cloud.h>
-#include "fillet_seg.h"
+//#include "./fillet_seg.h"
 // A very good tutorial for imgui:
 // https://eliasdaler.github.io/using-imgui-with-sfml-pt1/
 // https://eliasdaler.github.io/using-imgui-with-sfml-pt2/

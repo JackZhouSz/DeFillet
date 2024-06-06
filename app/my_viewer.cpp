@@ -1,6 +1,6 @@
-#include "viewer.h"
+#include "my_viewer.h"
 #include "my_picker.h"
-#include <easy3d/util/dialogs.h>
+#include <easy3d/util/dialog.h>
 
 #include <iostream>
 #include <cstdio>
@@ -26,15 +26,21 @@
 #include <easy3d/renderer/drawable_triangles.h>
 #include <easy3d/renderer/texture_manager.h>
 #include <easy3d/gui/picker_surface_mesh.h>
-#include <easy3d/renderer/shapes.h>
+#include <easy3d/renderer/shape.h>
 #include <easy3d/util/timer.h>
-#include <easy3d/fileio/resources.h>
+#include <easy3d/util/resource.h>
 
-#include <3rd_party/imgui/misc/fonts/imgui_fonts_droid_sans.h>
-#include <3rd_party/imgui/imgui.h>
-#include <3rd_party/imgui/backends/imgui_impl_glfw.h>
-#include <3rd_party/imgui/backends/imgui_impl_opengl3.h>
-#include <3rd_party/glfw/include/GLFW/glfw3.h>
+//#include <3rd_party/imgui/misc/fonts/imgui_fonts_droid_sans.h>
+//#include <3rd_party/imgui/imgui.h>
+//#include <3rd_party/imgui/backends/imgui_impl_glfw.h>
+//#include <3rd_party/imgui/backends/imgui_impl_opengl3.h>
+//#include <3rd_party/glfw/include/GLFW/glfw3.h>
+
+#include <imgui.h>
+#include <imgui_fonts_droid_sans.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include <GLFW/glfw3.h>
 
 
 #include <omp.h>
@@ -70,7 +76,7 @@ namespace easy3d {
             , sites(nullptr)
             , vertices(nullptr)
             , show_mesh(false)
-            , eps(0.03), s(10), radius(0.06)
+            , eps(0.05), s(10), radius(0.03)
             , min_score(0.5), alpha(0.5)
             , std_ratio(0.3), num_sor_iter(3), nb_neighbors(30)
             , w_convex(0.08), w_concave(1.0), w1(0.3), w2(0.4)
@@ -209,11 +215,11 @@ namespace easy3d {
         draw_corner_axes();
         if (polygon_.size() >= 3) {
             // draw the boundary of the rect/lasso
-            shapes::draw_polygon_wire(polygon_, vec4(1.0f, 0.0f, 0.0f, 1.0f), width(), height(), -1.0f);
+            shape::draw_polygon_wire(polygon_, vec4(1.0f, 0.0f, 0.0f, 1.0f), width(), height(), -1.0f);
             // draw its transparent face
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            shapes::draw_polygon_filled(polygon_, vec4(1.0f, 0.0f, 0.0f, 0.2f), width(), height(), -0.9f);
+            shape::draw_polygon_filled(polygon_, vec4(1.0f, 0.0f, 0.0f, 0.2f), width(), height(), -0.9f);
             glDisable(GL_BLEND);
         }
     }
@@ -268,7 +274,7 @@ namespace easy3d {
         }
         ImGui::Separator();
         float width = 150;
-        if (ImGui::CollapsingHeader("FilletSeg")) {
+        if (ImGui::CollapsingHeader("FilletSeg", ImGuiTreeNodeFlags_DefaultOpen)) {
             if(ImGui::CollapsingHeader("sor_para")) {
                 ImGui::SetNextItemWidth(width);
                 ImGui::InputInt("nb_neighbors", &nb_neighbors, 1, 1.0f);
@@ -280,7 +286,7 @@ namespace easy3d {
                 ImGui::InputDouble("std_ratio", &std_ratio, 0.1, 1.0f, "%.2f");
                 std_ratio = std::clamp(std_ratio, 0.0, 1.0);
             }
-            if(ImGui::CollapsingHeader("scoring_para")) {
+            if(ImGui::CollapsingHeader("scoring_para", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::SetNextItemWidth(width);
                 ImGui::InputDouble("eps", &eps, 0.01, 1.0f, "%.2f");
                 eps = std::clamp(eps, 0.0, 1.0);
@@ -397,7 +403,9 @@ namespace easy3d {
         };
         const std::vector<std::string> &file_names = dialog::open(title, default_path, filters, true);
 
+
         for(auto m : models_) {
+            m->renderer()->set_visible(false);
             delete_model(m);
         }
         models_.clear();
@@ -560,7 +568,7 @@ namespace easy3d {
             auto drawable = mesh->renderer()->get_triangles_drawable("faces");
             drawable->set_scalar_coloring(easy3d::State::VERTEX, "v:geo_dis", nullptr, 0.0f, 0.0f);
 //            std::cout << EASY3D_RESOURCES_DIR << std::endl;
-            const std::string texture_file = SCALAR_COLOR_TEXTURE;
+            const std::string texture_file = easy3d::resource::directory() + "/colormaps/rainbow.png";
             easy3d::Texture *texture = easy3d::TextureManager::request(texture_file);
             drawable->set_texture(texture);
             drawable->update();

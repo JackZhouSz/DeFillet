@@ -41,7 +41,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
-
+#include <stb_image.h>
 
 #include <omp.h>
 
@@ -90,6 +90,16 @@ namespace easy3d {
         easy3d::vec3 selected_color;
         cur_work_dir = easy3d::file_system::current_working_directory();
         omp_set_num_threads(10);
+
+        GLFWimage images[1];
+        std::string ico_path = easy3d::resource::directory() + "/images/DeFilletIco.png";
+        images[0].pixels = stbi_load(ico_path.c_str(), &images[0].width, &images[0].height, 0, 4); //rgba channels
+        glfwSetWindowIcon(window_, 1, images);
+        stbi_image_free(images[0].pixels);
+
+        glfwMakeContextCurrent(window_);
+        glfwSwapInterval(1); // Enable vsync
+
     }
 
 
@@ -234,16 +244,18 @@ namespace easy3d {
         ImGui::SetNextWindowPos(ImVec2(w - 325, 0), ImGuiCond_Always);
         ImGui::Begin("Dashboard", &my_tool_active, ImGuiWindowFlags_MenuBar);
         ImGui::SetNextWindowContentSize(ImVec2(0, 0));
-        if (ImGui::CollapsingHeader("Open/Save", ImGuiTreeNodeFlags_DefaultOpen)) {
-
-            if (ImGui::Button("Open", ImVec2(150, 30))) {
-                open();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Save", ImVec2(150, 30))) {
-
-            }
+        if (ImGui::Button("load mesh", ImVec2(315, 30))) {
+            open();
+//                std::cout<<"ASD" << std::endl;
         }
+//        if (ImGui::CollapsingHeader("Open", ImGuiTreeNodeFlags_DefaultOpen)) {
+//
+//
+//            ImGui::SameLine();
+//            if (ImGui::Button("Save", ImVec2(150, 30))) {
+//
+//            }
+//        }
         ImGui::Separator();
         if (ImGui::CollapsingHeader("Visible", ImGuiTreeNodeFlags_DefaultOpen)) {
             if(mesh && mesh->renderer()) {
@@ -335,7 +347,7 @@ namespace easy3d {
 
         }
         ImGui::Separator();
-        if (ImGui::CollapsingHeader("DeFillet")) {
+        if (ImGui::CollapsingHeader("DeFillet", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::SetNextItemWidth(width);
             ImGui::InputDouble("angle", &angle, 0.1, 1.0f, "%.2f");
             angle = std::clamp(angle, 0.0, 180.0);

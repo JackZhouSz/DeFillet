@@ -101,7 +101,6 @@ int main(int argc, char **argv) {
     const std::vector<int> sor_labels = fillet_seg.get_sor_labels();
     for(int i = 0; i < sor_labels.size(); i++) {
         if(sor_labels[i]) {
-//            std::cout <<"ASD" <<std::endl;
             sor_vertices->add_vertex(tmp_vertices[i]);
         }
     }

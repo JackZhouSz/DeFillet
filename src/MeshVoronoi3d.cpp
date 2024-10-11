@@ -65,9 +65,4 @@ MeshVoronoi3d::MeshVoronoi3d(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
         vertices2sites_.emplace_back(tmp);
     }
 
-
-
-
-
-
 }

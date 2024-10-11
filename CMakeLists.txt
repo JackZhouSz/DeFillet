@@ -36,7 +36,9 @@ add_subdirectory(geodesic)
 
 #add_compile_definitions(SCALAR_COLOR_TEXTURE="${CMAKE_CURRENT_LIST_DIR}/lib-easy3d/resources/colormaps/rainbow.png")
 
-set(source src/MeshVoronoi3d.cpp src/fillet_seg.cpp src/knn.cpp src/defillet.cpp src/surafce_mesh_segmenter.cpp)
+set(source src/MeshVoronoi3d.cpp src/fillet_seg.cpp
+        src/knn.cpp src/defillet.cpp
+)
 
 
 add_executable(DeFillet_GUI app/gui.cpp app/my_viewer.cpp app/my_picker.cpp)
@@ -87,3 +89,11 @@ add_executable(compose app/compose.cpp src/surafce_mesh_segmenter.cpp)
 target_include_directories(compose PRIVATE src)
 target_link_libraries(compose PRIVATE easy3d::algo easy3d::util easy3d::viewer easy3d::renderer easy3d::gui)
 target_link_libraries(compose PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(scoring2 app/test.cpp ${source} src/surafce_mesh_segmenter.cpp src/fillet_seg_v2.cpp)
+target_include_directories(scoring2 PRIVATE src)
+target_link_libraries(scoring2 PRIVATE gcp geodesic)
+target_link_libraries(scoring2 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(scoring2 PRIVATE easy3d::algo easy3d::util easy3d::fileio)
+target_link_libraries(scoring2 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

@@ -53,14 +53,14 @@ void FilletSeg::run_sor() {
 #pragma omp parallel for
         for(int j = 0; j < num; j++) {
             std::vector<size_t> tmp_indices;
-            std::vector<double> dist;
+            std::vector<float> dist;
             kds.kth_search(knn_points[j], nb_neighbors_, tmp_indices, dist);
             double mean = -1.0;
 
             if(dist.size() > 0u) {
                 valid_distances++;
                 std::for_each(dist.begin(), dist.end(),
-                              [](double &d) { d = std::sqrt(d); });
+                              [](float &d) { d = std::sqrt(d); });
                 mean = std::accumulate(dist.begin(), dist.end(), 0.0) / dist.size();
             }
             avg_distances[j] = mean;

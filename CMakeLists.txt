@@ -49,7 +49,7 @@ target_link_libraries(DeFillet_GUI PRIVATE glfw imgui::imgui easy3d::algo easy3d
 target_link_libraries(DeFillet_GUI PRIVATE OpenMP::OpenMP_CXX)
 
 
-add_executable(scoring app/scoring.cpp ${source})
+add_executable(scoring app/scoring.cpp ${source} src/surafce_mesh_segmenter.cpp)
 target_include_directories(scoring PRIVATE src)
 target_link_libraries(scoring PRIVATE gcp geodesic)
 target_link_libraries(scoring PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)

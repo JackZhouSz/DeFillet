@@ -12,7 +12,7 @@
 
 namespace KNN {
     struct Point {
-        double p[3];
+        float p[3];
         Point(double x = 0.0, double y = 0.0, double z = 0.0) {
             p[0] = x;p[1] = y;p[2] = z;
         }
@@ -23,9 +23,9 @@ namespace KNN {
         KdSearch(std::vector<Point>& points);
         ~KdSearch();
         int radius_search(const Point& p, double squared_radius, std::vector<size_t> &neighbors,
-                std::vector<double> &squared_distances) const;
+                std::vector<float> &squared_distances) const;
         void kth_search(const Point& p, int k, std::vector<size_t> &neighbors,
-                        std::vector<double> &squared_distances) const;
+                        std::vector<float> &squared_distances) const;
     protected:
         std::vector<Point>* points_;
         void* tree_;

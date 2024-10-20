@@ -25,9 +25,9 @@ namespace KNN {
         bool kdtree_get_bbox(BBOX &) const { return false; }
     };
 
-    struct KdTree : public nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<double, PointCloud>, PointCloud, 3, int> {
+    struct KdTree : public nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3, int> {
         KdTree(PointCloud* cloud) :
-        KDTreeSingleIndexAdaptor< nanoflann::L2_Simple_Adaptor<double, PointCloud>, PointCloud, 3, int >(3,
+        KDTreeSingleIndexAdaptor< nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3, int >(3,
                                                                                                          *cloud, nanoflann::KDTreeSingleIndexAdaptorParams(10)){}
         ~KdTree() {
 //            delete cloud_;
@@ -52,8 +52,8 @@ namespace KNN {
     }
 
     int KdSearch::radius_search(const Point& p, double radius, std::vector<size_t> &neighbors,
-                                 std::vector<double> &squared_distances) const {
-        std::vector<std::pair<int , double> > matches;
+                                 std::vector<float> &squared_distances) const {
+        std::vector<std::pair<int , float> > matches;
         nanoflann::SearchParams params;
         params.sorted = true;
         const std::size_t num = get_tree(tree_)->radiusSearch(p.p, radius, matches, params);
@@ -70,11 +70,19 @@ namespace KNN {
     }
 
     void KdSearch::kth_search(const Point &p, int k, std::vector<size_t> &neighbors,
-                              std::vector<double> &squared_distances) const {
-        nanoflann::KNNResultSet<double> resultSet(k);
+                              std::vector<float> &squared_distances) const {
+        std::vector<int> indices(k);
+        std::vector<float> distances(k);
+
+        // float distances[k];
+        // result_set.init(&indices[0], &sqr_distances[0]);
+        get_tree(tree_)->knnSearch(&p.p[0], k, &indices[0], &distances[0]);
         neighbors.resize(k);
         squared_distances.resize(k);
-        resultSet.init(&neighbors[0], &squared_distances[0]);
-        get_tree(tree_)->findNeighbors(resultSet, p.p,  nanoflann::SearchParams(k));
+        for(int i = 0; i < k; i++) {
+            neighbors[i] = indices[i];
+            squared_distances[i] = distances[i];
+        }
+        // get_tree(tree_)->findNeighbors(result_set, p.p,  nanoflann::SearchParams(k));
     }
 }

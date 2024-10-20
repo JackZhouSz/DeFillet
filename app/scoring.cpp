@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
     fillet_seg.set_radius(args.radius);
     fillet_seg.set_s(args.s);
     fillet_seg.set_min_score(args.min_score);
+    fillet_seg.set_num_sor_iter(args.num_sor_iter);
     fillet_seg.run_scoring();
     std::string base_name = easy3d::file_system::base_name(args.input_mesh);
     std::string out_mesh_path = args.output_dir + "mesh_scoring.ply";
@@ -64,6 +65,7 @@ int main(int argc, char **argv) {
         coloring_mesh[f] = easy3d::vec3(Ct(f.idx(), 0),
                                         Ct(f.idx(), 1), Ct(f.idx(), 2));
     }
+
     easy3d::io::save_ply(out_mesh_path, mesh, true);
     easy3d::PointCloud* sites = new easy3d::PointCloud;
     auto& tmp_sites = fillet_seg.get_sites();

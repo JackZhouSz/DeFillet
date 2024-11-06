@@ -35,7 +35,7 @@
  *  optimized for 2D or 3D point clouds.
  *
  *  nanoflann does not require compiling or installing, just an
- *  #include <nanoflann.hpp> in your code.
+ *  #dkm <nanoflann.hpp> in your code.
  *
  *  See:
  *   - [Online README](https://github.com/jlblancoc/nanoflann)

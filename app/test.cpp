@@ -81,7 +81,7 @@
 
 int main(int argc, char **argv) {
 
-    std::string mesh_path = "D:\\code\\defillet_case\\22162_439af02a_0\\22162_439af02a_0.ply";
+    std::string mesh_path = "D:\\code\\sig25_defillet\\fillet.ply";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(mesh_path);
 
     // auto face_area = mesh->add_face_property<double>("f:area");
@@ -104,12 +104,15 @@ int main(int argc, char **argv) {
 
     // easy3d::PointCloudIO::save("../out2.ply", pp);
     FilletSegV2 seg(mesh);
-    seg.probability_of_sites();
+    seg.sites_probablity();
     const auto& vor = seg.get_vor_vertices();
     const auto& score = seg.get_vor_scores();
     easy3d::PointCloud* cloud = new easy3d::PointCloud;
+    int idx = 0;
     for(auto p : vor) {
-        cloud->add_vertex(p);
+        // if(score[idx] < 80)
+            cloud->add_vertex(p);
+        // idx++;
     }
     int num = cloud->n_vertices();
     Eigen::VectorXd Z(cloud->n_vertices());
@@ -124,7 +127,7 @@ int main(int argc, char **argv) {
         coloring[f] = easy3d::vec3(Ct(f.idx(), 0),
                                         Ct(f.idx(), 1), Ct(f.idx(), 2));
     }
-    easy3d::PointCloudIO::save("../out2.ply", cloud);
+    easy3d::PointCloudIO::save("../wuga.ply", cloud);
     // seg.decompose();
     // easy3d::SurfaceMeshIO::save("../asd.ply", mesh);
     return 0;

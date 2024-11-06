@@ -1,11 +1,11 @@
 #include "BaseModel.h"
 #include "Parameters.h"
-//#include <windows.h>
-//#include "gl\gl.h"
-//#include "gl\glu.h"
+//#dkm <windows.h>
+//#dkm "gl\gl.h"
+//#dkm "gl\glu.h"
 #include <float.h>
 #include <iostream>
-//#include "gl\glut.h"
+//#dkm "gl\glut.h"
 //#pragma comment(lib, "OPENGL32.LIB")
 //#pragma comment(lib, "GLU32.LIB")
 #include <fstream>

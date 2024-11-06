@@ -2,9 +2,9 @@
 //
 //////////////////////////////////////////////////////////////////////
 #include "ExactDGPMethod.h"
-//#include <windows.h>
-//#include <gl/GL.h>
-//#include <gl/GLU.h>
+//#dkm <windows.h>
+//#dkm <gl/GL.h>
+//#dkm <gl/GLU.h>
 //#pragma comment(lib, "opengl32.lib")
 //#pragma comment(lib, "glu32.lib")
 #include <fstream>

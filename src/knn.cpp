@@ -25,9 +25,9 @@ namespace KNN {
         bool kdtree_get_bbox(BBOX &) const { return false; }
     };
 
-    struct KdTree : public nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3, int> {
+    struct KdTree : public nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<double, PointCloud>, PointCloud, 3, int> {
         KdTree(PointCloud* cloud) :
-        KDTreeSingleIndexAdaptor< nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3, int >(3,
+        KDTreeSingleIndexAdaptor< nanoflann::L2_Simple_Adaptor<double, PointCloud>, PointCloud, 3, int >(3,
                                                                                                          *cloud, nanoflann::KDTreeSingleIndexAdaptorParams(10)){}
         ~KdTree() {
 //            delete cloud_;
@@ -52,8 +52,8 @@ namespace KNN {
     }
 
     int KdSearch::radius_search(const Point& p, double radius, std::vector<size_t> &neighbors,
-                                 std::vector<float> &squared_distances) const {
-        std::vector<std::pair<int , float> > matches;
+                                 std::vector<double> &squared_distances) const {
+        std::vector<std::pair<int , double> > matches;
         nanoflann::SearchParams params;
         params.sorted = true;
         const std::size_t num = get_tree(tree_)->radiusSearch(p.p, radius, matches, params);
@@ -70,9 +70,9 @@ namespace KNN {
     }
 
     void KdSearch::kth_search(const Point &p, int k, std::vector<size_t> &neighbors,
-                              std::vector<float> &squared_distances) const {
+                              std::vector<double> &squared_distances) const {
         std::vector<int> indices(k);
-        std::vector<float> distances(k);
+        std::vector<double> distances(k);
 
         // float distances[k];
         // result_set.init(&indices[0], &sqr_distances[0]);

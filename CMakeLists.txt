@@ -97,3 +97,63 @@ target_link_libraries(scoring2 PRIVATE gcp geodesic)
 target_link_libraries(scoring2 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(scoring2 PRIVATE easy3d::algo easy3d::util easy3d::fileio)
 target_link_libraries(scoring2 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+add_executable(eigen_value app/eigen_value.cpp ${source} src/surafce_mesh_segmenter.cpp src/fillet_seg_v2.cpp)
+target_include_directories(scoring2 PRIVATE src)
+target_link_libraries(eigen_value PRIVATE gcp geodesic)
+target_link_libraries(eigen_value PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(eigen_value PRIVATE easy3d::algo easy3d::util easy3d::fileio)
+target_link_libraries(eigen_value PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+add_executable(test2 app/test2.cpp)
+target_include_directories(test2 PRIVATE src)
+#target_link_libraries(test2 PRIVATE gcp geodesic)
+target_link_libraries(test2 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test2 PRIVATE easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer)
+target_link_libraries(test2 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+add_executable(test3 app/test3.cpp src/fillet_seg_v3.cpp src/knn.cpp)
+target_include_directories(test3 PRIVATE src)
+target_link_libraries(test2 PRIVATE gcp geodesic)
+target_link_libraries(test3 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test3 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer)
+target_link_libraries(test3 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+find_package(assimp CONFIG REQUIRED)
+add_executable(test_assimp app/test_assimp.cpp)
+target_link_libraries(test_assimp PRIVATE easy3d::algo easy3d::util easy3d::fileio easy3d::viewer)
+target_link_libraries(test_assimp PRIVATE assimp::assimp)
+
+
+add_executable(vor_cor_sites app/vor_cor_sites.cpp ${source} src/surafce_mesh_segmenter.cpp src/fillet_seg_v3.cpp)
+target_include_directories(vor_cor_sites PRIVATE src)
+target_link_libraries(vor_cor_sites PRIVATE gcp geodesic)
+target_link_libraries(vor_cor_sites PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(vor_cor_sites PRIVATE glfw easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer)
+target_link_libraries(vor_cor_sites PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(test4 app/test4.cpp)
+target_include_directories(test4 PRIVATE src)
+target_link_libraries(test4 PRIVATE gcp geodesic)
+target_link_libraries(test4 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test4 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer)
+target_link_libraries(test4 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(test5 app/test5.cpp)
+target_include_directories(test5 PRIVATE src)
+target_link_libraries(test5 PRIVATE gcp geodesic)
+target_link_libraries(test5 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test5 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
+target_link_libraries(test5 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(test6 app/test6.cpp)
+target_include_directories(test6 PRIVATE src)
+target_include_directories(test6 PRIVATE dkm)
+#target_link_libraries(test5 PRIVATE gcp geodesic)
+target_link_libraries(test6 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test6 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
+target_link_libraries(test6 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

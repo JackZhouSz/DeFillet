@@ -28,7 +28,7 @@
 	Example usage for items of type 'MyType':
 
 	///////////////////////////////////////////////////
-	#include "block.h"
+	#dkm "block.h"
 	#define BLOCK_SIZE 1024
 	typedef struct { int a, b; } MyType;
 	MyType *ptr, *array[10000];

@@ -17,6 +17,7 @@
 
 #include <easy3d/algo/surface_mesh_geometry.h>
 #include <easy3d/core/random.h>
+#include <easy3d/fileio/point_cloud_io.h>
 
 
 #include <Eigen/Dense>
@@ -36,6 +37,15 @@ double dihedral_angle(easy3d::SurfaceMesh* mesh
         double degrees = radians * 180.0 / M_PI;
         return degrees;
     }
+}
+
+void randperm(Eigen::VectorXi& dex, int a, int b) {
+    int n = b - a;
+    dex.resize(n);
+    std::iota(dex.data(), dex.data() + n, a);
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rng(seed);
+    std::shuffle(dex.data(),dex.data()+n, rng);
 }
 
 bool point_inside_tetrahedron(easy3d::vec3 p, std::vector<easy3d::vec3> tetra) {
@@ -70,11 +80,36 @@ bool point_inside_tetrahedron(easy3d::vec3 p, std::vector<easy3d::vec3> tetra) {
     return sameSign;
 }
 
+bool is_inside_triangle(easy3d::vec3 p, easy3d::vec3 a, easy3d::vec3 b, easy3d::vec3 c) {
+    easy3d::vec3 n = easy3d::cross((b - a), (c - a)).normalize();
+    easy3d::vec3 aix1 = (b - a).normalize();
+    easy3d::vec3 aix2 = easy3d::cross(n, aix1).normalize();
+    easy3d::vec2 a2d(0,0);
+    easy3d::vec2 b2d( dot((b - a), aix1), dot((b - a), aix2));
+    easy3d::vec2 c2d( dot((c - a), aix1), dot((c - a), aix2));
+    easy3d::vec2 p2d( dot((p - a), aix1), dot((p - a), aix2));
+    double x = easy3d::dot(a2d - p2d, b2d - p2d);
+    double y = easy3d::dot(b2d - p2d, c2d - p2d);
+    double z = easy3d::dot(c2d - p2d, a2d - p2d);
+    if((x > 0 && y > 0 && z > 0) || (x < 0 && y < 0 && z < 0)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+bool check(easy3d::vec3 p, easy3d::vec3 a, easy3d::vec3 b, easy3d::vec3 c, easy3d::vec3 d) {
+    if(!is_inside_triangle(d, a,b,c)) {
+        return is_inside_triangle(p, a, b, c) || is_inside_triangle(p, a,d,c);
+    } else {
+        return is_inside_triangle(p, a, b, c) || is_inside_triangle(p, a,d, b);
+    }
+}
+
 FilletSegV2::FilletSegV2(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
     // fillet segmentation para
-    eps_ = 0.005; sigma_ = 10; min_score_ = 0.5; angle_thr = 30; radius_ = 0.03;
+    eps_ = 0.01; sigma_ = 10; min_score_ = 0.5; angle_thr = 40; radius_ = 0.03;
     // sor para
-    std_ratio_ = 1.0; nb_neighbors_ = 30; num_sor_iter_ = 3;
+    std_ratio_ = 0.5; nb_neighbors_ = 30; num_sor_iter_ = 4;
     face_normals = mesh_->face_property<easy3d::vec3>("f:normal");
     face_area = mesh_->face_property<float>("f:area");
     for(auto f : mesh_->faces()) {
@@ -90,6 +125,154 @@ FilletSegV2::FilletSegV2(easy3d::SurfaceMesh* mesh) : mesh_(mesh){
     }
     face_score = mesh_->face_property<float>("f:scores");
     box_ = mesh_->bounding_box();
+
+    dsa = 0;
+}
+
+
+void elkan_kmeans(Eigen::MatrixXd& data, int max_iter,
+            Eigen::VectorXi& idx, Eigen::MatrixXd& center, int& m) {
+    size_t num = data.rows(), dim = data.cols();
+    Eigen::VectorXi dex;
+
+    randperm(dex, 0, num);
+    // for(int i = 0; i < dex.size(); i++) {
+    //     std::cout << dex[i] << std::endl;
+    // }
+    // std::cout <<std::endl;
+    center = data(dex.segment(0, m), Eigen::all);
+    // return;
+    Eigen::VectorXd tmp(m);
+    idx.resize(num);
+    idx.setConstant(-1);
+    Eigen::VectorXi clust_size(m); clust_size.setZero();
+    Eigen::MatrixXd center_sum(center.rows(), center.cols());
+    center_sum.setZero();
+
+    for(int iter = 0; iter < max_iter; iter++) {
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < m; i++) {
+            tmp[i] = std::numeric_limits<double>::max();
+            for (int j = 0; j < m; j++) {
+                if (i == j) continue;
+                double dis = (center.row(i) - center.row(j)).squaredNorm();
+                if (dis < tmp[i]) {
+                    tmp[i] = dis;
+                }
+            }
+        }
+
+//        clust_size.setZero();
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < num; i++) {
+            if(idx[i] == -1) {
+                double minn = std::numeric_limits<double>::max();
+                int id = 0;
+                for(int j = 0; j < m; j++) {
+                    double dis = (data.row(i) - center.row(j)).squaredNorm();
+                    if(dis < minn) {
+                        minn = dis; id = j;
+                        if(2 * dis < tmp[j]) break;
+                    }
+                }
+                idx[i] = id;
+                clust_size[id]++;
+                center_sum.row(id) += data.row(i);
+            }
+            else {
+                double dis = (data.row(i) - center.row(idx[i])).squaredNorm();
+                if(2 * dis <= tmp[idx[i]]) {
+                    continue;
+                } else {
+                    double minn = std::numeric_limits<double>::max();
+                    int id = 0;
+                    for(int j = 0; j < m; j++) {
+                        dis = (data.row(i) - center.row(j)).squaredNorm();
+                        if(dis < minn) {
+                            minn = dis; id = j;
+                            if(2 * dis <= tmp[j]) break;
+                        }
+                    }
+                    clust_size[idx[i]]--;
+                    center_sum.row(idx[i]) -= data.row(i);
+
+                    idx[i] = id;
+                    clust_size[idx[i]]++;
+                    center_sum.row(idx[i]) += data.row(i);
+                }
+            }
+        }
+
+        #pragma omp parallel for
+        for(int i = 0; i < m; i++) {
+            // center.row(i) = center_sum.row(i) / clust_size[i];
+            if(clust_size[i] == 0) {
+                std::cout << "ASD"<<std::endl;
+            }
+            center.row(i) = data.row(idx[i]);
+//            std::cout << center_sum.row(i) << ' ' << clust_size[i] << std::endl;
+        }
+    }
+}
+
+void sqdist_omp(Eigen::MatrixXd& a,Eigen::MatrixXd& b,
+                   Eigen::MatrixXd& res) {
+    int n = a.rows(), m = b.rows();
+    //    res.resize(n, m);
+#pragma omp parallel for collapse(2)
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++) {
+            res(i,j) = (a.row(i) - b.row(j)).squaredNorm();
+        }
+    }
+}
+
+void kmeans(Eigen::MatrixXd& data, int max_iter,
+                Eigen::VectorXi& idx, Eigen::MatrixXd& center, int& m) {
+    size_t num = data.rows(), dim = data.cols();
+    Eigen::VectorXi dex;
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rng(seed);
+    // igl::randperm(num, dex, rng);
+    randperm(dex, 0, num);
+
+    center = data(dex.segment(0, m), Eigen::all);
+    Eigen::MatrixXd tmp(center.rows(), data.cols());
+
+
+    for(int i = 0; i < max_iter; i++) {
+        Eigen::VectorXd ct = Eigen::VectorXd::Zero(m);
+        tmp.resize(center.rows(), data.rows());
+        sqdist_omp(center, data, tmp);
+
+        std::vector<double> min_values(tmp.cols(), std::numeric_limits<double>::max());
+        idx.resize(tmp.cols());
+
+#pragma omp parallel for
+        for(int j = 0; j < tmp.cols(); j++) {
+            for(int k = 0; k < tmp.rows(); k++) {
+                if(min_values[j] > tmp(k, j)) {
+                    min_values[j] = tmp(k, j);
+                    idx[j] = k;
+                }
+            }
+        }
+
+        center.setZero();
+#pragma omp parallel for
+        for(int j = 0; j < num ; j++) {
+#pragma omp critical
+            {
+                center.row(idx[j]) += data.row(j);
+                ct[idx[j]]++;
+            }
+        }
+
+#pragma omp parallel for
+        for(int j = 0; j < m; j++) {
+            center.row(j) = data.row(idx[j]);
+        }
+    }
 }
 
 
@@ -158,31 +341,35 @@ void FilletSegV2::voronoi3d(const std::vector<easy3d::vec3>& sites
 }
 
 
-void FilletSegV2::density(std::vector<easy3d::vec3>& points, std::vector<float>& avg_distances) {
-    int num = points.size();
-    std::vector<KNN::Point> knn_points(num);
+void FilletSegV2::density(std::vector<easy3d::vec3>& points, std::vector<double>& avg_distances) {
+    int nb_points = points.size();
+    std::vector<KNN::Point> knn_points;
     std::vector<int> indices;
-    for(int i = 0; i < num; i++) {
-        knn_points.emplace_back(KNN::Point(points[i].x,
-                                                       points[i].y, points[i].z));
-        indices.emplace_back(i);
+    avg_distances.resize(nb_points, 0);
+#pragma omp parallel for
+    for(int i = 0; i < nb_points; i++) {
+#pragma omp critical
+        {
+            knn_points.emplace_back(KNN::Point(points[i].x,
+                                               points[i].y, points[i].z));
+            indices.emplace_back(i);
+        }
     }
     KNN::KdSearch kds(knn_points);
-    avg_distances.resize(num);
-    // std::vector<double> avg_distances(num);
-#pragma omp parallel for
-    for(int j = 0; j < num; j++) {
+    std::vector<double> avg_dist(nb_points);
+    for(int i = 0; i < nb_points; i++) {
         std::vector<size_t> tmp_indices;
-        std::vector<float> dist;
-        kds.kth_search(knn_points[j], nb_neighbors_, tmp_indices, dist);
-        float mean = -1.0;
+        std::vector<double> dist;
+        kds.kth_search(knn_points[i], nb_neighbors_, tmp_indices, dist);
+        double mean = -1.0;
 
         if(dist.size() > 0u) {
             std::for_each(dist.begin(), dist.end(),
-                          [](float &d) { d = std::sqrt(d); });
+                          [](double &d) { d = std::sqrt(d); });
             mean = std::accumulate(dist.begin(), dist.end(), 0.0) / dist.size();
         }
-        avg_distances[j] = mean;
+        avg_distances[i] = mean;
+        // std::cout << avg_dist[i] << std::endl;
     }
 }
 
@@ -213,14 +400,14 @@ void FilletSegV2::sor(const std::vector<easy3d::vec3>& points, std::vector<bool>
 #pragma omp parallel for
         for(int j = 0; j < num; j++) {
             std::vector<size_t> tmp_indices;
-            std::vector<float> dist;
+            std::vector<double> dist;
             kds.kth_search(knn_points[j], nb_neighbors_, tmp_indices, dist);
             double mean = -1.0;
 
             if(dist.size() > 0u) {
                 valid_distances++;
                 std::for_each(dist.begin(), dist.end(),
-                              [](float &d) { d = std::sqrt(d); });
+                              [](double &d) { d = std::sqrt(d); });
                 mean = std::accumulate(dist.begin(), dist.end(), 0.0) / dist.size();
             }
             avg_distances[j] = mean;
@@ -241,9 +428,10 @@ void FilletSegV2::sor(const std::vector<easy3d::vec3>& points, std::vector<bool>
         });
         double std_dev = std::sqrt(sq_sum / (valid_distances - 1));
         double distance_threshold = cloud_mean + std_ratio_ * std_dev;
-
+        // std::cout << distance_threshold << std::endl;
 #pragma omp parallel for
         for(int j = 0; j < num; j++) {
+            // std::cout << avg_distances[j] << std::endl;
             if(avg_distances[j] > 0 && avg_distances[j] < distance_threshold) {
                 labels[indices[j]] = true;
             } else {
@@ -269,30 +457,21 @@ float FilletSegV2::probability_of_vertex(easy3d::vec3& vertex, std::vector<easy3
     double tol = R * eps_;
     double err = 0.0;
 
+    double thr = box_.diagonal_length() * 0.07;
+    if(R > thr) {
+        vor_cor_sites_.emplace_back(std::vector<int>());
+        return 2.0;
+    }
 
-    // easy3d::vec3 ab = sites_[vertex_nearby_sites[0].idx()] - sites_[vertex_nearby_sites[1].idx()];
-    // easy3d::vec3 ac = sites_[vertex_nearby_sites[0].idx()] - sites_[vertex_nearby_sites[2].idx()];
-    // easy3d::vec3 ad = sites_[vertex_nearby_sites[0].idx()] - sites_[vertex_nearby_sites[3].idx()];
-    // return 1.0 / 6.0 * fabs(easy3d::dot(ab, easy3d::cross(ac, ad))) / (4.0 / 3.0 * M_PI * R * R * R);
-
-    double tmp = radius_ * box_.diagonal_length();
-    // if(R > tmp) {
-    //     return 0;
-    // }
     while(!que.empty()) {
         auto cur = que.front();
         que.pop();
-        // if (vis.find(cur) != vis.end()) {
-        //     continue;
-        // }
-        err += fabs((sites_[cur.idx()] - vertex).norm() - R);
-        // err += face_area[cur];
+        err += abs((sites_[cur.idx()] - vertex).norm() - R);
         for (auto h: mesh_->halfedges(cur)) {
             auto opp_f = mesh_->face(mesh_->opposite(h));
-            if (opp_f.is_valid()) {
+            if (opp_f.is_valid() && dihedral_angle(mesh_, cur, opp_f) < 30) {
                 double len = (sites_[opp_f.idx()] - vertex).norm();
-                if (len < R + tol && dihedral_angle(mesh_, cur, opp_f) < angle_thr
-                    && vis.find(opp_f) == vis.end()) {
+                if (vis.find(opp_f) == vis.end() && len < R + tol) {
                         que.push(opp_f);
                         vis.insert(opp_f);
                 }
@@ -318,14 +497,275 @@ float FilletSegV2::probability_of_vertex(easy3d::vec3& vertex, std::vector<easy3
         }
     }
     // // return vis2.size();
-    if(vis2.size() != vis.size()) {
-        return 0.0;
+    std::vector<int> indices;
+    for(auto f : vis) {
+        indices.emplace_back(f.idx());
+        vor_cor_sites_.emplace_back(indices);
     }
-    // std::cout << vis.size() << std::endl;
-    return exp(-sigma_ * err / vis.size());
-    // return err / (4 * M_PI * R * R);
+    int num = indices.size();
+    if(vis2.size() != vis.size()) {
+        // easy3d::PointCloud* cloud = new easy3d::PointCloud;
+        // for(size_t i = 0; i < indices.size(); i++) {
+        //     cloud->add_vertex(sites_[indices[i]]);
+        // }
+        // cloud->add_vertex(vertex);
+        // easy3d::PointCloudIO::save("../data/" + std::to_string(dsa++) + ".ply", cloud);
+        return 2.0;
+    }
+
+
+    Eigen::MatrixXd S(num, 3);
+    for(int i = 0; i < num; i++) {
+        S.row(i) = Eigen::Vector3d(sites_[i].x - vertex.x, sites_[i].y - vertex.y, sites_[i].z - vertex.z);
+    }
+    Eigen::MatrixXd M = S.transpose() * S;
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
+    if (eigensolver.info() != Eigen::Success) {
+        std::cerr << "Eigen solver failed!" << std::endl;
+        return 1e9;
+    }
+
+    if(eigensolver.eigenvalues()[0] > 1e-6) {
+        return exp(-0.1 *  eigensolver.eigenvalues()[2] / eigensolver.eigenvalues()[0]) + (1 -  exp(- 0.1 * (eigensolver.eigenvalues()[2] / eigensolver.eigenvalues()[1] - 1.0)));
+    } else {
+        return 2.0;
+    }
+    // return eigensolver.eigenvalues()[2] / eigensolver.eigenvalues()[0];
 }
 
+
+float FilletSegV2::probability_of_vertex_eigen_value(easy3d::vec3& vertex, std::vector<easy3d::SurfaceMesh::Face>& vertex_nearby_sites) {
+
+    std::set<easy3d::SurfaceMesh::Face> vis;
+    std::queue<easy3d::SurfaceMesh::Face>que;
+    for(auto f : vertex_nearby_sites) {
+        vis.insert(f);
+        que.push(f);
+    }
+
+    double R = (sites_[vertex_nearby_sites[0].idx()] - vertex).norm();
+    double tol = R * eps_;
+    double err = 0.0;
+
+    double thr = box_.diagonal_length() * 0.07;
+    if(R > thr) {
+        return 1.0;
+    }
+
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        err += abs((sites_[cur.idx()] - vertex).norm() - R);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && dihedral_angle(mesh_, cur, opp_f) < 30) {
+                double len = (sites_[opp_f.idx()] - vertex).norm();
+                if (vis.find(opp_f) == vis.end() && len < R + tol) {
+                        que.push(opp_f);
+                        vis.insert(opp_f);
+                }
+            }
+        }
+    }
+
+    std::set<easy3d::SurfaceMesh::Face> vis2;
+    que.push(vertex_nearby_sites[0]);
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        if (vis2.find(cur) != vis2.end()) {
+            continue;
+        }
+        vis2.insert(cur);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && vis.find(opp_f) != vis.end() && vis2.find(opp_f) == vis2.end()) {
+                que.push(opp_f);
+                vis2.insert(cur);
+            }
+        }
+    }
+    // // return vis2.size();
+    std::vector<int> indices;
+    for(auto f : vis) {
+        indices.emplace_back(f.idx());
+    }
+    int num = indices.size();
+    if(vis2.size() != vis.size()) {
+        return 1.0;
+    }
+
+
+    Eigen::MatrixXd S(num, 3);
+    for(int i = 0; i < num; i++) {
+        S.row(i) = Eigen::Vector3d(sites_[i].x - vertex.x, sites_[i].y - vertex.y, sites_[i].z - vertex.z);
+    }
+    Eigen::MatrixXd M = S.transpose() * S;
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
+    if (eigensolver.info() != Eigen::Success) {
+        std::cerr << "Eigen solver failed!" << std::endl;
+        return 1.0;
+    }
+
+    easy3d::PointCloud* cloud = new easy3d::PointCloud;
+    for(size_t i = 0; i < indices.size(); i++) {
+        cloud->add_vertex(sites_[indices[i]]);
+    }
+    cloud->add_vertex(vertex);
+    if((eigensolver.eigenvalues()[2] / eigensolver.eigenvalues()[0]) > 10.0) {
+        // easy3d::PointCloudIO::save("../data2/" + std::to_string(dsa++) + ".ply", cloud);;
+    std::cout << eigensolver.eigenvalues()[0] << ' ' << eigensolver.eigenvalues()[1] << ' ' << eigensolver.eigenvalues()[2] << std::endl;
+    }
+    if(eigensolver.eigenvalues()[0] > 1e-6) {
+        return exp(-0.1 *  eigensolver.eigenvalues()[2] / eigensolver.eigenvalues()[0]);
+    } else {
+        return 1.0;
+    }
+    // return eigensolver.eigenvalues()[2] / eigensolver.eigenvalues()[0];
+}
+
+float FilletSegV2::probability_of_vertex_area(easy3d::vec3& vertex, std::vector<easy3d::SurfaceMesh::Face>& vertex_nearby_sites) {
+
+
+    std::set<easy3d::SurfaceMesh::Face> vis;
+    std::queue<easy3d::SurfaceMesh::Face>que;
+    for(auto f : vertex_nearby_sites) {
+        vis.insert(f);
+        que.push(f);
+    }
+
+    double R = (sites_[vertex_nearby_sites[0].idx()] - vertex).norm();
+    double tol = R * eps_;
+    double err = 0.0;
+
+    double thr = box_.diagonal_length() * 0.07;
+    if(R > thr) {
+        return 0.0;
+    }
+
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        err += abs((sites_[cur.idx()] - vertex).norm() - R);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && dihedral_angle(mesh_, cur, opp_f) < 30) {
+                double len = (sites_[opp_f.idx()] - vertex).norm();
+                if (vis.find(opp_f) == vis.end() && len < R + tol) {
+                        que.push(opp_f);
+                        vis.insert(opp_f);
+                }
+            }
+        }
+    }
+
+    std::set<easy3d::SurfaceMesh::Face> vis2;
+    que.push(vertex_nearby_sites[0]);
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        if (vis2.find(cur) != vis2.end()) {
+            continue;
+        }
+        vis2.insert(cur);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && vis.find(opp_f) != vis.end() && vis2.find(opp_f) == vis2.end()) {
+                que.push(opp_f);
+                vis2.insert(cur);
+            }
+        }
+    }
+    // // return vis2.size();
+    std::vector<int> indices;
+    for(auto f : vis) {
+        indices.emplace_back(f.idx());
+        err += face_area[f];
+    }
+    int num = indices.size();
+    if(vis2.size() != vis.size()) {
+        // easy3d::PointCloud* cloud = new easy3d::PointCloud;
+        // for(size_t i = 0; i < indices.size(); i++) {
+        //     cloud->add_vertex(sites_[indices[i]]);
+        // }
+        // cloud->add_vertex(vertex);
+        // easy3d::PointCloudIO::save("../data/" + std::to_string(dsa++) + ".ply", cloud);
+        return 0.0;
+    }
+    return err / (4 * R * R);
+}
+
+float FilletSegV2::probability_of_vertex_normal(easy3d::vec3& vertex, std::vector<easy3d::SurfaceMesh::Face>& vertex_nearby_sites) {
+
+
+    std::set<easy3d::SurfaceMesh::Face> vis;
+    std::queue<easy3d::SurfaceMesh::Face>que;
+    for(auto f : vertex_nearby_sites) {
+        vis.insert(f);
+        que.push(f);
+    }
+
+    double R = (sites_[vertex_nearby_sites[0].idx()] - vertex).norm();
+    double tol = R * eps_;
+    double err = 0.0;
+
+    double thr = box_.diagonal_length() * 0.07;
+    if(R > thr) {
+        return 1.0;
+    }
+
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        err += abs((sites_[cur.idx()] - vertex).norm() - R);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && dihedral_angle(mesh_, cur, opp_f) < 30) {
+                double len = (sites_[opp_f.idx()] - vertex).norm();
+                if (vis.find(opp_f) == vis.end() && len < R + tol) {
+                        que.push(opp_f);
+                        vis.insert(opp_f);
+                }
+            }
+        }
+    }
+
+    std::set<easy3d::SurfaceMesh::Face> vis2;
+    que.push(vertex_nearby_sites[0]);
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        if (vis2.find(cur) != vis2.end()) {
+            continue;
+        }
+        vis2.insert(cur);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && vis.find(opp_f) != vis.end() && vis2.find(opp_f) == vis2.end()) {
+                que.push(opp_f);
+                vis2.insert(cur);
+            }
+        }
+    }
+    // // return vis2.size();
+    std::vector<int> indices;
+    for(auto f : vis) {
+        indices.emplace_back(f.idx());
+        easy3d::vec3 asd = (sites_[f.idx()] - vertex).normalize();
+        err += easy3d::cross(asd, face_normals[f]).length2();
+    }
+    int num = indices.size();
+    if(vis2.size() != vis.size()) {
+        // easy3d::PointCloud* cloud = new easy3d::PointCloud;
+        // for(size_t i = 0; i < indices.size(); i++) {
+        //     cloud->add_vertex(sites_[indices[i]]);
+        // }
+        // cloud->add_vertex(vertex);
+        // easy3d::PointCloudIO::save("../data/" + std::to_string(dsa++) + ".ply", cloud);
+        return 1.0;
+    }
+    return err / vis.size();
+}
 
 void FilletSegV2::crop_local_patch(easy3d::SurfaceMesh::Face f, double radius
                         , std::vector<easy3d::SurfaceMesh::Face>& patch) {
@@ -351,14 +791,15 @@ void FilletSegV2::crop_local_patch(easy3d::SurfaceMesh::Face f, double radius
     patch.insert(patch.end(), vis.begin(), vis.end());
 }
 
-void FilletSegV2::probability_of_sites() {
-    // std::vector<std::vector<int>> sites_nearby_vertices;
-    // std::vector<std::vector<int>> vertices_nearby_sites;
+void FilletSegV2::eigen_value(bool sor_flag) {
     std::vector<easy3d::vec3> tmp;
+    int idx = 0;
+    int ct = 0;
     for(auto f : mesh_->faces()) {
-        if(f.idx() % 50 == 0) {
+        if(f.idx() % 100 == 0) {
             std::vector<easy3d::SurfaceMesh::Face> patch;
             crop_local_patch(f, radius_, patch);
+
             std::vector<easy3d::vec3> sites;
             for(size_t i = 0; i < patch.size(); i++) {
                 sites.emplace_back(sites_[patch[i].idx()]);
@@ -369,31 +810,535 @@ void FilletSegV2::probability_of_sites() {
             voronoi3d(sites,  vor_vertices,sites_nearby_vertices, vertices_nearby_sites);
             for(size_t i = 0; i < vor_vertices.size(); i++) {
                 if(box_.contains(vor_vertices[i])) {
-                    tmp.emplace_back(vor_vertices[i]);
+                    ct++;
+                    std::vector<int> indices(4);
+                    for(int j = 0; j < 4; j++) {
+                        indices[j] = patch[vertices_nearby_sites[i][j]].idx();
+                    }
+                    std::sort(indices.begin(), indices.end());
+                    bool flag = true;
+                    if(mp_.find(indices[0]) != mp_.end()) {
+                        auto& sub_mp1 = mp_[indices[0]];
+                        if(sub_mp1.find(indices[1]) != sub_mp1.end()) {
+                            auto& sub_mp2 = sub_mp1[indices[1]];
+                            if(sub_mp2.find(indices[2]) != sub_mp2.end()) {
+                                auto& sub_mp3 = sub_mp2[indices[2]];
+                                if(sub_mp3.find(indices[3]) != sub_mp3.end()) {
+                                    flag = false;
+                                }
+                            }
+                        }
+                    }
+                    if(flag) {
+                        total_vor_vertices_.emplace_back(vor_vertices[i]);
+                        total_vor_nearby_sites_.emplace_back(indices);
+                        mp_[indices[0]][indices[1]][indices[2]][indices[3]] = idx++;
+                    }
+                }
+            }
+        }
+    }
+    std::cout << idx << ' ' << ct << std::endl;
+    std::vector<bool> labels(total_vor_vertices_.size(), true);
+    if(sor_flag)
+        sor(total_vor_vertices_, labels);
+    for(size_t i = 0; i < labels.size(); i++) {
+        if(labels[i]) {
+            std::vector<easy3d::SurfaceMesh::Face> ss = {
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][0]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][1]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][2]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][3])
+            };
+
+            double score = probability_of_vertex(total_vor_vertices_[i], ss);
+            vor_vertices_.emplace_back(total_vor_vertices_[i]);
+            vor_vertices_score_.emplace_back(score);
+        }
+    }
+    auto maxElement = std::max_element(vor_vertices_score_.begin(), vor_vertices_score_.end());
+    auto minElement = std::min_element(vor_vertices_score_.begin(), vor_vertices_score_.end());
+    std::cout << *maxElement << ' ' << *minElement << std::endl;
+}
+
+void FilletSegV2::probability_of_sites() {
+    // std::vector<std::vector<int>> sites_nearby_vertices;
+    // std::vector<std::vector<int>> vertices_nearby_sites;
+    std::vector<easy3d::vec3> tmp;
+    int idx = 0;
+    int ct = 0;
+    for(auto f : mesh_->faces()) {
+        if(f.idx() % 100 == 0) {
+            std::vector<easy3d::SurfaceMesh::Face> patch;
+            crop_local_patch(f, radius_, patch);
+
+            std::vector<easy3d::vec3> sites;
+            for(size_t i = 0; i < patch.size(); i++) {
+                sites.emplace_back(sites_[patch[i].idx()]);
+            }
+            std::vector<std::vector<int>> sites_nearby_vertices;
+            std::vector<std::vector<int>> vertices_nearby_sites;
+            std::vector<easy3d::vec3> vor_vertices;
+            voronoi3d(sites,  vor_vertices,sites_nearby_vertices, vertices_nearby_sites);
+            for(size_t i = 0; i < vor_vertices.size(); i++) {
+                if(box_.contains(vor_vertices[i])) {
+                    ct++;
+                    std::vector<int> indices(4);
+                    for(int j = 0; j < 4; j++) {
+                        indices[j] = patch[vertices_nearby_sites[i][j]].idx();
+                    }
+                    std::sort(indices.begin(), indices.end());
+                    bool flag = true;
+                    if(mp_.find(indices[0]) != mp_.end()) {
+                        auto& sub_mp1 = mp_[indices[0]];
+                        if(sub_mp1.find(indices[1]) != sub_mp1.end()) {
+                            auto& sub_mp2 = sub_mp1[indices[1]];
+                            if(sub_mp2.find(indices[2]) != sub_mp2.end()) {
+                                auto& sub_mp3 = sub_mp2[indices[2]];
+                                if(sub_mp3.find(indices[3]) != sub_mp3.end()) {
+                                    flag = false;
+                                }
+                            }
+                        }
+                    }
+                    if(flag) {
+                        total_vor_vertices_.emplace_back(vor_vertices[i]);
+                        total_vor_nearby_sites_.emplace_back(indices);
+                        mp_[indices[0]][indices[1]][indices[2]][indices[3]] = idx++;
+                    }
+                }
+            }
+        }
+    }
+    std::cout << idx << ' ' << ct << std::endl;
+    std::vector<bool> labels(total_vor_vertices_.size(), true);
+    // sor(total_vor_vertices_, labels);
+    for(size_t i = 0; i < labels.size(); i++) {
+        if(labels[i]) {
+            std::vector<easy3d::SurfaceMesh::Face> ss = {
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][0]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][1]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][2]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][3])
+            };
+
+            double score = probability_of_vertex(total_vor_vertices_[i], ss);
+            // if(score < 5) {
+                vor_vertices_.emplace_back(total_vor_vertices_[i]);
+                vor_vertices_score_.emplace_back(score);
+            // }
+        }
+
+    }
+    // auto maxElement = std::max_element(vor_vertices_score_.begin(), vor_vertices_score_.end());
+    // auto minElement = std::min_element(vor_vertices_score_.begin(), vor_vertices_score_.end());
+    // std::cout << *maxElement << ' ' << *minElement << std::endl;
+   //  Eigen::MatrixXd data(labels.size(), 3);
+   //  Eigen::VectorXi indices;
+   // Eigen::MatrixXd center;
+   //  int id = 0;
+   //  for(size_t i = 0; i < labels.size(); i++) {
+   //      if(labels[i]) {
+   //          data.row(id++) = Eigen::Vector3d(total_vor_vertices_[i].x, total_vor_vertices_[i].y, total_vor_vertices_[i].z);
+   //      }
+   //  }
+   //  data.conservativeResize(id, 3);
+   //  int m = 1000;
+   //  elkan_kmeans(data, 100, indices, center, m);
+   //  // kmeans(data, 100, indices, center, m);
+   //  for(size_t i = 0; i < center.rows(); i++) {
+   //      easy3d::vec3 p(center(i,0), center(i,1), center(i,2));
+   //      std::cout << p.x << ' ' << p.y << ' ' << p.z << std::endl;
+   //      vor_vertices_.emplace_back(p);
+   //      vor_vertices_score_.emplace_back(0.0);
+   //  }
+}
+
+void FilletSegV2::probability_of_sites2() {
+    // std::vector<std::vector<int>> sites_nearby_vertices;
+    // std::vector<std::vector<int>> vertices_nearby_sites;
+    std::vector<easy3d::vec3> tmp;
+    int idx = 0;
+    int ct = 0;
+    for(auto f : mesh_->faces()) {
+        if(f.idx() % 100 == 0) {
+            std::vector<easy3d::SurfaceMesh::Face> patch;
+            crop_local_patch(f, radius_, patch);
+
+            std::vector<easy3d::vec3> sites;
+            for(size_t i = 0; i < patch.size(); i++) {
+                sites.emplace_back(sites_[patch[i].idx()]);
+            }
+            std::vector<std::vector<int>> sites_nearby_vertices;
+            std::vector<std::vector<int>> vertices_nearby_sites;
+            std::vector<easy3d::vec3> vor_vertices;
+            voronoi3d(sites,  vor_vertices,sites_nearby_vertices, vertices_nearby_sites);
+            for(size_t i = 0; i < vor_vertices.size(); i++) {
+                if(box_.contains(vor_vertices[i])) {
+                    ct++;
+                    std::vector<int> indices(4);
+                    for(int j = 0; j < 4; j++) {
+                        indices[j] = patch[vertices_nearby_sites[i][j]].idx();
+                    }
+                    std::sort(indices.begin(), indices.end());
+                    bool flag = true;
+                    if(mp_.find(indices[0]) != mp_.end()) {
+                        auto& sub_mp1 = mp_[indices[0]];
+                        if(sub_mp1.find(indices[1]) != sub_mp1.end()) {
+                            auto& sub_mp2 = sub_mp1[indices[1]];
+                            if(sub_mp2.find(indices[2]) != sub_mp2.end()) {
+                                auto& sub_mp3 = sub_mp2[indices[2]];
+                                if(sub_mp3.find(indices[3]) != sub_mp3.end()) {
+                                    flag = false;
+                                }
+                            }
+                        }
+                    }
+                    if(flag) {
+                        total_vor_vertices_.emplace_back(vor_vertices[i]);
+                        total_vor_nearby_sites_.emplace_back(indices);
+                        mp_[indices[0]][indices[1]][indices[2]][indices[3]] = idx++;
+                    }
+                }
+            }
+        }
+    }
+    std::cout << idx << ' ' << ct << std::endl;
+    std::vector<bool> labels(total_vor_vertices_.size(), true);
+    // sor(total_vor_vertices_, labels);
+    for(size_t i = 0; i < labels.size(); i++) {
+        if(labels[i]) {
+            std::vector<easy3d::SurfaceMesh::Face> ss = {
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][0]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][1]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][2]),
+                easy3d::SurfaceMesh::Face(total_vor_nearby_sites_[i][3])
+            };
+
+            double angle = transition_angle(total_vor_vertices_[i], ss);
+            if(angle > 0) {
+                vor_vertices_.emplace_back(total_vor_vertices_[i]);
+                vor_transition_angle_.emplace_back(angle);
+                double r = (sites_[total_vor_nearby_sites_[i][0]] - total_vor_vertices_[i]).norm();
+                vor_radius_.emplace_back(r);
+            }
+        }
+    }
+
+    std::vector<KNN::Point> knn_points;
+#pragma omp parallel for
+    for(int i = 0; i < vor_vertices_.size(); i++) {
+#pragma omp critical
+            {
+                knn_points.emplace_back(KNN::Point(vor_vertices_[i].x,
+                                                   vor_vertices_[i].y, vor_vertices_[i].z));
+            }
+    }
+
+    KNN::KdSearch kds(knn_points);
+    int k = 30;
+    for(int i = 0; i < vor_vertices_.size(); i++) {
+        std::vector<size_t> tmp_indices;
+        std::vector<double> dist;
+        kds.kth_search(knn_points[i], k, tmp_indices, dist);
+        double tot_r = 0;
+        double tot_a = 0;
+        double tot_d = 0;
+        for(int j = 0; j < tmp_indices.size(); j++) {
+            double r_dis = std::abs(vor_radius_[tmp_indices[j]] - vor_radius_[i]);
+            double a_dis = std::abs(vor_transition_angle_[tmp_indices[j]] - vor_transition_angle_[i]);
+            double d_dis = (vor_vertices_[tmp_indices[j]] - vor_vertices_[i]).norm();
+            tot_r += r_dis;
+            tot_a += a_dis;
+            tot_d += d_dis;
+        }
+        tot_r = tot_r / k;
+        tot_a = tot_a / k;
+        tot_d = tot_d / k;
+        // if(sum / 10 > 1.0) {
+        //     vor_vertices_score_.emplace_back(1.0);
+        // } else
+        vor_vertices_score_.emplace_back( tot_a);
+    }
+    auto max_ele = std::max_element(vor_vertices_score_.begin(), vor_vertices_score_.end());
+    auto min_ele = std::min_element(vor_vertices_score_.begin(), vor_vertices_score_.end());
+    // for(size_t i = 0; i < vor_vertices_score_.size(); i++) {
+    //
+    // }
+    std::cout << *max_ele << ' ' << *min_ele << std::endl;
+    // std::vector<double> fff = vor_vertices_score_;
+    // std::sort(fff.begin(), fff.end());
+
+
+}
+
+bool FilletSegV2::vor_vertex_aixs(easy3d::vec3& vertex, std::vector<int>& vertex_nearby_sites_indices, easy3d::vec3& axis) {
+    std::set<int> vis;
+    std::queue<int>que;
+    for(auto f : vertex_nearby_sites_indices) {
+        vis.insert(f);
+        que.push(f);
+    }
+
+    double R = (sites_[vertex_nearby_sites_indices[0]] - vertex).norm();
+    double tol = R * eps_;
+    double err = 0.0;
+
+    double thr = box_.diagonal_length() * 0.07;
+    if(R > thr) {
+        return 1.0;
+    }
+
+    while(!que.empty()) {
+        auto cur_id = que.front();
+        easy3d::SurfaceMesh::Face cur(cur_id);
+        que.pop();
+        err += abs((sites_[cur_id] - vertex).norm() - R);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && dihedral_angle(mesh_, cur, opp_f) < 30) {
+                double len = (sites_[opp_f.idx()] - vertex).norm();
+                if (vis.find(opp_f.idx()) == vis.end() && len < R + tol) {
+                        que.push(opp_f.idx());
+                        vis.insert(opp_f.idx());
                 }
             }
         }
     }
 
-    std::vector<bool> label(tmp.size(), true);
-    deduplication(tmp, label);
-    std::vector<easy3d::vec3> tmp2;
-    for(size_t i = 0; i < tmp.size(); i++) {
-        if(label[i]) {
-            tmp2.emplace_back(tmp[i]);
+    std::set<int> vis2;
+    que.push(vertex_nearby_sites_indices[0]);
+    while(!que.empty()) {
+        auto cur_id = que.front();
+        easy3d::SurfaceMesh::Face cur(cur_id);
+        que.pop();
+        if (vis2.find(cur.idx()) != vis2.end()) {
+            continue;
+        }
+        vis2.insert(cur.idx());
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && vis.find(opp_f.idx()) != vis.end() && vis2.find(opp_f.idx()) == vis2.end()) {
+                que.push(opp_f.idx());
+                vis2.insert(cur.idx());
+            }
+        }
+    }
+    // // return vis2.size();
+    std::vector<int> indices;
+    for(auto f : vis) {
+        indices.emplace_back(f);
+    }
+    int num = indices.size();
+    if(vis2.size() != vis.size()) {
+        return false;
+    }
+
+
+    Eigen::MatrixXd S(num, 3);
+    for(int i = 0; i < num; i++) {
+        S.row(i) = Eigen::Vector3d(sites_[indices[i]].x - vertex.x, sites_[indices[i]].y - vertex.y, sites_[indices[i]].z - vertex.z);
+    }
+    // Eigen::MatrixXd S(num, 3);
+    Eigen::MatrixXd M = S.transpose() * S;
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
+    if (eigensolver.info() != Eigen::Success) {
+        std::cerr << "Eigen solver failed!" << std::endl;
+        return false;
+    }
+    Eigen::VectorXd eigenvalues = eigensolver.eigenvalues();
+    Eigen::MatrixXd eigenvectors = eigensolver.eigenvectors();
+    axis = easy3d::vec3(eigenvectors.col(0)[0], eigenvectors.col(0)[1], eigenvectors.col(0)[2]).normalize();
+    return true;
+}
+
+void FilletSegV2::sites_probablity(bool sor_flag) {
+    int idx = 0, ct = 0;
+    for(auto f : mesh_->faces()) {
+        if(f.idx() % 100 == 0) {
+            std::vector<easy3d::SurfaceMesh::Face> patch;
+            crop_local_patch(f, radius_, patch);
+
+            std::vector<easy3d::vec3> sites;
+            for(size_t i = 0; i < patch.size(); i++) {
+                sites.emplace_back(sites_[patch[i].idx()]);
+            }
+            std::vector<std::vector<int>> sites_nearby_vertices;
+            std::vector<std::vector<int>> vertices_nearby_sites;
+            std::vector<easy3d::vec3> vor_vertices;
+            voronoi3d(sites,  vor_vertices,sites_nearby_vertices, vertices_nearby_sites);
+            for(size_t i = 0; i < vor_vertices.size(); i++) {
+                if(box_.contains(vor_vertices[i])) {
+                    ct++;
+                    std::vector<int> indices(4);
+                    for(int j = 0; j < 4; j++) {
+                        indices[j] = patch[vertices_nearby_sites[i][j]].idx();
+                    }
+                    std::sort(indices.begin(), indices.end());
+                    bool flag = true;
+                    if(mp_.find(indices[0]) != mp_.end()) {
+                        auto& sub_mp1 = mp_[indices[0]];
+                        if(sub_mp1.find(indices[1]) != sub_mp1.end()) {
+                            auto& sub_mp2 = sub_mp1[indices[1]];
+                            if(sub_mp2.find(indices[2]) != sub_mp2.end()) {
+                                auto& sub_mp3 = sub_mp2[indices[2]];
+                                if(sub_mp3.find(indices[3]) != sub_mp3.end()) {
+                                    flag = false;
+                                }
+                            }
+                        }
+                    }
+                    if(flag) {
+                        total_vor_vertices_.emplace_back(vor_vertices[i]);
+                        total_vor_nearby_sites_.emplace_back(indices);
+                        mp_[indices[0]][indices[1]][indices[2]][indices[3]] = idx++;
+                    }
+                }
+            }
+        }
+    }
+    std::cout << idx << ' ' << ct << std::endl;
+    std::vector<bool> labels(total_vor_vertices_.size(), true);
+
+    if(sor_flag)
+        sor(total_vor_vertices_, labels);
+
+    std::vector<KNN::Point> knn_points;
+#pragma omp parallel for
+    for(int i = 0; i < vor_vertices_.size(); i++) {
+#pragma omp critical
+        {
+            // if(labels[i])
+                knn_points.emplace_back(KNN::Point(total_vor_vertices_[i].x,
+                                               total_vor_vertices_[i].y, total_vor_vertices_[i].z));
         }
     }
 
-    std::vector<bool> label2(tmp2.size(), true);
-    sor(tmp2, label2);
-    for(size_t i = 0; i < tmp2.size(); i++) {
-        if(label2[i]) {
-            vor_vertices_.emplace_back(tmp2[i]);
+    KNN::KdSearch kds(knn_points);
+    int k = 100;
+    vor_vertices_ = total_vor_vertices_;
+    vor_vertices_score_.resize(vor_vertices_.size());
+    for(size_t i = 0; i < labels.size(); i++) {
+        if(labels[i]) {
+            std::vector<int> sites_indices = {total_vor_nearby_sites_[i][0],  total_vor_nearby_sites_[i][1],
+            total_vor_nearby_sites_[i][2], total_vor_nearby_sites_[i][3]};
+            easy3d::vec3 aixs1;
+            // std::cout << "ASD" << std::endl;
+            if(!vor_vertex_aixs(total_vor_vertices_[i], sites_indices, aixs1)) {
+                vor_vertices_score_[i] = 1.0;
+                continue;
+            }
+
+            std::vector<size_t> tmp_indices;
+            std::vector<double> dist;
+            kds.kth_search(knn_points[i], k, tmp_indices, dist);
+            Eigen::MatrixXd S(k, 3);
+            int cc = 0;
+            for(int j = 0; j < k; j++) {
+                // if(tmp_indices[j] != i)
+                S.row(cc++) = Eigen::Vector3d(total_vor_vertices_[tmp_indices[j]].x - total_vor_vertices_[i].x
+                                           ,total_vor_vertices_[tmp_indices[j]].y - total_vor_vertices_[i].y
+                                           , total_vor_vertices_[tmp_indices[j]].z - total_vor_vertices_[i].z);
+            }
+            // std::cout << "ASD" << std::endl;
+            Eigen::MatrixXd M = S.transpose() * S;
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
+            if (eigensolver.info() != Eigen::Success) {
+                std::cerr << "Eigen solver failed!" << std::endl;
+                vor_vertices_score_[i] = 1.0;
+            }
+            Eigen::VectorXd eigenvalues = eigensolver.eigenvalues();
+            Eigen::MatrixXd eigenvectors = eigensolver.eigenvectors();
+            easy3d::vec3 aixs2 = easy3d::vec3(eigenvectors.col(2)[0], eigenvectors.col(2)[1], eigenvectors.col(2)[2]).normalize();
+            double vv = easy3d::cross(aixs1, aixs2).norm();
+            vor_vertices_score_[i] = vv;
+            // std::cout << vv <<std::endl;
+        }else {
+            vor_vertices_score_[i] = 1.0;
+        }
+        // std::cout << i << std::endl;
+    }
+}
+
+
+double FilletSegV2::transition_angle(easy3d::vec3& vertex,
+        std::vector<easy3d::SurfaceMesh::Face>& vertex_nearby_sites) {
+        std::set<easy3d::SurfaceMesh::Face> vis;
+    std::queue<easy3d::SurfaceMesh::Face>que;
+    for(auto f : vertex_nearby_sites) {
+        vis.insert(f);
+        que.push(f);
+    }
+
+    double R = (sites_[vertex_nearby_sites[0].idx()] - vertex).norm();
+    double tol = R * eps_;
+    double err = 0.0;
+
+    double thr = box_.diagonal_length() * 0.07;
+    if(R > thr) {
+        return -1.0;
+    }
+
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        err += abs((sites_[cur.idx()] - vertex).norm() - R);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && dihedral_angle(mesh_, cur, opp_f) < 30) {
+                double len = (sites_[opp_f.idx()] - vertex).norm();
+                if (vis.find(opp_f) == vis.end() && len < R + tol) {
+                        que.push(opp_f);
+                        vis.insert(opp_f);
+                }
+            }
         }
     }
-    std::cout << "ASD" <<std::endl;
-    // std::cout << "ASD" <<std::endl;
-    density(vor_vertices_, vor_vertices_score_);
+
+    std::set<easy3d::SurfaceMesh::Face> vis2;
+    que.push(vertex_nearby_sites[0]);
+    while(!que.empty()) {
+        auto cur = que.front();
+        que.pop();
+        if (vis2.find(cur) != vis2.end()) {
+            continue;
+        }
+        vis2.insert(cur);
+        for (auto h: mesh_->halfedges(cur)) {
+            auto opp_f = mesh_->face(mesh_->opposite(h));
+            if (opp_f.is_valid() && vis.find(opp_f) != vis.end() && vis2.find(opp_f) == vis2.end()) {
+                que.push(opp_f);
+                vis2.insert(cur);
+            }
+        }
+    }
+    // // return vis2.size();
+    std::vector<int> indices;
+    for(auto f : vis) {
+        indices.emplace_back(f.idx());
+    }
+    int num = indices.size();
+    if(vis2.size() != vis.size()) {
+        return -1.0;
+    }
+    double maxx = 0;
+    for(int i = 0;  i < num; i++) {
+        easy3d::vec3 n1 = (sites_[indices[i]] - vertex).normalize();
+        // easy3d::vec3 n1 = face_normals[easy3d::SurfaceMesh::Face(indices[i])];
+        for(int j = i + 1; j < num; j++) {
+            easy3d::vec3 n2 = (sites_[indices[j]] - vertex).normalize();
+            // easy3d::vec3 n2 = face_normals[easy3d::SurfaceMesh::Face(indices[j])];
+            double radians = abs(acos(dot(n1, n2)));
+            double degrees = radians * 180.0 / M_PI;
+            if(degrees > maxx) {
+                maxx = degrees;
+            }
+        }
+    }
+    // if(maxx < 30) {
+    //     return -1.0;
+    // }
+    return maxx;
 }
 
 void FilletSegV2::deduplication(const std::vector<easy3d::vec3>& points, std::vector<bool>& labels) {
@@ -410,7 +1355,7 @@ void FilletSegV2::deduplication(const std::vector<easy3d::vec3>& points, std::ve
     for(int i = 0; i < nb_points; i++) {
         if(labels[i]) {
             std::vector<size_t> neighbors;
-            std::vector<float> squared_distances;
+            std::vector<double> squared_distances;
             int num = kds.radius_search(knn_points[i], 1e-3, neighbors, squared_distances);
             for(int j = 0; j < num; j++) {
                 // double d = sqrt(squared_distances[j]);

@@ -34,8 +34,8 @@
 
 	///////////////////////////////////////////////////
 
-	#include <stdio.h>
-	#include "energy.h"
+	#dkm <stdio.h>
+	#dkm "energy.h"
 
 	void main()
 	{

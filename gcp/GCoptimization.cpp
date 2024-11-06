@@ -1097,7 +1097,7 @@ GCoptimization::EnergyType GCoptimization::setupLabelCostsExpansion(SiteID size,
 	for ( LabelCost* lc = m_labelcostsAll; lc; lc = lc->next )
 		lc->aux = UNINIT;
 
-	// Skip higher-order costs that include alpha_label or any label used
+	// Skip higher-order costs that dkm alpha_label or any label used
 	// outside the activeSites, since they cannot be eliminated by the expansion.
 	if ( m_queryActiveSitesExpansion == (SiteID (GCoptimization::*)(LabelID,SiteID*))&GCoptimization::queryActiveSitesExpansion<DataCostFnSparse> )
 	{

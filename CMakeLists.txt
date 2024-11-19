@@ -150,10 +150,19 @@ target_link_libraries(test5 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d
 target_link_libraries(test5 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
 
-add_executable(test6 app/test6.cpp)
+add_executable(test6 app/test6.cpp src/knn.cpp src/fillet_seg_v4.cpp src/knn4d.cpp)
 target_include_directories(test6 PRIVATE src)
 target_include_directories(test6 PRIVATE dkm)
 #target_link_libraries(test5 PRIVATE gcp geodesic)
 target_link_libraries(test6 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(test6 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
 target_link_libraries(test6 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
+
+
+add_executable(test7 app/test7.cpp src/knn.cpp src/fillet_seg_v5.cpp src/mean_shift.cpp)
+target_include_directories(test7 PRIVATE src)
+#target_include_directories(test7 PRIVATE dkm)
+target_link_libraries(test7 PRIVATE gcp geodesic)
+target_link_libraries(test7 PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test7 PRIVATE easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
+target_link_libraries(test7 PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)

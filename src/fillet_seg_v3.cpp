@@ -332,6 +332,12 @@ void FilletSegV3::generate_local_voronoi_vertices(std::vector<easy3d::vec3>& vv,
 
     if(sor_flag) {
         std::vector<bool> labels(tmp_vv.size(), true);
+        float thr = box_.diagonal_length() * 0.08;
+        for(size_t i = 0; i < tmp_vvr.size(); i++) {
+            if(tmp_vvr[i] > thr) {
+                labels[i] = false;
+            }
+        }
         sor(tmp_vv, labels);
         for(size_t i = 0; i < labels.size(); i++) {
             if(labels[i]) {

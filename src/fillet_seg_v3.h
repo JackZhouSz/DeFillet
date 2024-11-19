@@ -57,7 +57,7 @@ public:
     std::vector<easy3d::vec3> sites_;
     std::vector<easy3d::vec3> vv_; //voronoi vertices;
     std::vector<float> vvr_; // voronoi vertices radius
-    std::vector<std::vector<int>> vvns_; // voronoi vertices nearby sites
+    // std::vector<std::vector<int>> vvns_; // voronoi vertices nearby sites
     std::vector<std::vector<int>> vvcs_; // voronoi vertices corresponding sites
     std::vector<std::vector<int>> scvv_; // sites corresponding voronoi vertices
     std::vector<float> vvs_; // voronoi vertices score

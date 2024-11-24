@@ -54,7 +54,6 @@ std::vector<std::pair<easy3d::vec3,int>> MeanShift::run(const std::vector<easy3d
         max_shift_distance = 0;
         for(int i = 0; i < num; i++) {
             if(!stop_moving[i]) {
-
                 easy3d::vec3 tmp;
                 shift_point(shift_points[i], kernel_bandwidth,  tmp);
                 double shift_distance_sqr = (tmp - shift_points[i]).length2();
@@ -67,7 +66,7 @@ std::vector<std::pair<easy3d::vec3,int>> MeanShift::run(const std::vector<easy3d
         }
         // printf("max_shift_distance: %f\n", sqrt(max_shift_distance));
         iter++;
-    } while(max_shift_distance > eps_sqr);
+    } while(max_shift_distance > eps_sqr && iter < max_iter_num);
 
     std::vector<std::pair<easy3d::vec3,int>> res;
     for(int i = 0; i < num; i++) {

@@ -18,19 +18,28 @@ public:
     void generate_local_voronoi_vertices(std::vector<easy3d::vec3>& vv
                                        , std::vector<float>& vvr
                                        , std::vector<std::vector<int>>& vvns
+                                       , std::vector<std::vector<int>>& vvcs
                                        , bool sor_flag = true
-                                       , bool radius_thr = true);
+                                       , bool radius_thr = true
+                                       , bool vvcs_flag = true);
 
-    void voronoi_density_drift(std::vector<easy3d::vec3>& vv
-                             , std::vector<float>& vvr
-                             , std::vector<std::vector<int>>& vvns
-                             , std::vector<std::vector<int>>& scvv);
+    void voronoi_density_drift_vvns(std::vector<easy3d::vec3>& vv
+                                  , std::vector<float>& vvr
+                                  , std::vector<std::vector<int>>& vvns
+                                  , std::vector<std::vector<int>>& scvv);
+    void voronoi_density_drift_vvcs(std::vector<easy3d::vec3>& vv
+                              , std::vector<float>& vvr
+                              , std::vector<std::vector<int>>& vvcs
+                              , std::vector<std::vector<int>>& scvv);
 
+    void marching_axis_transform(std::vector<easy3d::vec3>&s_,std::vector<easy3d::vec3>& vv
+                               , std::vector<float>& vvr, std::vector<std::vector<int>>& scvv
+                               , std::vector<easy3d::vec3>& ma);
 
 
     void farthest_point_sampling(int nb_samples, std::vector<int>& indices, float& max_gap);
 
-
+    bool search_corresponding_sites(easy3d::vec3 vv,  float r, std::vector<int>& vvns, std::vector<int>& vvcs);
 
 
     // utils
@@ -51,6 +60,7 @@ public:
     int calculate_samples_num(float radius);
 
     void save_point_set(std::vector<easy3d::vec3>& points, std::string& path);
+    void save_point_field(std::vector<easy3d::vec3>& points, std::vector<float>& field, std::string& path);
     //test
 public:
     easy3d::Box3 box_;
@@ -63,7 +73,7 @@ public:
     std::vector<std::vector<int>> vvns_; // voronoi vertices neighboring sites
     std::vector<std::vector<int>> vvcs_; // voronoi vertices corresponding sites
     std::vector<std::vector<int>> scvv_; // sites corresponding voronoi vertices
-
+    std::vector<easy3d::vec3> ma_; //marching axis
     double eps_;
     double sigma_;
     float radius_;

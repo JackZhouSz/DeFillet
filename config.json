@@ -1,0 +1,17 @@
+{
+  "path": "D:\\code\\defillet_case\\21456_b7c7c65c_0\\21456_b7c7c65c_0.ply",
+  "out_dir": "../out/",
+  "eps": 0.0002,
+  "num_samples" : 1000,
+  "radius_thr" : 0.02,
+  "angle_thr" : 40,
+  "local_voronoi" : true,
+  "sor_filter" : false,
+  "radius_filter" : true,
+  "num_sor_iter" : 1,
+  "num_neighbors" : 30,
+  "sor_std_radio" : 0.1,
+  "h" : 1.0,
+  "num_smmoth_iter": 5,
+  "lamdba" : 10.0
+}

@@ -10,7 +10,7 @@
 namespace easy3d {
     class SurfaceMeshSegmenter {
     public:
-        SurfaceMeshSegmenter(SurfaceMesh* mesh);
+        SurfaceMeshSegmenter(easy3d::SurfaceMesh* mesh);
         ~SurfaceMeshSegmenter();
 
         template<typename FT>
@@ -65,6 +65,7 @@ namespace easy3d {
         }
     private:
         easy3d::SurfaceMesh* mesh_;
+        // easy3d::SurfaceMesh* mesh_;
     };
 }
 

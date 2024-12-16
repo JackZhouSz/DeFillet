@@ -16,11 +16,8 @@ public:
                , float radius_thr = 0.07
                , float angle_thr = 40
                , bool local_voronoi = true
-               , bool sor_filter = true
                , bool radius_filter = true
-               , int num_sor_iter = 3
                , int num_neighbors = 30
-               , float sor_std_radio = 0.5
                , float h = 0.1
                , int num_smooth_iter = 10
                , float lamdba = 0.5);
@@ -120,11 +117,12 @@ public:
     float gvv_time_; //generate voronoi vertices timme
     float mat_time_; //voronoi dennity drift time
     float gcp_time_; //graph cut time
-    float tot_time_; //total time
+    float seg_tot_time_; //segmentation total time
 
     bool local_voronoi_; // generate Voronoi vertices using global or local strategy (true for local, and false for global)
     bool radius_filter_; // use radius threshhold or not
     bool sor_filter_; // use sor filter or not
+
 
 };
 

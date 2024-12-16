@@ -28,24 +28,28 @@ FilletSegV8::FilletSegV8(easy3d::SurfaceMesh* mesh
                        , float radius_thr
                        , float angle_thr
                        , bool local_voronoi
-                       , bool sor_filter
                        , bool radius_filter
-                       , int num_sor_iter
                        , int num_neighbors
-                       , float sor_std_radio
                        , float h
                        , int num_smooth_iter
                        , float lamdba)
-                       :   mesh_(mesh), eps_(eps), num_samples_(num_samples)
-                         , angle_thr_(angle_thr), local_voronoi_(local_voronoi)
-                         , radius_filter_(radius_filter), h_(h),  sor_filter_(sor_filter)
-                         , num_sor_iter_(num_sor_iter), num_neighbors_(num_neighbors), num_smooth_iter_(num_smooth_iter)
-                         , sor_std_radio_(sor_std_radio), lamdba_(lamdba){
+                       :   mesh_(mesh)
+                         , eps_(eps)
+                         , num_samples_(num_samples)
+                         , angle_thr_(angle_thr)
+                         , local_voronoi_(local_voronoi)
+                         , radius_filter_(radius_filter)
+                         , h_(h)
+                         , num_neighbors_(num_neighbors)
+                         , num_smooth_iter_(num_smooth_iter)
+                         , lamdba_(lamdba){
     int num = mesh->n_faces();
     s_.resize(num);
     sn_.resize(num);
     sg_.resize(num);
-
+    num_sor_iter_ = 3;
+    sor_filter_ = false;
+    sor_std_radio_ = 0.5;
     for(auto f : mesh->faces()) {
         s_[f.idx()] = easy3d::geom::centroid(mesh, f);
         sn_[f.idx()] = mesh->compute_face_normal(f);
@@ -381,7 +385,7 @@ void FilletSegV8::run_graph_cut(std::vector<float>& score, std::vector<int>& fil
     // save_mesh_field(mesh_, score, "../out/score.ply");
 
 
-    auto gcp = mesh_->face_property<int>("f:gcp_labels");
+    auto gcp = mesh_->face_property<int>("f:fillet_labels");
 
 
     int nb_face = s_num;

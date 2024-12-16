@@ -2,6 +2,7 @@
 // Created by xiaowuga on 2024/12/2.
 //
 #include "fillet_seg_v8.h"
+#include "defillet_v2.h"
 #include "io.h"
 #include <omp.h>
 #include <voro_viewer.h>
@@ -21,12 +22,15 @@ int main(int argc, char **argv) {
              false,
             false);
     std::string config_path;
+
     CLI::App app{"DEFILLET Command Line"};
     app.add_option("-c,--config", config_path, "Configure file")->required();
     CLI11_PARSE(app, argc, argv);
+
     std::ifstream file(config_path);
     json j;
     file >> j;
+
     std::string path = j["path"];
     std::string out_dir = j["out_dir"];
     float eps = j["eps"];
@@ -34,11 +38,8 @@ int main(int argc, char **argv) {
     float radius_thr = j["radius_thr"];
     float angle_thr = j["angle_thr"];
     bool local_voronoi = j["local_voronoi"];
-    bool sor_filter = j["sor_filter"];
     bool radius_filter = j["radius_filter"];
-    int num_sor_iter = j["num_sor_iter"];
     int num_neighbors = j["num_neighbors"];
-    float sor_std_radio = j["sor_std_radio"];
     float h = j["h"];
     int num_smmoth_iter = j["num_smmoth_iter"];
     float lamdba = j["lamdba"];
@@ -47,8 +48,8 @@ int main(int argc, char **argv) {
     omp_set_num_threads(num_threads);
     printf("Number of threads: %d\n", num_threads);
     FilletSegV8 fillet_seg_v8(mesh, eps, num_samples
-              , radius_thr, angle_thr, local_voronoi, sor_filter, radius_filter
-              , num_sor_iter, num_neighbors, sor_std_radio, h,  num_smmoth_iter, lamdba);
+              , radius_thr, angle_thr, local_voronoi, radius_filter
+              , num_neighbors,  h,  num_smmoth_iter, lamdba);
     fillet_seg_v8.run();
     save_fillet_seg_result(fillet_seg_v8, out_dir, false);
     easy3d::VoroViewer viewer("ASD");
@@ -57,6 +58,8 @@ int main(int argc, char **argv) {
     auto mavvcs = fillet_seg_v8.mavvcs_;
     viewer.init(mavv, mesh, mavvns, mavvcs);
     viewer.run();
+    DeFilletv2 de_filletv2(mesh);
+    de_filletv2.initialize();
     return 0;
 }
 

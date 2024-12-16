@@ -35,7 +35,7 @@ find_package(glfw3 CONFIG REQUIRED)
 add_subdirectory(gcp)
 add_subdirectory(geodesic)
 
-add_executable(fillet_seg app/fillet_seg.cpp src/knn4d.cpp src/knn.cpp src/fillet_seg_v8.cpp  src/voro_viewer.cpp)
+add_executable(fillet_seg app/fillet_seg.cpp src/knn4d.cpp src/knn.cpp src/fillet_seg_v8.cpp src/defillet_v2.cpp  src/voro_viewer.cpp src/surface_mesh_segmenter.cpp)
 target_include_directories(fillet_seg PRIVATE src)
 target_link_libraries(fillet_seg PRIVATE gcp geodesic)
 target_link_libraries(fillet_seg PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
@@ -43,11 +43,11 @@ target_link_libraries(fillet_seg PRIVATE easy3d::gui easy3d::algo easy3d::util e
 target_link_libraries(fillet_seg PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
 
-add_executable(defillet app/defillet.cpp src/defillet_v2.cpp)
-target_include_directories(defillet PRIVATE src)
-target_link_libraries(defillet PRIVATE  geodesic)
-target_link_libraries(defillet PRIVATE  Eigen3::Eigen igl::igl_core)
-target_link_libraries(defillet PRIVATE glfw imgui::imgui easy3d::algo easy3d::util easy3d::viewer easy3d::renderer easy3d::gui easy3d::fileio)
+#add_executable(defillet app/defillet.cpp src/defillet_v2.cpp)
+#target_include_directories(defillet PRIVATE src)
+#target_link_libraries(defillet PRIVATE  geodesic)
+#target_link_libraries(defillet PRIVATE  Eigen3::Eigen igl::igl_core)
+#target_link_libraries(defillet PRIVATE glfw imgui::imgui easy3d::algo easy3d::util easy3d::viewer easy3d::renderer easy3d::gui easy3d::fileio)
 #add_compile_definitions(SCALAR_COLOR_TEXTURE="${CMAKE_CURRENT_LIST_DIR}/lib-easy3d/resources/colormaps/rainbow.png")
 
 #set(source src/MeshVoronoi3d.cpp src/fillet_seg.cpp

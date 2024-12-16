@@ -6,6 +6,7 @@
 #define IO_H
 #include <igl/jet.h>
 #include <easy3d/core/point_cloud.h>
+#include <easy3d/core/surface_mesh.h>
 #include <easy3d/fileio/point_cloud_io.h>
 #include <easy3d/fileio/surface_mesh_io.h>
 

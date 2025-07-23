@@ -25,7 +25,8 @@
 ### [Project Page](https://github.com/xiaowuga/DeFillet) | [Paper](https://github.com/xiaowuga/DeFillet) | [Poster](https://github.com/xiaowuga/DeFillet)
 
 This repository contains the official implementation of our SIGGRAPH 2025 paper "DeFillet: Detection and Removal of Fillet Regions in Polygonal CAD Models".
-[![点击观看视频](./asset/img.png)](https://www.bilibili.com/video/BV1sW8wz6EEc/?vd_source=092295aa747638ab207808257f039dea)
+
+[//]: # ([![点击观看视频]&#40;./asset/img.png&#41;]&#40;https://www.bilibili.com/video/BV1sW8wz6EEc/?vd_source=092295aa747638ab207808257f039dea&#41;)
 
 **Please give a star and cite if you find this repo useful.**
 

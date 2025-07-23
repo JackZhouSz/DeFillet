@@ -3,7 +3,7 @@
 //
 #include "fillet_seg_v8.h"
 #include "defillet_v2.h"
-#include "io.h"
+#include "util.h"
 #include <omp.h>
 #include <voro_viewer.h>
 
@@ -15,7 +15,7 @@
 using json = nlohmann::json;
 
 void save_fillet_seg_result(FilletSegV8& fillet_seg_v8, std::string out_dir, bool flag = true);
-
+void save_defillet_result(DeFilletv2& de_filletv2, std::string out_dir, bool flag = true);
 
 int main(int argc, char **argv) {
     easy3d::logging::initialize(false, false,
@@ -41,8 +41,11 @@ int main(int argc, char **argv) {
     bool radius_filter = j["radius_filter"];
     int num_neighbors = j["num_neighbors"];
     float h = j["h"];
+    float beta = j["beta"];
+    float gamma = j["gamma"];
     int num_smmoth_iter = j["num_smmoth_iter"];
     float lamdba = j["lamdba"];
+    int num_opt_iter = j["num_opt_iter"];
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(path);
     int num_threads = omp_get_max_threads();
     omp_set_num_threads(num_threads);
@@ -51,15 +54,17 @@ int main(int argc, char **argv) {
               , radius_thr, angle_thr, local_voronoi, radius_filter
               , num_neighbors,  h,  num_smmoth_iter, lamdba);
     fillet_seg_v8.run();
-    save_fillet_seg_result(fillet_seg_v8, out_dir, false);
+    // return 0;
+    save_fillet_seg_result(fillet_seg_v8, out_dir, true);
     easy3d::VoroViewer viewer("ASD");
     auto mavv = fillet_seg_v8.mavv_;
     auto mavvns = fillet_seg_v8.mavvns_;
     auto mavvcs = fillet_seg_v8.mavvcs_;
     viewer.init(mavv, mesh, mavvns, mavvcs);
     viewer.run();
-    DeFilletv2 de_filletv2(mesh);
-    de_filletv2.initialize();
+    // save_fillet_seg_result()
+    DeFilletv2 de_filletv2(mesh, angle_thr, beta, gamma, num_opt_iter);
+    de_filletv2.run();
     return 0;
 }
 
@@ -78,6 +83,7 @@ void save_fillet_seg_result(FilletSegV8& fillet_seg_v8, std::string out_dir, boo
         save_point_field(mavv, mavvr,out_dir + base_name + "_mavvr.ply");
         auto ss = fillet_seg_v8.ss_;
         save_mesh_field(mesh, ss, out_dir + base_name + "_ss.ply");
+        save_mesh_field_with_mtl(mesh, ss, out_dir + base_name + "_ss.obj",out_dir + base_name + "_ss.mtl");
     }
     int num = mesh->n_faces();
     std::vector<float> fillet(mesh->n_faces(), 0.0);
@@ -85,5 +91,12 @@ void save_fillet_seg_result(FilletSegV8& fillet_seg_v8, std::string out_dir, boo
     for(int i = 0; i < num; i++) {
         fillet[i] = labels[i];
     }
-    save_mesh_field(mesh, fillet, out_dir + base_name + "_fillet.ply");
+    save_mesh_field_with_mtl(mesh, fillet, out_dir + base_name + "_fillet.obj", out_dir + base_name + "_fillet.mtl");
+
+
+}
+
+
+void save_defillet_result(DeFilletv2& de_filletv2, std::string out_dir, bool flag) {
+
 }

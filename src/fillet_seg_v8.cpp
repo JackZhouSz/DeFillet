@@ -7,7 +7,7 @@
 #include "kernel.h"
 #include "knn4d.h"
 #include "knn.h"
-#include "io.h"
+#include "util.h"
 #include "gcp.h"
 
 #include <random>
@@ -49,7 +49,7 @@ FilletSegV8::FilletSegV8(easy3d::SurfaceMesh* mesh
     sg_.resize(num);
     num_sor_iter_ = 3;
     sor_filter_ = false;
-    sor_std_radio_ = 0.5;
+    sor_std_radio_ = 0.1;
     for(auto f : mesh->faces()) {
         s_[f.idx()] = easy3d::geom::centroid(mesh, f);
         sn_[f.idx()] = mesh->compute_face_normal(f);
@@ -87,6 +87,7 @@ void FilletSegV8::run() {
     if(vv_.size() != 0) {
         marching_axis_transform(mavv_, mavvns_, mavvcs_, mavvr_, scma_);
         run_graph_cut(ss_, fillet_labels_);
+        post_processing();
         std::cout << "Fillet segmentation total time="<< gvv_time_ + mat_time_ + gcp_time_ <<std::endl;
     }
 }
@@ -110,13 +111,18 @@ void FilletSegV8::generate_voronoi_vertices(std::vector<easy3d::vec3>& vv
     else {
         generate_voronoi_vertices_via_global_sites(tmp_vv,tmp_vvr,tmp_vvns);
     }
-
+    save_point_set(s_, "../out/s.ply");
+    save_point_set(tmp_vv, "../out/vvdd.ply");
     int num = tmp_vv.size();
     std::vector<bool> labels(tmp_vv.size(), true);
+
+
+    easy3d::Box3 box = easy3d::geom::bounding_box<easy3d::Box3>(s_);
+    double radius_thr1_ = box.diagonal_length() * 0;
     if(radius_filter_) {
 #pragma omp parallel for
         for(int i = 0; i < num; i++) {
-            if(tmp_vvr[i] > radius_thr_) {
+            if(tmp_vvr[i] > radius_thr_ || tmp_vvr[i] < radius_thr1_) {
                 labels[i] = false;
             }
         }
@@ -173,7 +179,7 @@ void FilletSegV8::generate_voronoi_vertices(std::vector<easy3d::vec3>& vv
         for(size_t j = 0; j < indices.size(); j++) {
             int idx = indices[j];
             double dis = fabs((vv4d[idx] - vv4d[i]).norm());
-            double val = gaussian_kernel(dis, 1.0);
+            double val = gaussian_kernel(dis, h_);
             vv_density[i] += val * dis;
             w += val;
         }
@@ -188,6 +194,8 @@ void FilletSegV8::generate_voronoi_vertices(std::vector<easy3d::vec3>& vv
         std::cout << "Generate voronoi vertices failly! time="<<gvv_time_ <<std::endl;
         std::cout << "Increasing the value of radius_thr may solve the problem." << std::endl;
     }
+
+    // save_point_field(vv, vv_density, "../out/vv_global_d.ply");
 
 }
 
@@ -304,13 +312,14 @@ void FilletSegV8::marching_axis_transform(std::vector<easy3d::vec3>& mavv
         }
     }
     std::map<int, int> mp;
-
+    std::vector<float> asd;
     for(auto i : unique) {
         mp[i] = mavv.size();
         mavv.emplace_back(vv_[i]);
         mavvns.emplace_back(vvns_[i]);
         mavvcs.emplace_back(vvcs_[i]);
         mavvr.emplace_back(vvr_[i]);
+        asd.emplace_back(vv_density_[i]);
     }
 
     scma.resize(s_num);
@@ -323,6 +332,30 @@ void FilletSegV8::marching_axis_transform(std::vector<easy3d::vec3>& mavv
     mat_time_ = sw.elapsed_seconds(5);
     std::cout << "Marching axis transform sussessfully! time="<< mat_time_ <<std::endl;
 
+    // std::vector<float> dd;
+    // std::vector<easy3d::vec3> pp;
+    // std::vector<easy3d::vec3> pp1;
+    // std::vector<easy3d::vec3> pp2;
+    // std::set<int> ss;
+    // for(int i = 0; i < s_num; i++) {
+    //     if(smavv[i] != -1) {
+    //         int id = mp[smavv[i]];
+    //         pp1.emplace_back(s_[i]);
+    //         ss.insert(id);
+    //         pp.emplace_back(s_[i]);
+    //         pp.emplace_back(mavv_[id]);
+    //         // pp.emplace_back(mavv_[id]);
+    //         // dd.emplace_back(asd[id]);
+    //         // dd.emplace_back(asd[id]);
+    //     }
+    // }
+    // for(auto id : ss) {
+    //     pp2.emplace_back(mavv_[id]);
+    // }
+    // save_point_set(pp1, "../out/pp1.ply");
+    // save_point_set(pp2, "../out/pp2.ply");
+    // // save_point_fi(pp, dd, "../out/dd.ply");
+    // save_lines(pp, "../out/line.obj");
 }
 
 void FilletSegV8::run_graph_cut(std::vector<float>& score, std::vector<int>& fillet_labels) {
@@ -348,11 +381,12 @@ void FilletSegV8::run_graph_cut(std::vector<float>& score, std::vector<int>& fil
             && dihedral_angle(sn_[i], sn_[idx]) < angle_thr_
             && easy3d::dot(d1, d2) > 0) {
                 double vr;
-                if(mai != maj)
-                    vr = fabs(mavvr_[mai] - mavvr_[maj]);
-                else {
-                    vr = fabs((s_[i] - mavv_[mai]).norm() - (s_[idx] - mavv_[mai]).norm());
-                }
+                vr = fabs(mavvr_[mai] - mavvr_[maj]);
+                // if(mai != maj)
+                //     vr = fabs(mavvr_[mai] - mavvr_[maj]);
+                // else {
+                //     vr = fabs((s_[i] - mavv_[mai]).norm() - (s_[idx] - mavv_[mai]).norm());
+                // }
                 double vd = (s_[i] - s_[idx]).norm();
 
                 val += vr / vd;
@@ -382,8 +416,9 @@ void FilletSegV8::run_graph_cut(std::vector<float>& score, std::vector<int>& fil
             score[i] = val / (ct + 1);
         }
     }
+    save_mesh_field(mesh_, score, "../out/score.ply");
     // save_mesh_field(mesh_, score, "../out/score.ply");
-
+    save_mesh_field_with_mtl(mesh_, score, "../out/score.obj", "../out/score.mtl");
 
     auto gcp = mesh_->face_property<int>("f:fillet_labels");
 
@@ -428,8 +463,48 @@ void FilletSegV8::run_graph_cut(std::vector<float>& score, std::vector<int>& fil
         }
     }
     fillet_labels = gcp.vector();
+    std::vector<float> tmp;
+    for(int i = 0; i < fillet_labels.size(); i++) {
+        tmp.emplace_back(fillet_labels[i]);
+    }
+    save_mesh_field(mesh_, tmp, "../out2/seg.ply");
     gcp_time_ = sw.elapsed_seconds(5);
     std::cout << "Graph cut perfrom sussessfully! time="<< gcp_time_ <<std::endl;
+}
+
+void FilletSegV8::post_processing() {
+    return;
+    auto gcp = mesh_->face_property<int>("f:fillet_labels");
+
+    for(int i = 0; i < mavv_.size(); i++) {
+        int idx = 0;
+        float maxx = 0;
+        for(int j = 1; j < mavvcs_[i].size(); j++) {
+            float angle = dihedral_angle(sn_[mavvcs_[i][0]], sn_[mavvcs_[i][j]]);
+            if(angle > maxx) {
+                idx = j; maxx = angle;
+            }
+        }
+        bool flag = false;
+        for(int j = 0; j < mavvcs_[i].size(); j++) {
+            float angle = dihedral_angle(sn_[mavvcs_[i][idx]], sn_[mavvcs_[i][j]]);
+            if(angle > 120) {
+                flag = true; break;
+            }
+        }
+        if(flag) {
+            for(int j = 0; j < mavvcs_[i].size(); j++) {
+                auto f = easy3d::SurfaceMesh::Face(mavvcs_[i][j]);
+                gcp[f] = 1;
+            }
+        }
+    }
+    fillet_labels_ = gcp.vector();
+    std::vector<float> fillet(mesh_->n_faces(), 0.0);
+    auto labels = fillet_labels_;
+    for(int i = 0; i < mesh_->n_faces(); i++) {
+        fillet[i] = labels[i];
+    }
 }
 
 
@@ -462,6 +537,7 @@ void FilletSegV8::crop_local_patch(int sid
 
 bool FilletSegV8::search_vvcs(easy3d::vec3& vv,  float r
                          , std::vector<int>& vvns, std::vector<int>& vvcs) {
+    // return true;
     std::set<int> vis(vvns.begin(), vvns.end());
     std::queue<int> que;
     que.push(vvns[0]);vis.erase(vvns[0]);
@@ -479,7 +555,6 @@ bool FilletSegV8::search_vvcs(easy3d::vec3& vv,  float r
     if(vis.empty()) {
         return false;
     }
-
     while(!que.empty()) que.pop();
     vis.clear();
     vis.insert(vvns[0]);
@@ -506,15 +581,16 @@ bool FilletSegV8::search_vvcs(easy3d::vec3& vv,  float r
             return false;
         }
     }
-    // if(vis.size() <= 20) {
-    //     return false;
-    // }
+    if(vis.size() <= 50) {
+        return false;
+    }
     for(auto i : vis) {
         double len = fabs((s_[i] - vv).norm() - r);
         if(len > tol) {
             return false;
         }
     }
+
     vvcs = std::vector<int>(vis.begin(), vis.end());
     return true;
 }
@@ -707,19 +783,19 @@ void FilletSegV8::sor(const std::vector<easy3d::vec3>& points
 }
 
 
-double FilletSegV8::dihedral_angle(const easy3d::vec3& n1
-                                 , const easy3d::vec3& n2
-                                 , bool rad) {
-
-    // double radians = abs(acos(dot(n1, n2)));
-    double radians = easy3d::geom::angle(n1, n2);
-    if(rad) {
-        return radians;
-    } else {
-        double degrees = radians * 180.0 / M_PI;
-        return degrees;
-    }
-}
+// double FilletSegV8::dihedral_angle(const easy3d::vec3& n1
+//                                  , const easy3d::vec3& n2
+//                                  , bool rad) {
+//
+//     // double radians = abs(acos(dot(n1, n2)));
+//     double radians = easy3d::geom::angle(n1, n2);
+//     if(rad) {
+//         return radians;
+//     } else {
+//         double degrees = radians * 180.0 / M_PI;
+//         return degrees;
+//     }
+// }
 
 
 // std::vector<std::vector<int>> FilletSegV8::tarjan(const std::vector<std::vector<int>> &G) {

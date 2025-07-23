@@ -1,17 +1,17 @@
 {
-  "path": "D:\\code\\defillet\\out\\23126_725969ea_14_fillet.ply",
-  "out_dir": "../out/",
-  "eps": 0.0002,
-  "num_samples" : 1000,
-  "radius_thr" : 0.05,
+  "path": "C:\\Users\\xiaowuga\\Desktop\\roller_v3.ply",
+  "out_dir": "../out2/",
+  "eps": 0.00042,
+  "num_samples" : 5000,
+  "radius_thr" : 0.02,
   "angle_thr" : 40,
   "local_voronoi" : true,
   "radius_filter" : true,
   "num_neighbors" : 30,
-  "h" : 1.0,
-  "num_smmoth_iter": 5,
-  "lamdba" : 10.0,
-  "beta" : 1.0,
-  "gamma" : 1.0,
-  "num_opt_iter" : 5
+  "h" : 0.3,
+  "num_smmoth_iter": 50,
+  "lamdba" : 0.5,
+  "beta" : 0.5,
+  "gamma" : 20,
+  "num_opt_iter" : 100
 }

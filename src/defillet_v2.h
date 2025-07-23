@@ -24,10 +24,11 @@ public:
     void run();
     void initialize();
     void optimize();
-
-    double dihedral_angle(const easy3d::vec3& n1
-                                 , const easy3d::vec3& n2
-                                 , bool rad = false);
+    void optimize2();
+    void computeEe_and_E_f();
+    // double dihedral_angle(const easy3d::vec3& n1
+    //                              , const easy3d::vec3& n2
+    //                              , bool rad = false);
 public:
     easy3d::SurfaceMesh* mesh_;
     easy3d::SurfaceMesh* fillet_mesh_;
@@ -42,6 +43,11 @@ public:
     int num_opt_iter_;
 
     Eigen::SparseLU<Eigen::SparseMatrix<double>> solver_;
+    Eigen::VectorXd d_;
+
+    double init_time_;
+    double opt_time_;
+    std::vector<double> e_e, e_f, e_c;
 };
 
 

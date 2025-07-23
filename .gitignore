@@ -5,3 +5,4 @@ cmake-build-release/
 cmake-build-debug/
 out/
 cmake-build-relwithdebinfo-visual-studio/
+out2/

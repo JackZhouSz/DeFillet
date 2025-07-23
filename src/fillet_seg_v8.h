@@ -49,6 +49,7 @@ public:
     void run_graph_cut(std::vector<float>& score, std::vector<int>& fillet_labels);
 
 
+    void post_processing();
     //utils
     void crop_local_patch(int sid
                         , float max_gap
@@ -71,9 +72,9 @@ public:
                  , std::vector<std::vector<int>>& snv
                  , std::vector<std::vector<int>>& vns);
 
-    double dihedral_angle(const easy3d::vec3& n1
-                        , const easy3d::vec3& n2
-                        , bool rad = false);
+    // double dihedral_angle(const easy3d::vec3& n1
+    //                     , const easy3d::vec3& n2
+    //                     , bool rad = false);
 
 public:
     easy3d::SurfaceMesh* mesh_;

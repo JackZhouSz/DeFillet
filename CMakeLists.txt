@@ -8,6 +8,7 @@ find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
 find_package(Easy3d CONFIG REQUIRED)
 
 # Eigen3
@@ -43,6 +44,29 @@ target_link_libraries(fillet_seg PRIVATE easy3d::gui easy3d::algo easy3d::util e
 target_link_libraries(fillet_seg PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
 
+add_executable(read_clr app/read_clr.cpp)
+target_link_libraries(read_clr PUBLIC glfw imgui::imgui easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
+
+
+add_executable(eval app/eval.cpp src/knn.cpp)
+target_include_directories(eval PRIVATE src)
+target_link_libraries(eval PUBLIC easy3d::algo easy3d::util easy3d::fileio  OpenMP::OpenMP_CXX)
+
+
+add_executable(cur app/cur.cpp)
+target_include_directories(cur PRIVATE src)
+target_link_libraries(cur PUBLIC easy3d::algo easy3d::util easy3d::fileio  igl::igl_core OpenMP::OpenMP_CXX)
+
+
+add_executable(graph_cut_for_mesh graph_cut_for_mesh.cpp)
+target_include_directories(graph_cut_for_mesh PRIVATE src)
+target_link_libraries(graph_cut_for_mesh PUBLIC igl::igl_core gcp easy3d::fileio easy3d::core)
+
+#find_package(coin CONFIG REQUIRED)
+#
+#
+#add_executable(readiv app/readIV.cpp)
+#target_link_libraries(readiv PRIVATE Coin::Coin)
 #add_executable(defillet app/defillet.cpp src/defillet_v2.cpp)
 #target_include_directories(defillet PRIVATE src)
 #target_link_libraries(defillet PRIVATE  geodesic)

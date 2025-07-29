@@ -1,9 +1,9 @@
 {
-  "path": "C:\\Users\\xiaowuga\\Desktop\\roller_v3.ply",
+  "path": "C:\\Users\\xiaowuga\\Downloads\\1752743726288\\scan_data\\15-jinshujian.stl",
   "out_dir": "../out2/",
   "eps": 0.00042,
-  "num_samples" : 5000,
-  "radius_thr" : 0.02,
+  "num_samples" : 500,
+  "radius_thr" : 0.015,
   "angle_thr" : 40,
   "local_voronoi" : true,
   "radius_filter" : true,

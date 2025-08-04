@@ -2,7 +2,26 @@
   <p align="center">
     <h1 align="center">DeFillet: Detection and Removal of Fillet Regions in Polygonal CAD Models</h1>
   </p>
-  <p align="center" style="font-size:16px">
+
+
+<p align="center">
+  <a href="https://github.com/xiaowuga/xiaowuga.github.io/pub/static/pdf/Defillet_Sig_2025.pdf">
+    <img src="https://img.shields.io/badge/Paper-PDF-red?logo=adobeacrobatreader&logoColor=white" alt="Paper">
+  </a>
+  <a href="https://xiaowuga.github.io/pub/DeFillet.html">
+    <img src="https://img.shields.io/badge/Project_Page-Website-green?logo=googlechrome&logoColor=white" alt="Project Page">
+  </a>
+  <a href="https://www.bilibili.com/video/BV1aCtMzPEXe/?spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=092295aa747638ab207808257f039dea">
+    <img src="https://img.shields.io/badge/%F0%9F%8E%A5%20Video-Bilibili-blue?logo=bilibili&logoColor=white" alt="Video">
+  </a>
+  <a href="https://github.com/xiaowuga/DeFillet">
+<img src="https://img.shields.io/badge/Poster-PDF-purple?logo=adobeacrobatreader&logoColor=white" alt="Poster">
+  </a>
+</p>
+
+
+
+<p align="center" style="font-size:16px">
     <a target="_blank" href="https://xiaowuga.github.io/"><strong>Jing-En Jiang</strong></a>
     ·
     <a target="_blank" href="https://github.com/hanxiaowang00"><strong>Hanxiao Wang</strong></a>
@@ -20,13 +39,17 @@
     <a target="_blank" href="https://engineering.tamu.edu/cse/profiles/Wang-Wenping.html"><strong>Wenping Wang</strong></a>
 </p>
 
-
 ![](./asset/teaser.gif)
-### [Project Page](https://github.com/xiaowuga/DeFillet) | [Paper](https://github.com/xiaowuga/DeFillet) | [Poster](https://github.com/xiaowuga/DeFillet)
+
+
+
+
+
+
+
 
 This repository contains the official implementation of our SIGGRAPH 2025 paper "DeFillet: Detection and Removal of Fillet Regions in Polygonal CAD Models".
 
-[//]: # ([![点击观看视频]&#40;./asset/img.png&#41;]&#40;https://www.bilibili.com/video/BV1sW8wz6EEc/?vd_source=092295aa747638ab207808257f039dea&#41;)
 
 **Please give a star and cite if you find this repo useful.**
 

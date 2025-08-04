@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <a href="https://xiaowuga.github.io/pub/static/pdf/DeFillet_Sig_2025.pdf">
+  <a href="https://raw.githubusercontent.com/xiaowuga/xiaowuga.github.io/main/pub/static/pdf/Defillet_Sig_2025.pdf">
     <img src="https://img.shields.io/badge/Paper-PDF-red?logo=adobeacrobatreader&logoColor=white" alt="Paper">
   </a>
   <a href="https://xiaowuga.github.io/pub/DeFillet.html">

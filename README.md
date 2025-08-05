@@ -14,9 +14,12 @@
   <a href="https://www.bilibili.com/video/BV1aCtMzPEXe/?spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=092295aa747638ab207808257f039dea">
     <img src="https://img.shields.io/badge/%F0%9F%8E%A5%20Video-Bilibili-blue?logo=bilibili&logoColor=white" alt="Video">
   </a>
-  <a href="https://github.com/xiaowuga/DeFillet">
-<img src="https://img.shields.io/badge/Poster-PDF-purple?logo=adobeacrobatreader&logoColor=white" alt="Poster">
-  </a>
+
+[//]: # (  <a href="https://github.com/xiaowuga/DeFillet">)
+
+[//]: # (<img src="https://img.shields.io/badge/Poster-PDF-purple?logo=adobeacrobatreader&logoColor=white" alt="Poster">)
+
+[//]: # (  </a>)
 </p>
 
 

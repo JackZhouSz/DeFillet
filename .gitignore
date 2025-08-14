@@ -6,3 +6,4 @@ cmake-build-debug/
 out/
 cmake-build-relwithdebinfo-visual-studio/
 out2/
+out3

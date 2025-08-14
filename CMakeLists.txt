@@ -44,23 +44,38 @@ target_link_libraries(fillet_seg PRIVATE easy3d::gui easy3d::algo easy3d::util e
 target_link_libraries(fillet_seg PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json OpenMP::OpenMP_CXX)
 
 
-add_executable(read_clr app/read_clr.cpp)
-target_link_libraries(read_clr PUBLIC glfw imgui::imgui easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
+#add_executable(read_clr app/read_clr.cpp)
+#target_link_libraries(read_clr PUBLIC glfw imgui::imgui easy3d::gui easy3d::algo easy3d::util easy3d::fileio easy3d::viewer easy3d::renderer easy3d::viewer)
+#
+#
+#add_executable(eval app/eval.cpp src/knn.cpp)
+#target_include_directories(eval PRIVATE src)
+#target_link_libraries(eval PUBLIC easy3d::algo easy3d::util easy3d::fileio  OpenMP::OpenMP_CXX)
+#
+#
+#add_executable(cur app/cur.cpp)
+#target_include_directories(cur PRIVATE src)
+#target_link_libraries(cur PUBLIC easy3d::algo easy3d::util easy3d::fileio  igl::igl_core OpenMP::OpenMP_CXX)
+#
+#
+#add_executable(graph_cut_for_mesh graph_cut_for_mesh.cpp)
+#target_include_directories(graph_cut_for_mesh PRIVATE src)
+#target_link_libraries(graph_cut_for_mesh PUBLIC igl::igl_core gcp easy3d::fileio easy3d::core)
 
 
-add_executable(eval app/eval.cpp src/knn.cpp)
-target_include_directories(eval PRIVATE src)
-target_link_libraries(eval PUBLIC easy3d::algo easy3d::util easy3d::fileio  OpenMP::OpenMP_CXX)
+set(SEG_SRCS src/decompose.cpp)
 
 
-add_executable(cur app/cur.cpp)
-target_include_directories(cur PRIVATE src)
-target_link_libraries(cur PUBLIC easy3d::algo easy3d::util easy3d::fileio  igl::igl_core OpenMP::OpenMP_CXX)
+add_executable(main_seg app/main_seg.cpp ${SEG_SRCS})
+target_include_directories(main_seg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(main_seg PUBLIC Eigen3::Eigen igl::igl_core easy3d::core easy3d::fileio)
 
 
-add_executable(graph_cut_for_mesh graph_cut_for_mesh.cpp)
-target_include_directories(graph_cut_for_mesh PRIVATE src)
-target_link_libraries(graph_cut_for_mesh PUBLIC igl::igl_core gcp easy3d::fileio easy3d::core)
+
+add_executable(test_decompose test/test_decompose.cpp ${SEG_SRCS})
+target_include_directories(test_decompose PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_decompose PUBLIC Eigen3::Eigen igl::igl_core easy3d::core easy3d::fileio)
+
 
 #find_package(coin CONFIG REQUIRED)
 #

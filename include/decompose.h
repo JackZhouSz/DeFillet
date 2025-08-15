@@ -94,7 +94,7 @@ private:
      * @param n2 Second vector (e.g., a face normal).
      * @return Angle in degrees, in the range [0, 180].
      */
-     double angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2);
+     float angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2);
 
 private:
     SurfaceMesh* mesh_; //< Input mesh (non-owning; lifetime managed by the caller).

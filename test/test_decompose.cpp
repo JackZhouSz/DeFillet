@@ -8,7 +8,7 @@
 
 
 int main() {
-    std::string case_path = "../data/decompose_case.ply";
+    std::string case_path = "../data/091_wheel_assembly_part.ply";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(case_path);
     DeFillet::Decompose decompose(mesh, 60);
 

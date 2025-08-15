@@ -7,29 +7,16 @@
 
 namespace DeFillet {
 
-    /**
-     * @brief Compute the (unsigned) angle between two 3D vectors in degrees.
-     *
-     * Uses atan2(||n1 × n2||, n1 · n2), which is generally more numerically stable
-     * than acos of the normalized dot product.
-     *
-     * @param n1 First vector (e.g., a face normal).
-     * @param n2 Second vector (e.g., a face normal).
-     * @return Angle in degrees, in the range [0, 180].
-     */
-    double angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2) {
-        const double dot = easy3d::dot(n1, n2);
-        const double cross_norm = easy3d::cross(n1, n2).norm();
-        return std::atan2(cross_norm, dot) * 180.0 / M_PI;
-    }
-
     Decompose::Decompose(SurfaceMesh* mesh, float angle_thr) : mesh_(mesh), angle_thr_(angle_thr) {
 
         // Precompute (and cache) dihedral angles for all edges.
         dihedral_angle_  =  mesh_->edge_property<float>("e:dihedral-angle");
 
-        mesh_->update_face_normals();
+
         face_normals_ = mesh_->face_property<easy3d::vec3>("f:nromal");
+        for(auto face : mesh_->faces()) {
+            face_normals_[face] = mesh_->compute_face_normal(face);
+        }
 
         for(auto edge : mesh_->edges()){
             dihedral_angle_[edge] = -1;
@@ -77,14 +64,18 @@ namespace DeFillet {
         // decompose via dihedral_angle
         for(auto face : mesh_->faces()) {
             if(component_labels_[face] == -1) {
-                std::cout << "ASD" << std::endl;
+
                 std::queue<easy3d::SurfaceMesh::Face> que;
                 que.push(face);
+
                 while(!que.empty()) {
+
                     auto cur = que.front(); que.pop();
                     if(component_labels_[cur] != -1)
                         continue;
+
                     component_labels_[cur] = num_component;
+
                     for(auto halfdege : mesh_->halfedges(cur)) {
                         auto opp_face = mesh_->face(mesh_->opposite(halfdege));
                         auto edge = mesh_->edge(halfdege);
@@ -93,12 +84,12 @@ namespace DeFillet {
                                 que.push(opp_face);
                         }
                     }
+
                 }
                 num_component++;
             }
         }
 
-        std::cout << num_component << std::endl;
         //clear old components
         clear_all_components();
 
@@ -260,7 +251,6 @@ namespace DeFillet {
                 auto edge = mesh_->edge(halfdege);
 
                 if(opp_face.is_valid() && component_labels_[opp_face] == component_id
-
                     && dihedral_angle_[edge] < angle_thr_) {
                     que.push(make_pair(opp_face, id));
 
@@ -287,7 +277,7 @@ namespace DeFillet {
         components_.clear();
     }
 
-    double Decompose::angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2) {
+    float Decompose::angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2) {
 
         const double dot = easy3d::dot(n1, n2);
         const double cross_norm = easy3d::cross(n1, n2).norm();

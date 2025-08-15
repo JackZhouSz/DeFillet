@@ -63,7 +63,7 @@ target_link_libraries(fillet_seg PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_js
 #target_link_libraries(graph_cut_for_mesh PUBLIC igl::igl_core gcp easy3d::fileio easy3d::core)
 
 
-set(SEG_SRCS src/decompose.cpp)
+set(SEG_SRCS src/decompose.cpp src/preliminary_fillet_selector.cpp)
 
 
 add_executable(main_seg app/main_seg.cpp ${SEG_SRCS})
@@ -72,10 +72,16 @@ target_link_libraries(main_seg PUBLIC Eigen3::Eigen igl::igl_core easy3d::core e
 
 
 
-add_executable(test_decompose test/test_decompose.cpp ${SEG_SRCS})
+add_executable(test_decompose test/test_decompose.cpp src/decompose.cpp)
 target_include_directories(test_decompose PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_decompose PUBLIC Eigen3::Eigen igl::igl_core easy3d::core easy3d::fileio)
 
+
+add_executable(test_pfs test/test_pfs.cpp src/preliminary_fillet_selector.cpp)
+target_include_directories(test_pfs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_pfs PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test_pfs PUBLIC easy3d::algo easy3d::core easy3d::fileio)
+target_link_libraries(test_pfs PUBLIC OpenMP::OpenMP_CXX)
 
 #find_package(coin CONFIG REQUIRED)
 #

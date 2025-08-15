@@ -11,6 +11,8 @@
 #include <easy3d/fileio/surface_mesh_io.h>
 #include <easy3d/algo/surface_mesh_geometry.h>
 #include <kernel.h>
+#include <easy3d/core/random.h>
+
 static void save_point_set(std::vector<easy3d::vec3>& points,const std::string& path) {
     easy3d::PointCloud* cloud = new easy3d::PointCloud;
     for(auto p : points) {
@@ -233,6 +235,32 @@ static double dihedral_angle(const easy3d::vec3& n1
         double degrees = radians * 180.0 / M_PI;
         return degrees;
     }
+}
+
+
+static void save_components(const easy3d::SurfaceMesh* mesh,
+                            const std::vector<easy3d::SurfaceMesh*>components,
+                            const std::string path) {
+
+    easy3d::SurfaceMesh* out_mesh = new easy3d::SurfaceMesh(*mesh);
+
+    auto color_prop = out_mesh->face_property<easy3d::vec3>("f:color");
+
+    for(size_t i = 0; i < components.size(); i++) {
+
+        auto color = easy3d::random_color();
+
+        auto component = components[i];
+        auto original_face_index = component->face_property<int>("f:original_index");
+
+        for(auto face : component->faces()) {
+            int index = original_face_index[face];
+            auto f = easy3d::SurfaceMesh::Face(index);
+            color_prop[f] = color;
+        }
+    }
+
+    easy3d::SurfaceMeshIO::save(path, out_mesh);
 }
 
 #endif //IO_H

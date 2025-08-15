@@ -3,7 +3,9 @@
 //
 
 
+#include <utils.h>
 #include <decompose.h>
+
 #include <easy3d/fileio/surface_mesh_io.h>
 
 
@@ -16,9 +18,6 @@ int main() {
 
     std::vector<easy3d::SurfaceMesh*> components = decompose.all_components();
 
-
-    for(size_t i = 0; i < components.size(); i++) {
-        easy3d::SurfaceMeshIO::save("../out3/" + std::to_string(i) + ".ply", components[i]);
-    }
+    DeFillet::save_components(mesh, components, "../out3/components.ply");
 
 }

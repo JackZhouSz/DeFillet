@@ -2,8 +2,8 @@
 // Created by xiaowuga on 2025/8/14.
 //
 
-#include "decompose.h"
-
+#include <decompose.h>
+#include <utils.h>
 
 namespace DeFillet {
 
@@ -13,7 +13,7 @@ namespace DeFillet {
         dihedral_angle_  =  mesh_->edge_property<float>("e:dihedral-angle");
 
 
-        face_normals_ = mesh_->face_property<easy3d::vec3>("f:nromal");
+        face_normals_ = mesh_->face_property<easy3d::vec3>("f:normal");
         for(auto face : mesh_->faces()) {
             face_normals_[face] = mesh_->compute_face_normal(face);
         }
@@ -50,15 +50,13 @@ namespace DeFillet {
         if(component_labels_)
             mesh_->remove_face_property(component_labels_);
 
+
         clear_all_components();
 
     }
 
 
     void Decompose::apply() {
-        // auto component_labels = mesh_->add_face_property<int>("f:component_label", -1);
-        // auto dihedral_angle  = mesh_->get_edge_property<float>("e:dihedral-angle");
-
         int num_component = 0;
 
         // decompose via dihedral_angle
@@ -93,54 +91,10 @@ namespace DeFillet {
         //clear old components
         clear_all_components();
 
-        std::queue<std::pair<SurfaceMesh*,int>> que;
 
         for(int i = 0; i < num_component; i++) {
             auto component = split_component(i);
-            que.push( std::make_pair(component, i));
-        }
-
-        while(!que.empty()) {
-
-            auto component = que.front().first;
-            int component_id = que.front().second;
-            que.pop();
-
-            bool flag = true;
-            for(auto edge : component->edges()) {
-
-                auto f0 = component->face(edge, 0);
-                auto f1 = component->face(edge, 1);
-
-                if(f0.is_valid() && f1.is_valid()) {
-
-                    vec3 n0 = component->compute_face_normal(f0);
-                    vec3 n1 = component->compute_face_normal(f1);
-
-                    float angle = angle_between(n0, n1);
-
-                    if(angle > angle_thr_) {
-
-                        int new_id0 = num_component++;
-                        int new_id1 = num_component++;
-
-                        auto res = split_alone_egde(component, edge, component_id, new_id0, new_id1);
-
-                        que.push(std::make_pair(res[0], new_id0));
-                        que.push(std::make_pair(res[1], new_id1));
-
-                        flag = false;
-                        break;
-                    }
-                }
-            }
-
-            if(flag) {
-                components_.emplace_back(component);
-            }
-            else {
-                delete component;
-            }
+            components_.emplace_back(component);
         }
 
     }
@@ -218,56 +172,6 @@ namespace DeFillet {
     }
 
 
-    std::vector<SurfaceMesh*> Decompose::split_alone_egde(SurfaceMesh* component, SurfaceMesh::Edge e,
-                                                          int component_id, int new_id0, int new_id1) {
-
-        auto original_face_index = component->face_property<int>("f:original_index");
-
-
-        SurfaceMesh::Face f0 = component->face(e, 0);
-        f0 = SurfaceMesh::Face(original_face_index[f0]);
-
-        SurfaceMesh::Face f1 = component->face(e, 1);
-        f1 = SurfaceMesh::Face(original_face_index[f1]);
-
-        std::queue<pair<SurfaceMesh::Face, int>> que;
-        que.push(make_pair(f0, new_id0));
-        que.push(make_pair(f1, new_id1));
-
-        while(!que.empty()) {
-
-            auto cur = que.front().first;
-            int id = que.front().second;
-            que.pop();
-
-            if(component_labels_[cur] == id)
-                continue;
-
-            component_labels_[cur] = id;
-
-            for(auto halfdege : mesh_->halfedges(cur)) {
-
-                auto opp_face = mesh_->face(mesh_->opposite(halfdege));
-                auto edge = mesh_->edge(halfdege);
-
-                if(opp_face.is_valid() && component_labels_[opp_face] == component_id
-                    && dihedral_angle_[edge] < angle_thr_) {
-                    que.push(make_pair(opp_face, id));
-
-                }
-
-            }
-
-        }
-
-        easy3d::SurfaceMesh* res0 = split_component(new_id0);
-        easy3d::SurfaceMesh* res1 = split_component(new_id1);
-
-        return vector<SurfaceMesh*>{res0, res1};
-
-    }
-
-
     void Decompose::clear_all_components() {
 
         for(auto item : components_) {
@@ -276,15 +180,6 @@ namespace DeFillet {
 
         components_.clear();
     }
-
-    float Decompose::angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2) {
-
-        const double dot = easy3d::dot(n1, n2);
-        const double cross_norm = easy3d::cross(n1, n2).norm();
-
-        return std::atan2(cross_norm, dot) * 180.0 / M_PI;
-    }
-
 
 
 }

@@ -711,7 +711,6 @@ void FilletSegV8::voronoi3d(const std::vector<easy3d::vec3>& s
         vvr.emplace_back(radius);
         vns.emplace_back(tmp);
     }
-
 }
 
 void FilletSegV8::sor(const std::vector<easy3d::vec3>& points

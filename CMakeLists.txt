@@ -77,11 +77,11 @@ target_include_directories(test_decompose PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
 target_link_libraries(test_decompose PUBLIC Eigen3::Eigen igl::igl_core easy3d::core easy3d::fileio)
 
 
-add_executable(test_pfs test/test_pfs.cpp src/preliminary_fillet_selector.cpp)
-target_include_directories(test_pfs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(test_pfs PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
-target_link_libraries(test_pfs PUBLIC easy3d::algo easy3d::core easy3d::fileio)
-target_link_libraries(test_pfs PUBLIC OpenMP::OpenMP_CXX)
+add_executable(test_seg test/test_pfs.cpp src/fillet_detector.cpp)
+target_include_directories(test_seg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_seg PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(test_seg PUBLIC easy3d::algo easy3d::core easy3d::fileio)
+target_link_libraries(test_seg PUBLIC OpenMP::OpenMP_CXX)
 
 #find_package(coin CONFIG REQUIRED)
 #

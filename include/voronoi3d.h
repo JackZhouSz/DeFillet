@@ -85,8 +85,13 @@ namespace DeFillet {
             auto v = T.dual(cell);
             int vid = vv.size();
 
+            vec3 pos(v.x(), v.y(), v.z());
+
+            if(!box.contains(pos))
+                continue;
+
             // Store Voronoi vertex position
-            vv.emplace_back(easy3d::vec3(v.x(), v.y(), v.z()));
+            vv.emplace_back(pos);
 
             std::vector<int> tmp; // Sites that generate this Voronoi vertex
             float radius = 0;     // radius

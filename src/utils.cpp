@@ -8,7 +8,9 @@
 
 
 #include <utils.h>
+#include <Eigen/Dense>
 
+#include <igl/jet.h>
 
 using namespace easy3d;
 using namespace std;
@@ -33,8 +35,12 @@ namespace DeFillet {
         return atan2(cross_norm, dot) * 180.0 / M_PI;
     }
 
+    double gaussian_kernel(double distance, double kernel_bandwidth){
+        double temp =  exp(-0.5 * (distance*distance) / (kernel_bandwidth*kernel_bandwidth));
+        return temp;
+    }
 
-        easy3d::SurfaceMesh* split_component(const easy3d::SurfaceMesh* mesh,
+    easy3d::SurfaceMesh* split_component(const easy3d::SurfaceMesh* mesh,
                          easy3d::SurfaceMesh::FaceProperty<int>& component_labels,
                          int label) {
         // Collect all faces with the given label, and all vertices used by them
@@ -132,6 +138,34 @@ namespace DeFillet {
         }
 
         SurfaceMeshIO::save(path, out_mesh);
+    }
+
+    void save_rate_field(const easy3d::SurfaceMesh* mesh,
+                     const std::vector<float>& field,
+                     const std::string path) {
+        SurfaceMesh* out_mesh = new easy3d::SurfaceMesh(*mesh);
+
+        auto color_prop = out_mesh->face_property<easy3d::vec3>("f:color");
+
+        int num = field.size();
+
+        Eigen::VectorXd Z(num);
+        float max_value = 0, min_value = 1e9;
+        for (int i = 0; i < num; i++) {
+            Z[i] = field[i];
+            max_value = max(field[i], max_value);
+            min_value = min(field[i], min_value);
+        }
+        std::cout << "max_value: " << max_value << std::endl;
+        std::cout << "min_value: " << min_value << std::endl;
+        // Z.conservativeResize(ct);
+        Eigen::MatrixXd Ct;
+        igl::jet(Z, true, Ct);
+        for(auto f : out_mesh->faces()) {
+            color_prop[f] = easy3d::vec3(Ct(f.idx(), 0),Ct(f.idx(), 1), Ct(f.idx() ,2));
+        }
+
+        easy3d::SurfaceMeshIO::save(path, out_mesh);
     }
 
     void save_fillet_regions(const SurfaceMesh* mesh,

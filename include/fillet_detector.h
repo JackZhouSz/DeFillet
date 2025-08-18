@@ -27,7 +27,7 @@ namespace DeFillet {
     public:
         vec3 pos;
 
-        float radius;
+        float radius, density;
 
         std::vector<SurfaceMesh::Face> neigh_sites; // neighboring sites
 
@@ -35,6 +35,22 @@ namespace DeFillet {
 
         bool flag;
     };
+
+    class Sites {
+    public:
+        vec3 pos;
+
+        SurfaceMesh::Face face;
+
+        float radius;
+
+        float rate;
+
+        std::vector<int> corr_vv; //corresponding Voronoi vertices
+
+        int center; //rolling-ball center
+    };
+
 
 
     class FilletDetector {
@@ -47,19 +63,22 @@ namespace DeFillet {
 
         void generate_voronoi_vertices();
 
+        void compute_voronoi_vertices_density_field();
+
         void filter_voronoi_vertices();
 
-        void density_driven_voronoi_drift();
-        //
-        // void compute_voronoi_vertices_density_field();
-        //
-        // void rolling_ball_trajectory_transform();
+        void rolling_ball_trajectory_transform();
+
+        void compute_fillet_radius_rate_field();
+
+        void rate_field_smoothing();
         //
         // void graph_cut();
 
     public: // setor or getor functions
 
         PointCloud* voronoi_vertices() const;
+        std::vector<float> radius_rate_field() const;
 
     private: //utils functions
 
@@ -75,12 +94,6 @@ namespace DeFillet {
 
 
     public:
-
-        // std::vector<easy3d::vec3> vv_; //voronoi vertices
-        // std::vector<float> vvr_; // voronoi vertices radius
-        //
-        // std::vector<std::vector<int>> vvns_; // voronoi vertices neighboring sites
-        // std::vector<std::vector<int>> vvcs_; // voronoi vertices corresponding sites
 
         SurfaceMesh* mesh_;
 
@@ -98,6 +111,7 @@ namespace DeFillet {
 
         std::vector<VoronoiVertices> voronoi_vertices_;
 
+        std::vector<Sites> sites_;
 
     };
 }

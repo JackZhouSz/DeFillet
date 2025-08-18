@@ -7,9 +7,29 @@
 #include <fillet_detector.h>
 #include <voronoi3d.h>
 #include <utils.h>
+#include <knn4d.h>
 
 #include <easy3d/util/stop_watch.h>
 #include <easy3d/algo/surface_mesh_geometry.h>
+
+
+#include <igl/massmatrix.h>
+#include <igl/cotmatrix.h>
+#include <igl/hessian_energy.h>
+#include <igl/curved_hessian_energy.h>
+
+
+
+#include <Eigen/Core>
+#include <Eigen/Sparse>
+#include <Eigen/SparseCholesky>
+
+
+
+
+
+using namespace Eigen;
+typedef Eigen::SparseMatrix<double> SparseMat;
 
 namespace DeFillet {
 
@@ -36,6 +56,18 @@ namespace DeFillet {
             face_normals_[face] = mesh_->compute_face_normal(face);
         }
 
+        for(auto face : mesh_->faces()) {
+
+            Sites site;
+
+            site.pos = easy3d::geom::centroid(mesh_, face);
+            site.face = face;
+            site.radius = box_.diagonal_length();
+            site.center = -1;
+            site.rate = 1.0;
+            sites_.emplace_back(site);
+        }
+
         // Iterate through all edges to compute dihedral angles.
         for(auto edge : mesh_->edges()){
             dihedral_angle_[edge] = -1;     // Default/invalid marker.
@@ -57,19 +89,20 @@ namespace DeFillet {
                 // and store it as the dihedral angle for this edge.
                 dihedral_angle_[edge] = angle_between(n0, n1);
 
-                vec3 c0 = easy3d::geom::centroid(mesh_, f0);
-                vec3 c1 = easy3d::geom::centroid(mesh_, f1);
+                vec3 c0 = sites_[f0.idx()].pos;
+                vec3 c1 = sites_[f1.idx()].pos;
 
                 // Compute the centroid distance between the two face normals
                 // and store it as centroid distance for this edge
                 centroid_distance_[edge] = (c0 - c1).norm();
             }
         }
+
     }
 
     void FilletDetector::generate_voronoi_vertices() {
 
-        std::cout << "Start generate Voronoi vertices..." <<std::endl;
+        std::cout << "Start generating Voronoi vertices..." <<std::endl;
 
         easy3d::StopWatch sw;
 
@@ -80,7 +113,7 @@ namespace DeFillet {
 
         float max_gap = farthest_point_sampling(num_patches, patch_centroids);
 
-        max_gap = parameters_.radius_thr * box_.diagonal_length();
+        max_gap = 0.5 * M_PI * parameters_.radius_thr * box_.diagonal_length();
         int idx = 0;
 
         omp_lock_t lock;
@@ -91,7 +124,7 @@ namespace DeFillet {
 
             std::vector<SurfaceMesh::Face> patch;
 
-            crop_local_patch(patch_centroids[i], 2 * max_gap, patch);
+            crop_local_patch(patch_centroids[i], max_gap, patch);
 
             std::vector<vec3> ls = face_centroids(patch); // local sites;
 
@@ -137,15 +170,63 @@ namespace DeFillet {
         }
 
 
-        std::cout << "Generate voronoi vertices successfully! Voronoi vertices number = " <<voronoi_vertices_.size() <<std::endl;
+        std::cout << "Successfully generated Voronoi vertices! Voronoi vertices number = " <<voronoi_vertices_.size() <<std::endl;
         std::cout << "The consumption time of Voronoi vertices generatioin: " << sw.elapsed_seconds(5) << std::endl;
 
     }
 
+    void FilletDetector::compute_voronoi_vertices_density_field() {
+
+        std::cout << "Start computing Voronoi vertices density field..." <<std::endl;
+
+        easy3d::StopWatch sw;
+
+        int num = voronoi_vertices_.size();
+
+        std::vector<KNN::Point4D> knn_data;
+        std::vector<easy3d::vec4> data;
+
+        for(int i = 0; i < num; i++) {
+            auto& pos = voronoi_vertices_[i].pos;
+            float radius = voronoi_vertices_[i].radius;
+            knn_data.emplace_back(KNN::Point4D(pos.x,pos.y, pos.z, radius));
+            data.emplace_back(easy3d::vec4(pos.x,pos.y, pos.z, radius));
+        }
+
+        KNN::KdSearch4D kds(knn_data);
+        int num_neighbors = parameters_.num_neighbors;
+        int sigma = parameters_.sigma;
+
+        float max_value = 0, min_value = box_.diagonal_length();
+
+#pragma omp parallel for
+        for(int i = 0; i < num; i++) {
+            std::vector<size_t> indices;
+            std::vector<double> dist;
+            kds.kth_search(knn_data[i], num_neighbors, indices, dist);
+            float density = 0;
+            double w = 0;
+            for(size_t j = 0; j < indices.size(); j++) {
+                int idx = indices[j];
+                double dis = fabs((data[idx] - data[i]).norm());
+                double val = gaussian_kernel(dis, sigma);
+                density += val * dis;
+                w += val;
+            }
+            voronoi_vertices_[i].density =  density / w;
+            max_value = max(max_value, voronoi_vertices_[i].density);
+            min_value = min(min_value, voronoi_vertices_[i].density);
+        }
+
+        std::cout << "max_value: " << max_value << std::endl;
+        std::cout << "min_value: " << min_value << std::endl;
+
+        std::cout << "The consumption time of computing Voronoi vertices density field: " << sw.elapsed_seconds(5) << std::endl;
+    }
 
     void FilletDetector::filter_voronoi_vertices() {
 
-        std::cout << "Start filter Voronoi_vertices..." <<std::endl;
+        std::cout << "Start filtering Voronoi_vertices..." <<std::endl;
 
         easy3d::StopWatch sw;
 
@@ -186,7 +267,7 @@ namespace DeFillet {
             else if(state_code == 1) {
                 ++num_connected;
             }
-            else if(state_code == 2) {
+            else if(state_code == 2 || state_code == 4) {
                 ++num_tangented;
             }
             else if(state_code == 3) {
@@ -205,101 +286,170 @@ namespace DeFillet {
 
     }
 
+    void FilletDetector::rolling_ball_trajectory_transform() {
 
-    void FilletDetector::density_driven_voronoi_drift() {
+        std::cout << "Start rolling-ball trajectory transform..." <<std::endl;
 
+        easy3d::StopWatch sw;
 
-        std::vector<easy3d::vec3>& vv
-                , std::vector<float>& vvr
-                , std::vector<std::vector<int>>&vvns
-                , std::vector<std::vector<int>>&vvcs
-                , std::vector<std::vector<int>>& scvv
-                , std::vector<float>& vvs
+        for(size_t i = 0; i < voronoi_vertices_.size(); i++) {
 
-        std::cout << "Start voronoi density drift..." <<std::endl;
-        easy3d::StopWatch ss;
-        std::vector<easy3d::vec3> ovv = vv;// original voronoi vertices
-        std::vector<float> ovvr = vvr; // original voronoi vertiecs radius
-        std::vector<std::vector<int>> ovvns = vvns; // original voronoi vertices neighboring sites
-        std::vector<std::vector<int>> ovvcs = vvcs; // voronoi vertices corresponding sites
-        std::vector<float> ovvs = vvs; // original voronoi vertiecs scores
+            auto& corr_sites = voronoi_vertices_[i].corr_sites;
 
-        for(int iter = 1; iter <= 10; iter++) {
-            std::cout << "iteration " << iter << " is running..."<< std::endl;
-            easy3d::StopWatch sw;
-
-            int num = vv.size();
-            std::vector<easy3d::vec3> tmp_vv = vv;
-            std::vector<float> tmp_vvr = vvr;
-            omp_lock_t lock;
-            omp_init_lock(&lock);
-
-#pragma omp parallel for
-            for(int i = 0; i < num; i++) {
-                std::set<int> unique;
-                for(size_t j = 0; j < vvns[i].size(); j++) {
-                    int idx = vvns[i][j];
-                    unique.insert(scvv[idx].begin(), scvv[idx].end());
-                }
-                std::vector<easy3d::vec3> points;
-                std::vector<int> indices;
-                for(auto id : unique) {
-                    points.emplace_back(tmp_vv[id]);
-                    indices.emplace_back(id);
-                }
-                MeanShift ms;
-
-                std::pair<easy3d::vec3, int> res = ms.run(vv[i],points, h_, mean_shift_eps_);
-                int idx = res.second;
-                idx = indices[idx];
-                vv[i] = res.first;
-                vvr[i] = tmp_vvr[idx];
-            }
-
-            float t = sw.elapsed_seconds(5);
-            std::cout << "done. time=" << t <<std::endl;
-
-            std::string path = "../out/vv_" + std::to_string(iter) +".ply";
-            save_point_set(vv_, path);
-        }
-
-        std::cout  << "reprojection..." << std::endl;
-        std::vector<KNN::Point> data;
-        int num = ovv.size();
-        for(int i = 0; i < num; i++) {
-            data.emplace_back(KNN::Point(ovv[i].x, ovv[i].y, ovv[i].z));
-        }
-        KNN::KdSearch kds(data);
-#pragma omp parallel for
-        for(int i = 0; i < num; i++) {
-            std::vector<size_t> tmp_indices;
-            std::vector<double> dist;
-            kds.kth_search(KNN::Point(vv[i].x, vv[i].y, vv[i].z), 1, tmp_indices, dist);
-            vv[i] = ovv[tmp_indices[0]];
-            vvr[i] = ovvr[tmp_indices[0]];
-            vvns[i] = ovvns[tmp_indices[0]];
-            vvs[i] = ovvs[tmp_indices[0]];
-        }
-
-        // std::cout << "DAS" <<std::endl;
-        num = scvv.size();
-        scvv.clear(); scvv.resize(num);
-        omp_lock_t lock;
-        omp_init_lock(&lock);
-        num = vv.size();
-#pragma omp parallel for
-        for(int i = 0; i < num; i++) {
-            for(size_t j = 0; j < vvns[i].size(); j++) {
-                int id = vvns[i][j];
-                omp_set_lock(&lock);
-                scvv[id].emplace_back(i);
-                omp_unset_lock(&lock);
+            for(int j = 0; j < corr_sites.size(); j++) {
+                auto idx = corr_sites[j].idx();
+                sites_[idx].corr_vv.emplace_back(i);
             }
         }
-        omp_destroy_lock(&lock);
-        vdd_time_ = ss.elapsed_seconds(5);
-        std::cout << "Voronoi density drift sussessfully! time="<<vdd_time_<<std::endl;
-        std::string path = "../out/vv_rep.ply";
+
+        for(size_t i = 0; i < sites_.size(); i++) {
+
+            auto& corr_vv = sites_[i].corr_vv;
+
+            if(!corr_vv.empty()) {
+                float min_value = 1e9;
+                for(int j = 0; j < corr_vv.size(); j++) {
+                    int idx = corr_vv[j];
+
+                    if(min_value > voronoi_vertices_[idx].density) {
+                        min_value = voronoi_vertices_[idx].density;
+                        sites_[i].center = idx;
+                        sites_[i].radius = (sites_[i].pos - voronoi_vertices_[idx].pos).norm();
+                    }
+                }
+            }
+        }
+
+        std::cout << "The consumption time of rolling-ball trajectorytransform: " << sw.elapsed_seconds(5) << std::endl;
+
+
+
+    }
+
+    void FilletDetector::compute_fillet_radius_rate_field() {
+        std::cout << "Start computing fillet radius rate field..." <<std::endl;
+
+        easy3d::StopWatch sw;
+        float angle_thr = parameters_.angle_thr;
+        for(auto face : mesh_->faces()) {
+
+            if(sites_[face.idx()].corr_vv.empty()) {
+                sites_[face.idx()].rate = 1.0;
+                continue;
+            }
+
+            float rate = 0;
+            int count = 0;
+            for(auto halfedge : mesh_->halfedges(face)) {
+
+                auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                auto edge = mesh_->edge(halfedge);
+
+                if(opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
+
+                    float dis = centroid_distance_[edge];
+                    float radius_diff = fabs(sites_[face.idx()].radius - sites_[opp_face.idx()].radius);
+                    rate += radius_diff / dis;
+                    ++count;
+                }
+            }
+
+            if(count) {
+                sites_[face.idx()].rate = min(rate / count, 1.0f);
+                // sites_[face.idx()].rate = rate / count;
+            }
+            else {
+                sites_[face.idx()].rate = 1.0;
+            }
+        }
+
+        std::cout << "The consumption time of computing fillet radius rate field: " << sw.elapsed_seconds(5) << std::endl;
+    }
+
+    void FilletDetector::rate_field_smoothing() {
+
+        Eigen::MatrixXd V;
+        Eigen::MatrixXi F;
+        Eigen::VectorXd noisy;
+        int num_vertices = mesh_->n_vertices();
+        V.resize(num_vertices, 3);
+        noisy.resize(num_vertices);
+
+        for(auto vertex : mesh_->vertices()) {
+            int vid = vertex.idx();
+            auto& pos = mesh_->position(vertex);
+            V(vid , 0) = pos.x;
+            V(vid , 1) = pos.y;
+            V(vid , 2) = pos.x;
+
+            noisy[vid] = 0.0;
+            int ct = 0;
+            for(auto face : mesh_->faces(vertex)) {
+                int idx = face.idx();
+                noisy[vid] += sites_[idx].rate;
+                ++ct;
+            }
+            if(ct)
+                noisy[vid] /= ct;
+        }
+
+        int num_faces = mesh_->n_faces();
+        F.resize(num_faces, 3);
+        for(auto face : mesh_->faces()) {
+
+            int fid = face.idx();
+
+            std::vector<int> indices;
+            for(auto vertex : mesh_->vertices(face)) {
+                indices.emplace_back(vertex.idx());
+            }
+            F(fid , 0) = indices[0];
+            F(fid , 1) = indices[1];
+            F(fid , 2) = indices[2];
+        }
+
+        SparseMat L, M;
+        igl::cotmatrix(V, F, L);
+        igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
+        Eigen::SimplicialLDLT<SparseMat> solver(M);
+        SparseMat MinvL = solver.solve(L);
+        SparseMat QL = L.transpose()*MinvL;
+        SparseMat QH;
+        igl::hessian_energy(V, F, QH);
+        SparseMat QcH;
+        igl::curved_hessian_energy(V, F, QcH);
+
+        // const double al = 3e-7;
+        // Eigen::SimplicialLDLT<SparseMat> lapSolver(al*QL + (1.-al)*M);
+        // Eigen::VectorXd denoisy = lapSolver.solve(al*M*noisy);
+
+
+        const double tau = 3e-7;                    // 用 tau 代替 al 的含义
+        SparseMat A = M - tau * QL;                 // 若 QL 为负半定
+        A = 0.5*(A + SparseMat(A.transpose()));     // 保对称
+
+        SparseMat I(A.rows(), A.cols()); I.setIdentity();
+        double mu = 1e-8 * std::max(1.0, A.diagonal().cwiseAbs().maxCoeff());
+        A = A + mu * I;                              // 轻微正则
+
+        Eigen::SimplicialLLT<SparseMat> solver1;
+        solver1.compute(A);
+        Eigen::VectorXd denoisy = solver1.solve(M * noisy);
+
+
+        for(auto face : mesh_->faces()) {
+            float val = 0;
+            int ct = 0;
+            for(auto vertex : mesh_->vertices(face)) {
+                int idx = vertex.idx();
+                val += denoisy[idx];
+                ++ct;
+            }
+            if(ct)
+                val /= ct;
+            sites_[face.idx()].rate = val;
+        }
+
     }
 
 
@@ -314,6 +464,16 @@ namespace DeFillet {
         }
 
         return cloud;
+    }
+
+    std::vector<float> FilletDetector::radius_rate_field() const {
+
+        std::vector<float> field;
+        for(int i = 0; i < sites_.size(); i++) {
+            field.emplace_back(sites_[i].rate);
+        }
+
+        return field;
     }
 
 
@@ -367,9 +527,9 @@ namespace DeFillet {
                 dis[cur_fid] = -cur_dis;
 
 
-                for(auto halfdege : mesh_->halfedges(cur_face)) {
-                    auto opp_face = mesh_->face(mesh_->opposite(halfdege));
-                    auto edge = mesh_->edge(halfdege);
+                for(auto halfedge : mesh_->halfedges(cur_face)) {
+                    auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                    auto edge = mesh_->edge(halfedge);
 
                     if(vis.find(opp_face) == vis.end()) {
                         float val = centroid_distance_[edge];
@@ -409,11 +569,11 @@ namespace DeFillet {
             auto cur_face = que.top().second;
             que.pop();
 
-            for(auto halfdege : mesh_->halfedges(cur_face)) {
-                auto opp_face = mesh_->face(mesh_->opposite(halfdege));
+            for(auto halfedge : mesh_->halfedges(cur_face)) {
+                auto opp_face = mesh_->face(mesh_->opposite(halfedge));
 
                 if(vis.find(opp_face) == vis.end()) {
-                    auto edge = mesh_->edge(halfdege);
+                    auto edge = mesh_->edge(halfedge);
                     float val = centroid_distance_[edge];
                     if(max_gap > -cur_dis + val && dihedral_angle_[edge] < angle_thr) {
                         que.push(std::make_pair(cur_dis - val, opp_face));
@@ -453,7 +613,7 @@ namespace DeFillet {
                 auto opp_face = mesh_->face(mesh_->opposite(halfdege));
 
                 if(opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
-                    vec3 opp_pos = easy3d::geom::centroid(mesh_, opp_face);
+                    vec3 opp_pos = sites_[opp_face.idx()].pos;
                     float err = fabs((pos - opp_pos).norm() - radius);
                     if(err < thr) {
                         que.push(opp_face);
@@ -506,6 +666,19 @@ namespace DeFillet {
             return 3;
         }
 
+
+        float maxx = 0;
+        for(int i = 0; i < neigh_sites.size(); i++) {
+            for(int j = i + 1; j < neigh_sites.size(); j++) {
+                vec3 n1 = face_normals_[neigh_sites[i]];
+                vec3 n2 = face_normals_[neigh_sites[j]];
+                maxx = max(maxx, angle_between(n1, n2));
+            }
+        }
+
+        if(maxx < 50) {
+            return 4;
+        }
 
         corr_sites = tmp;
 
@@ -566,7 +739,7 @@ namespace DeFillet {
         std::vector<vec3> centroids;
 
         for(size_t i = 0; i < faces.size(); i++) {
-            vec3 p = easy3d::geom::centroid(mesh_, faces[i]);
+            vec3 p = sites_[faces[i].idx()].pos;
             centroids.emplace_back(p);
         }
 

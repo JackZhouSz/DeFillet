@@ -10,12 +10,12 @@
 
 int main() {
 
-    std::string case_path = "../data/20440_27177360_1_remesh.ply";
+    std::string case_path = "../data/22162_439af02a_0.ply";
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(case_path);
 
     DeFillet::FilletDetectorParameters parameters;
     parameters.epsilon = 0.02;
-    parameters.radius_thr = 0.03;
+    parameters.radius_thr = 0.04;
     parameters.angle_thr = 40;
     parameters.sigma = 1.0;
     parameters.lamdba = 0.5;
@@ -26,21 +26,23 @@ int main() {
     DeFillet::FilletDetector detector(mesh, parameters);
 
     detector.generate_voronoi_vertices();
+    detector.compute_voronoi_vertices_density_field();
     detector.filter_voronoi_vertices();
+    detector.rolling_ball_trajectory_transform();
+
+    detector.compute_fillet_radius_rate_field();
+
+    // for(int i = 0; i < 1; i++) {
+        detector.rate_field_smoothing();
+    // }
+    // detector.density_driven_voronoi_drift();
 
     easy3d::PointCloud* vv = detector.voronoi_vertices();
     easy3d::PointCloudIO::save("../out3/samples.ply" , vv);
-//    DeFillet::PreliminaryFilletSelector pfs(mesh, 500, 0.05, 30);
-//
-//    pfs.apply();
-//
-//    easy3d::PointCloud* samples = pfs.patch_centroid();
-//
-//    easy3d::PointCloudIO::save("../out3/samples.ply" , samples);
-//
-//    auto labels = pfs.fillet_labels();
-//
-//    DeFillet::save_fillet_regions(mesh, labels, "../out3/fillet_seg.ply");
+
+    std::vector<float> field = detector.radius_rate_field();
+
+    DeFillet::save_rate_field(mesh, field, "../out3/field.ply");
 
     return 0;
 }

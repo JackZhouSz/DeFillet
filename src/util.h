@@ -10,7 +10,6 @@
 #include <easy3d/fileio/point_cloud_io.h>
 #include <easy3d/fileio/surface_mesh_io.h>
 #include <easy3d/algo/surface_mesh_geometry.h>
-#include <kernel.h>
 #include <easy3d/core/random.h>
 
 static void save_point_set(std::vector<easy3d::vec3>& points,const std::string& path) {

@@ -26,7 +26,7 @@ namespace DeFillet {
     */
     float angle_between(const easy3d::vec3& n1, const easy3d::vec3& n2);
 
-
+    double gaussian_kernel(double distance, double kernel_bandwidth);
 
     void save_components(const easy3d::SurfaceMesh* mesh,
                                 const std::vector<easy3d::SurfaceMesh*>components,
@@ -37,6 +37,9 @@ namespace DeFillet {
                          easy3d::SurfaceMesh::FaceProperty<int>& component_labels,
                          int label);
 
+    void save_rate_field(const easy3d::SurfaceMesh* mesh,
+                         const std::vector<float>& field,
+                         const std::string path);
 
     void save_fillet_regions(const easy3d::SurfaceMesh* mesh,
                              const easy3d::SurfaceMesh::FaceProperty<int>& fillet_label,

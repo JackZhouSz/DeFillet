@@ -206,6 +206,103 @@ namespace DeFillet {
     }
 
 
+    void FilletDetector::density_driven_voronoi_drift() {
+
+
+        std::vector<easy3d::vec3>& vv
+                , std::vector<float>& vvr
+                , std::vector<std::vector<int>>&vvns
+                , std::vector<std::vector<int>>&vvcs
+                , std::vector<std::vector<int>>& scvv
+                , std::vector<float>& vvs
+
+        std::cout << "Start voronoi density drift..." <<std::endl;
+        easy3d::StopWatch ss;
+        std::vector<easy3d::vec3> ovv = vv;// original voronoi vertices
+        std::vector<float> ovvr = vvr; // original voronoi vertiecs radius
+        std::vector<std::vector<int>> ovvns = vvns; // original voronoi vertices neighboring sites
+        std::vector<std::vector<int>> ovvcs = vvcs; // voronoi vertices corresponding sites
+        std::vector<float> ovvs = vvs; // original voronoi vertiecs scores
+
+        for(int iter = 1; iter <= 10; iter++) {
+            std::cout << "iteration " << iter << " is running..."<< std::endl;
+            easy3d::StopWatch sw;
+
+            int num = vv.size();
+            std::vector<easy3d::vec3> tmp_vv = vv;
+            std::vector<float> tmp_vvr = vvr;
+            omp_lock_t lock;
+            omp_init_lock(&lock);
+
+#pragma omp parallel for
+            for(int i = 0; i < num; i++) {
+                std::set<int> unique;
+                for(size_t j = 0; j < vvns[i].size(); j++) {
+                    int idx = vvns[i][j];
+                    unique.insert(scvv[idx].begin(), scvv[idx].end());
+                }
+                std::vector<easy3d::vec3> points;
+                std::vector<int> indices;
+                for(auto id : unique) {
+                    points.emplace_back(tmp_vv[id]);
+                    indices.emplace_back(id);
+                }
+                MeanShift ms;
+
+                std::pair<easy3d::vec3, int> res = ms.run(vv[i],points, h_, mean_shift_eps_);
+                int idx = res.second;
+                idx = indices[idx];
+                vv[i] = res.first;
+                vvr[i] = tmp_vvr[idx];
+            }
+
+            float t = sw.elapsed_seconds(5);
+            std::cout << "done. time=" << t <<std::endl;
+
+            std::string path = "../out/vv_" + std::to_string(iter) +".ply";
+            save_point_set(vv_, path);
+        }
+
+        std::cout  << "reprojection..." << std::endl;
+        std::vector<KNN::Point> data;
+        int num = ovv.size();
+        for(int i = 0; i < num; i++) {
+            data.emplace_back(KNN::Point(ovv[i].x, ovv[i].y, ovv[i].z));
+        }
+        KNN::KdSearch kds(data);
+#pragma omp parallel for
+        for(int i = 0; i < num; i++) {
+            std::vector<size_t> tmp_indices;
+            std::vector<double> dist;
+            kds.kth_search(KNN::Point(vv[i].x, vv[i].y, vv[i].z), 1, tmp_indices, dist);
+            vv[i] = ovv[tmp_indices[0]];
+            vvr[i] = ovvr[tmp_indices[0]];
+            vvns[i] = ovvns[tmp_indices[0]];
+            vvs[i] = ovvs[tmp_indices[0]];
+        }
+
+        // std::cout << "DAS" <<std::endl;
+        num = scvv.size();
+        scvv.clear(); scvv.resize(num);
+        omp_lock_t lock;
+        omp_init_lock(&lock);
+        num = vv.size();
+#pragma omp parallel for
+        for(int i = 0; i < num; i++) {
+            for(size_t j = 0; j < vvns[i].size(); j++) {
+                int id = vvns[i][j];
+                omp_set_lock(&lock);
+                scvv[id].emplace_back(i);
+                omp_unset_lock(&lock);
+            }
+        }
+        omp_destroy_lock(&lock);
+        vdd_time_ = ss.elapsed_seconds(5);
+        std::cout << "Voronoi density drift sussessfully! time="<<vdd_time_<<std::endl;
+        std::string path = "../out/vv_rep.ply";
+    }
+
+
     PointCloud* FilletDetector::voronoi_vertices() const {
 
         PointCloud* cloud = new PointCloud;
@@ -396,7 +493,7 @@ namespace DeFillet {
 
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
 
-                if(opp_face.is_valid() && vis.find(opp_face) != vis.end()) {
+                if(opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
 
                     SurfaceMesh::Edge edge  = mesh_->edge(halfedge);
                     boundaries.emplace_back(edge);
@@ -405,8 +502,9 @@ namespace DeFillet {
             }
         }
 
-        if(count_boundaries_components(boundaries) > 1)
+        if(count_boundaries_components(boundaries) > 1) {
             return 3;
+        }
 
 
         corr_sites = tmp;

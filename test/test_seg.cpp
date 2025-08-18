@@ -14,8 +14,8 @@ int main() {
     easy3d::SurfaceMesh* mesh = easy3d::SurfaceMeshIO::load(case_path);
 
     DeFillet::FilletDetectorParameters parameters;
-    parameters.epsilon = 0.01;
-    parameters.radius_thr = 0.05;
+    parameters.epsilon = 0.02;
+    parameters.radius_thr = 0.03;
     parameters.angle_thr = 40;
     parameters.sigma = 1.0;
     parameters.lamdba = 0.5;

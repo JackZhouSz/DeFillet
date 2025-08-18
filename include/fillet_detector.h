@@ -48,8 +48,8 @@ namespace DeFillet {
         void generate_voronoi_vertices();
 
         void filter_voronoi_vertices();
-        //
-        // void density_driven_voronoi_drift();
+
+        void density_driven_voronoi_drift();
         //
         // void compute_voronoi_vertices_density_field();
         //

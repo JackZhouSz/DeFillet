@@ -17,7 +17,7 @@
 #include <igl/cotmatrix.h>
 #include <igl/hessian_energy.h>
 #include <igl/curved_hessian_energy.h>
-
+#include <igl/avg_edge_length.h>
 
 
 #include <Eigen/Core>
@@ -52,6 +52,8 @@ namespace DeFillet {
         // Precompute and cache: face normals for all faces.
         face_normals_ = mesh_->face_property<easy3d::vec3>("f:normal");
 
+        labels_ = mesh_->face_property<int>("f:label");
+
         for(auto face : mesh_->faces()) {
             face_normals_[face] = mesh_->compute_face_normal(face);
         }
@@ -66,6 +68,7 @@ namespace DeFillet {
             site.center = -1;
             site.rate = 1.0;
             sites_.emplace_back(site);
+            labels_[face] = 1;
         }
 
         // Iterate through all edges to compute dihedral angles.
@@ -106,6 +109,8 @@ namespace DeFillet {
 
         easy3d::StopWatch sw;
 
+        voronoi_vertices_.clear();
+
         std::map<SurfaceMesh::Face, std::map<SurfaceMesh::Face, std::map<SurfaceMesh::Face,std::map<SurfaceMesh::Face,int>>>> unique;
 
         int num_patches = parameters_.num_patches;
@@ -113,25 +118,33 @@ namespace DeFillet {
 
         float max_gap = farthest_point_sampling(num_patches, patch_centroids);
 
+
         max_gap = 0.5 * M_PI * parameters_.radius_thr * box_.diagonal_length();
         int idx = 0;
 
         omp_lock_t lock;
         omp_init_lock(&lock);
 
-#pragma omp parallel for
+//#pragma omp parallel for
         for(int i = 0; i < num_patches; i++) {
 
             std::vector<SurfaceMesh::Face> patch;
 
             crop_local_patch(patch_centroids[i], max_gap, patch);
 
+
+
             std::vector<vec3> ls = face_centroids(patch); // local sites;
+
+            if(ls.size() < 10)
+                continue;
 
             std::vector<std::vector<int>> lsnv;   // local sites neighboring vertices;
             std::vector<float> lvvr; // vor_vertices_radius
             std::vector<std::vector<int>> lvns ; // local vertices neighboring sites;
             std::vector<easy3d::vec3> lvv; // local voronoi vertices;
+
+
             voronoi3d(ls, box_, lvv, lvvr,lsnv, lvns);
 
             for(size_t j = 0; j < lvv.size(); j++) {
@@ -167,6 +180,7 @@ namespace DeFillet {
                     omp_unset_lock(&lock);
                 }
             }
+
         }
 
 
@@ -286,6 +300,22 @@ namespace DeFillet {
 
     }
 
+    void FilletDetector::update() {
+
+        for(auto face : mesh_->faces()) {
+
+            labels_[face] = 0;
+
+        }
+
+        for(int i = 0; i < voronoi_vertices_.size(); i++) {
+            auto& corr_site = voronoi_vertices_[i].corr_sites;
+            for(int j = 0; j < corr_site.size(); j++) {
+                labels_[corr_site[j]] = 1;
+            }
+        }
+    }
+
     void FilletDetector::rolling_ball_trajectory_transform() {
 
         std::cout << "Start rolling-ball trajectory transform..." <<std::endl;
@@ -345,7 +375,7 @@ namespace DeFillet {
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
                 auto edge = mesh_->edge(halfedge);
 
-                if(opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
+                if(labels_[opp_face] && opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
 
                     float dis = centroid_distance_[edge];
                     float radius_diff = fabs(sites_[face.idx()].radius - sites_[opp_face.idx()].radius);
@@ -419,22 +449,11 @@ namespace DeFillet {
         SparseMat QcH;
         igl::curved_hessian_energy(V, F, QcH);
 
-        // const double al = 3e-7;
-        // Eigen::SimplicialLDLT<SparseMat> lapSolver(al*QL + (1.-al)*M);
-        // Eigen::VectorXd denoisy = lapSolver.solve(al*M*noisy);
-
-
-        const double tau = 3e-7;                    // 用 tau 代替 al 的含义
-        SparseMat A = M - tau * QL;                 // 若 QL 为负半定
-        A = 0.5*(A + SparseMat(A.transpose()));     // 保对称
-
+        const double al = 0.5;
+        SparseMat A = al*QL + (1.-al)*M;
         SparseMat I(A.rows(), A.cols()); I.setIdentity();
-        double mu = 1e-8 * std::max(1.0, A.diagonal().cwiseAbs().maxCoeff());
-        A = A + mu * I;                              // 轻微正则
-
-        Eigen::SimplicialLLT<SparseMat> solver1;
-        solver1.compute(A);
-        Eigen::VectorXd denoisy = solver1.solve(M * noisy);
+        Eigen::SparseLU<SparseMat> lapSolver(A + I);
+        Eigen::VectorXd denoisy = lapSolver.solve(al*M*noisy);
 
 
         for(auto face : mesh_->faces()) {
@@ -494,12 +513,18 @@ namespace DeFillet {
             std::priority_queue<std::pair<float, SurfaceMesh::Face>> que;
             SurfaceMesh::Face sface;
             if(i == 0) {
-                sface = SurfaceMesh::Face(distribution(gen));
+//                sface = SurfaceMesh::Face(distribution(gen));
+                for(auto face : mesh_->faces()) {
+                    if(labels_[face]) {
+                        sface = face; break;
+                    }
+                }
             } else {
                 float maxx = 0.0;
                 int idx = 0;
                 for(int j = 0; j < num; j++) {
-                    if(dis[j] > maxx) {
+                    SurfaceMesh::Face f(j);
+                    if(labels_[f] && dis[j] > maxx) {
                         maxx = dis[j]; idx = j;
                     }
                 }
@@ -531,7 +556,7 @@ namespace DeFillet {
                     auto opp_face = mesh_->face(mesh_->opposite(halfedge));
                     auto edge = mesh_->edge(halfedge);
 
-                    if(vis.find(opp_face) == vis.end()) {
+                    if(labels_[opp_face] && vis.find(opp_face) == vis.end()) {
                         float val = centroid_distance_[edge];
                         if(dis[opp_face.idx()] > -cur_dis + val) {
                             que.push(std::make_pair(cur_dis - val, opp_face));
@@ -539,13 +564,13 @@ namespace DeFillet {
                         }
                     }
                 }
-
             }
         }
 
         float max_gap = 0.0;
         for(int i = 0; i < num; i++) {
-            if(dis[i] > max_gap) {
+            SurfaceMesh::Face f(i);
+            if(labels_[f] && dis[i] > max_gap) {
                 max_gap = dis[i];
             }
         }
@@ -572,7 +597,7 @@ namespace DeFillet {
             for(auto halfedge : mesh_->halfedges(cur_face)) {
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
 
-                if(vis.find(opp_face) == vis.end()) {
+                if(labels_[opp_face] && vis.find(opp_face) == vis.end()) {
                     auto edge = mesh_->edge(halfedge);
                     float val = centroid_distance_[edge];
                     if(max_gap > -cur_dis + val && dihedral_angle_[edge] < angle_thr) {
@@ -653,7 +678,7 @@ namespace DeFillet {
 
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
 
-                if(opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
+                if(labels_[opp_face]  && opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
 
                     SurfaceMesh::Edge edge  = mesh_->edge(halfedge);
                     boundaries.emplace_back(edge);
@@ -677,7 +702,7 @@ namespace DeFillet {
         }
 
         if(maxx < 50) {
-            return 4;
+//            return 4;
         }
 
         corr_sites = tmp;
@@ -744,6 +769,10 @@ namespace DeFillet {
         }
 
         return centroids;
+    }
+
+    SurfaceMesh::FaceProperty<int> FilletDetector::labels() const {
+        return labels_;
     }
 
 }

@@ -67,6 +67,8 @@ namespace DeFillet {
 
         void filter_voronoi_vertices();
 
+        void update();
+
         void rolling_ball_trajectory_transform();
 
         void compute_fillet_radius_rate_field();
@@ -78,7 +80,10 @@ namespace DeFillet {
     public: // setor or getor functions
 
         PointCloud* voronoi_vertices() const;
+
         std::vector<float> radius_rate_field() const;
+
+        SurfaceMesh::FaceProperty<int> labels() const;
 
     private: //utils functions
 
@@ -112,6 +117,8 @@ namespace DeFillet {
         std::vector<VoronoiVertices> voronoi_vertices_;
 
         std::vector<Sites> sites_;
+
+        SurfaceMesh::FaceProperty<int> labels_;
 
     };
 }

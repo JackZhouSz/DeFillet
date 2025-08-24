@@ -28,6 +28,15 @@ namespace DeFillet {
 
     double gaussian_kernel(double distance, double kernel_bandwidth);
 
+
+    void sor(const std::vector<easy3d::vec4>& points
+                , std::vector<bool>& labels
+                , int nb_neighbors
+                , int num_sor_iter
+                , float std_ratio);
+
+    easy3d::vec3 axis_direction(std::vector<easy3d::vec4> points);
+
     void save_components(const easy3d::SurfaceMesh* mesh,
                                 const std::vector<easy3d::SurfaceMesh*>components,
                                 const std::string path);

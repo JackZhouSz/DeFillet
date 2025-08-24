@@ -11,6 +11,7 @@
 
 #include <easy3d/util/stop_watch.h>
 #include <easy3d/algo/surface_mesh_geometry.h>
+#include <easy3d/fileio/point_cloud_io.h>
 
 
 #include <igl/massmatrix.h>
@@ -52,7 +53,6 @@ namespace DeFillet {
         // Precompute and cache: face normals for all faces.
         face_normals_ = mesh_->face_property<easy3d::vec3>("f:normal");
 
-        labels_ = mesh_->face_property<int>("f:label");
 
         for(auto face : mesh_->faces()) {
             face_normals_[face] = mesh_->compute_face_normal(face);
@@ -65,10 +65,10 @@ namespace DeFillet {
             site.pos = easy3d::geom::centroid(mesh_, face);
             site.face = face;
             site.radius = box_.diagonal_length();
-            site.center = -1;
-            site.rate = 1.0;
+            site.center = easy3d::vec3(0,0,0);
+            site.rate = -1.0;
+            site.flag = false;
             sites_.emplace_back(site);
-            labels_[face] = 1;
         }
 
         // Iterate through all edges to compute dihedral angles.
@@ -125,7 +125,7 @@ namespace DeFillet {
         omp_lock_t lock;
         omp_init_lock(&lock);
 
-//#pragma omp parallel for
+#pragma omp parallel for
         for(int i = 0; i < num_patches; i++) {
 
             std::vector<SurfaceMesh::Face> patch;
@@ -220,16 +220,22 @@ namespace DeFillet {
             kds.kth_search(knn_data[i], num_neighbors, indices, dist);
             float density = 0;
             double w = 0;
+            std::vector<vec4> points;
             for(size_t j = 0; j < indices.size(); j++) {
                 int idx = indices[j];
                 double dis = fabs((data[idx] - data[i]).norm());
                 double val = gaussian_kernel(dis, sigma);
                 density += val * dis;
                 w += val;
+                points.emplace_back(data[idx]);
             }
             voronoi_vertices_[i].density =  density / w;
             max_value = max(max_value, voronoi_vertices_[i].density);
             min_value = min(min_value, voronoi_vertices_[i].density);
+
+            voronoi_vertices_[i].axis = axis_direction(points);
+
+
         }
 
         std::cout << "max_value: " << max_value << std::endl;
@@ -289,38 +295,38 @@ namespace DeFillet {
             }
         }
 
-        voronoi_vertices_ = tmp;
-
         std::cout << "Filtered out by radius threshold: " << num_radius <<std::endl;
         std::cout << "Filtered out by connected condition: " << num_connected <<std::endl;
         std::cout << "Filtered out by tangented condition: " << num_tangented <<std::endl;
         std::cout << "Filtered out by genus condition: " << num_genus <<std::endl;
-        std::cout << "Remaining Voronoi vertices: " << tmp.size() <<std::endl;
+
+        // voronoi_vertices_ = tmp;
+        std::vector<vec4> points;
+        std::vector<bool>labels;
+
+        for(int i = 0; i < tmp.size(); i++) {
+            points.emplace_back(vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius));
+            labels.emplace_back(true);
+        }
+        sor(points, labels, 30,3, 0.3);
+        voronoi_vertices_.clear();
+        for(int i = 0; i < tmp.size(); i++) {
+            if(labels[i])
+                voronoi_vertices_.emplace_back(tmp[i]);
+        }
+
+        std::cout << "Remaining Voronoi vertices: " << voronoi_vertices_.size() <<std::endl;
         std::cout << "The consumption time of filtering Voronoi vertices: " << sw.elapsed_seconds(5) << std::endl;
 
     }
 
-    void FilletDetector::update() {
-
-        for(auto face : mesh_->faces()) {
-
-            labels_[face] = 0;
-
-        }
-
-        for(int i = 0; i < voronoi_vertices_.size(); i++) {
-            auto& corr_site = voronoi_vertices_[i].corr_sites;
-            for(int j = 0; j < corr_site.size(); j++) {
-                labels_[corr_site[j]] = 1;
-            }
-        }
-    }
 
     void FilletDetector::rolling_ball_trajectory_transform() {
 
         std::cout << "Start rolling-ball trajectory transform..." <<std::endl;
 
         easy3d::StopWatch sw;
+
 
         for(size_t i = 0; i < voronoi_vertices_.size(); i++) {
 
@@ -332,26 +338,77 @@ namespace DeFillet {
             }
         }
 
+        std::vector<Sites> sites = sites_;
+
         for(size_t i = 0; i < sites_.size(); i++) {
 
             auto& corr_vv = sites_[i].corr_vv;
 
             if(!corr_vv.empty()) {
+                sites[i].flag = true;
                 float min_value = 1e9;
                 for(int j = 0; j < corr_vv.size(); j++) {
                     int idx = corr_vv[j];
 
                     if(min_value > voronoi_vertices_[idx].density) {
                         min_value = voronoi_vertices_[idx].density;
-                        sites_[i].center = idx;
-                        sites_[i].radius = (sites_[i].pos - voronoi_vertices_[idx].pos).norm();
+                        sites[i].center = voronoi_vertices_[idx].pos;
+                        sites[i].vvid = idx;
+                        sites[i].radius = (sites_[i].pos - voronoi_vertices_[idx].pos).norm();
                     }
                 }
             }
         }
+        sites_ = sites;
+        float angle_thr = parameters_.angle_thr;
+        for(size_t i = 0; i < sites_.size(); i++) {
+            auto& corr_vv = sites_[i].corr_vv;
+            vec3 p0 = sites_[i].pos;
+            if(corr_vv.empty()) {
+                std::priority_queue<pair<int,SurfaceMesh::Face>>que;
+                que.push(make_pair(0, SurfaceMesh::Face(i)));
+                while(!que.empty()) {
+                    int step = que.top().first;
+                    SurfaceMesh::Face cur = que.top().second; que.pop();
 
+                    if(-step > 5) continue;
+
+                    if(!sites_[cur.idx()].corr_vv.empty()) {
+                        vec3 p1 = sites_[cur.idx()].center;
+                        vec3 d = voronoi_vertices_[sites_[cur.idx()].vvid].axis;
+                        sites[i].center = p1 + dot((p0 - p1), d) * d;
+                        sites[i].radius = (p0 - sites[i].center).norm();
+                        sites[i].flag = true;
+                        break;
+                    }
+
+
+                    for(auto halfedge : mesh_->halfedges(cur)) {
+                        auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                        auto edge = mesh_->edge(halfedge);
+
+                        if(opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
+                            que.push(make_pair(step-1, opp_face));
+                        }
+                    }
+
+                 }
+
+            }
+        }
+
+        sites_ = sites;
         std::cout << "The consumption time of rolling-ball trajectorytransform: " << sw.elapsed_seconds(5) << std::endl;
 
+
+        PointCloud* cloud = new PointCloud;
+        for(int i = 0; i < sites_.size(); i++) {
+            if(sites_[i].flag) {
+                cloud->add_vertex(sites_[i].center);
+                // std::cout << sites_[i].center.x << ' ' << sites_[i].center.y << ' ' << sites_[i].center.y << std::endl;
+            }
+        }
+        easy3d::PointCloudIO::save("../out3/center.ply", cloud);
 
 
     }
@@ -362,11 +419,14 @@ namespace DeFillet {
         easy3d::StopWatch sw;
         float angle_thr = parameters_.angle_thr;
         for(auto face : mesh_->faces()) {
-
-            if(sites_[face.idx()].corr_vv.empty()) {
+            if(sites_[face.idx()].flag == false) {
                 sites_[face.idx()].rate = 1.0;
                 continue;
             }
+            // if(sites_[face.idx()].corr_vv.empty()) {
+            //     sites_[face.idx()].rate = 1.0;
+            //     continue;
+            // }
 
             float rate = 0;
             int count = 0;
@@ -375,7 +435,7 @@ namespace DeFillet {
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
                 auto edge = mesh_->edge(halfedge);
 
-                if(labels_[opp_face] && opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
+                if(opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
 
                     float dis = centroid_distance_[edge];
                     float radius_diff = fabs(sites_[face.idx()].radius - sites_[opp_face.idx()].radius);
@@ -480,6 +540,12 @@ namespace DeFillet {
 
         for(int i = 0; i < num; i++) {
             cloud->add_vertex(voronoi_vertices_[i].pos);
+        }
+
+        auto nor = cloud->add_vertex_property<vec3>("v:normal");
+
+        for(auto  v : cloud->vertices()) {
+            nor[v] = voronoi_vertices_[v.idx()].axis;
         }
 
         return cloud;
@@ -597,7 +663,7 @@ namespace DeFillet {
             for(auto halfedge : mesh_->halfedges(cur_face)) {
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
 
-                if(labels_[opp_face] && vis.find(opp_face) == vis.end()) {
+                if(vis.find(opp_face) == vis.end()) {
                     auto edge = mesh_->edge(halfedge);
                     float val = centroid_distance_[edge];
                     if(max_gap > -cur_dis + val && dihedral_angle_[edge] < angle_thr) {
@@ -664,7 +730,7 @@ namespace DeFillet {
             }
         }
 
-        if(count_boundaries_components(boundaries) == 1) {
+        if(count_boundaries_components(boundaries) < 3 ) {
             return 2;
         }
 
@@ -692,18 +758,18 @@ namespace DeFillet {
         }
 
 
-        float maxx = 0;
-        for(int i = 0; i < neigh_sites.size(); i++) {
-            for(int j = i + 1; j < neigh_sites.size(); j++) {
-                vec3 n1 = face_normals_[neigh_sites[i]];
-                vec3 n2 = face_normals_[neigh_sites[j]];
-                maxx = max(maxx, angle_between(n1, n2));
-            }
-        }
-
-        if(maxx < 50) {
-//            return 4;
-        }
+//         float maxx = 0;
+//         for(int i = 0; i < neigh_sites.size(); i++) {
+//             for(int j = i + 1; j < neigh_sites.size(); j++) {
+//                 vec3 n1 = face_normals_[neigh_sites[i]];
+//                 vec3 n2 = face_normals_[neigh_sites[j]];
+//                 maxx = max(maxx, angle_between(n1, n2));
+//             }
+//         }
+//
+//         if(maxx < 50) {
+// //            return 4;
+//         }
 
         corr_sites = tmp;
 

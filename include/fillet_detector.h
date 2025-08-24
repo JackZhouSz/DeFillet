@@ -33,6 +33,8 @@ namespace DeFillet {
 
         std::vector<SurfaceMesh::Face> corr_sites; //corresponding sites
 
+        vec3 axis;
+
         bool flag;
     };
 
@@ -48,7 +50,11 @@ namespace DeFillet {
 
         std::vector<int> corr_vv; //corresponding Voronoi vertices
 
-        int center; //rolling-ball center
+        vec3 center; //rolling-ball center
+
+        int vvid;
+
+        bool flag;
     };
 
 
@@ -67,7 +73,6 @@ namespace DeFillet {
 
         void filter_voronoi_vertices();
 
-        void update();
 
         void rolling_ball_trajectory_transform();
 
@@ -118,7 +123,6 @@ namespace DeFillet {
 
         std::vector<Sites> sites_;
 
-        SurfaceMesh::FaceProperty<int> labels_;
 
     };
 }

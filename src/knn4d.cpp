@@ -1,9 +1,8 @@
 //
-// Created by xiaowuga on 2024/11/7.
+// Created by xiaowuga on 2025/8/21.
 //
 
-#include "knn4d.h"
-
+#include <knn4d.h>
 
 namespace KNN {
 

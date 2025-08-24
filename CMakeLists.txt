@@ -36,7 +36,7 @@ find_package(glfw3 CONFIG REQUIRED)
 add_subdirectory(gcp)
 add_subdirectory(geodesic)
 
-add_executable(fillet_seg app/fillet_seg.cpp src/knn4d.cpp src/knn.cpp src/fillet_seg_v8.cpp src/defillet_v2.cpp  src/voro_viewer.cpp src/surface_mesh_segmenter.cpp)
+add_executable(fillet_seg app/fillet_seg.cpp src/fillet_seg_v8.cpp src/defillet_v2.cpp  src/voro_viewer.cpp src/surface_mesh_segmenter.cpp)
 target_include_directories(fillet_seg PRIVATE src)
 target_link_libraries(fillet_seg PRIVATE gcp geodesic)
 target_link_libraries(fillet_seg PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)

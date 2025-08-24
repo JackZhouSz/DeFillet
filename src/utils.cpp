@@ -2,12 +2,16 @@
 // Created by xiaowuga on 2025/8/17.
 //
 
+#include <numeric>
+
 #include <easy3d/fileio/point_cloud_io.h>
 #include <easy3d/fileio/surface_mesh_io.h>
 #include <easy3d/core/random.h>
 
 
 #include <utils.h>
+#include <knn4d.h>
+
 #include <Eigen/Dense>
 
 #include <igl/jet.h>
@@ -38,6 +42,35 @@ namespace DeFillet {
     double gaussian_kernel(double distance, double kernel_bandwidth){
         double temp =  exp(-0.5 * (distance*distance) / (kernel_bandwidth*kernel_bandwidth));
         return temp;
+    }
+
+    vec3 axis_direction(std::vector<easy3d::vec4> points) {
+
+        int num = points.size();
+        Eigen::MatrixXd X(num, 3);
+
+        for(int i = 0; i < num; i++) {
+            X.row(i) << points[i].x, points[i].y, points[i].z;
+        }
+
+        Eigen::RowVector3d mu = X.colwise().mean();
+        Eigen::MatrixXd Y = X.rowwise() - mu;
+
+        Eigen::Matrix3d C = (Y.transpose() * Y) / double(num);
+
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(C);
+
+        Eigen::Matrix3d evecs = es.eigenvectors();
+
+        float x = evecs.col(2).x();
+        float y = evecs.col(2).y();
+        float z = evecs.col(2).z();
+
+        vec3 res(x, y, z);
+        res.normalize();
+
+        return res;
+
     }
 
     easy3d::SurfaceMesh* split_component(const easy3d::SurfaceMesh* mesh,
@@ -115,6 +148,76 @@ namespace DeFillet {
     }
 
 
+    void sor(const std::vector<easy3d::vec4>& points
+                    , std::vector<bool>& labels
+                    , int nb_neighbors
+                    , int num_sor_iter
+                    , float std_ratio) {
+    int nb_points = points.size();
+    // int nb_neighbors = 30, num_sor_iter = 3;
+    // float std_ratio = 0.3;
+    // labels.resize(nb_points, fal);
+    for(int i = 0; i < num_sor_iter; i++) {
+        std::vector<KNN::Point4D> knn_points;
+        std::vector<int> indices;
+#pragma omp parallel for
+        for(int j = 0; j < nb_points; j++) {
+            if(labels[j]) {
+                #pragma omp critical
+                {
+                    knn_points.emplace_back(KNN::Point4D(points[j].x,
+                                                       points[j].y, points[j].z, points[j].w));
+                    indices.emplace_back(j);
+                }
+            }
+        }
+        KNN::KdSearch4D kds(knn_points);
+        int num = knn_points.size();
+        size_t valid_distances = 0;
+        std::vector<double> avg_distances(num);
+#pragma omp parallel for
+        for(int j = 0; j < num; j++) {
+            std::vector<size_t> tmp_indices;
+            std::vector<double> dist;
+            kds.kth_search(knn_points[j], nb_neighbors, tmp_indices, dist);
+            double mean = -1.0;
+
+            if(dist.size() > 0u) {
+                valid_distances++;
+                std::for_each(dist.begin(), dist.end(),
+                              [](double &d) { d = std::sqrt(d); });
+                mean = std::accumulate(dist.begin(), dist.end(), 0.0) / dist.size();
+            }
+            avg_distances[j] = mean;
+        }
+        if(valid_distances == 0) {
+            continue;
+        }
+        double cloud_mean = std::accumulate(
+        avg_distances.begin(), avg_distances.end(), 0.0,
+        [](double const &x, double const &y) { return y > 0 ? x + y : x; });
+
+        cloud_mean /= valid_distances;
+        double sq_sum = std::inner_product(
+        avg_distances.begin(), avg_distances.end(), avg_distances.begin(),
+        0.0, [](double const &x, double const &y) { return x + y; },
+        [cloud_mean](double const &x, double const &y) {
+            return x > 0 ? (x - cloud_mean) * (y - cloud_mean) : 0;
+        });
+        double std_dev = std::sqrt(sq_sum / (valid_distances - 1));
+        double distance_threshold = cloud_mean + std_ratio * std_dev;
+#pragma omp parallel for
+        for(int j = 0; j < num; j++) {
+            if(avg_distances[j] > 0 && avg_distances[j] < distance_threshold) {
+                labels[indices[j]] = true;
+            } else {
+                labels[indices[j]] = false;
+            }
+        }
+    }
+}
+
+
     void save_components(const easy3d::SurfaceMesh* mesh,
                             const std::vector<easy3d::SurfaceMesh*>components,
                             const std::string path) {
@@ -184,5 +287,6 @@ namespace DeFillet {
         SurfaceMeshIO::save(path, out_mesh);
 
     }
+
 }
 

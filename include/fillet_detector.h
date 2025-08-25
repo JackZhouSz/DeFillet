@@ -52,7 +52,9 @@ namespace DeFillet {
 
         vec3 center; //rolling-ball center
 
-        int vvid;
+        vec3 axis;
+
+        int count;
 
         bool flag;
     };
@@ -88,7 +90,6 @@ namespace DeFillet {
 
         std::vector<float> radius_rate_field() const;
 
-        SurfaceMesh::FaceProperty<int> labels() const;
 
     private: //utils functions
 

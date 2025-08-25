@@ -5,6 +5,7 @@
 #include <random>
 
 #include <fillet_detector.h>
+#include <axis_optimizer.h>
 #include <voronoi3d.h>
 #include <utils.h>
 #include <knn4d.h>
@@ -183,9 +184,121 @@ namespace DeFillet {
 
         }
 
-
         std::cout << "Successfully generated Voronoi vertices! Voronoi vertices number = " <<voronoi_vertices_.size() <<std::endl;
         std::cout << "The consumption time of Voronoi vertices generatioin: " << sw.elapsed_seconds(5) << std::endl;
+
+    }
+
+
+
+    void FilletDetector::filter_voronoi_vertices() {
+
+        std::cout << "Start filtering Voronoi_vertices..." <<std::endl;
+
+        easy3d::StopWatch sw;
+
+        std::vector<VoronoiVertices> tmp;
+
+        int num_radius = 0;
+
+        //Rule_1: radius threshold
+        float radius_thr = parameters_.radius_thr * box_.diagonal_length();
+
+        omp_lock_t lock;
+        omp_init_lock(&lock);
+
+
+
+#pragma omp parallel for
+        for(int i = 0; i < voronoi_vertices_.size(); i++) {
+
+            float radius = voronoi_vertices_[i].radius;
+            omp_set_lock(&lock);
+            if(radius < radius_thr) {
+                tmp.emplace_back(voronoi_vertices_[i]);
+            }
+            else
+                ++num_radius;
+            omp_unset_lock(&lock);
+
+        }
+        std::cout << "Filtered out by radius threshold: " << num_radius <<std::endl;
+
+        std::vector<vec4> points;
+        std::vector<bool>labels;
+
+        int num_denisty = 0;
+
+        for(int i = 0; i < tmp.size(); i++) {
+            points.emplace_back(vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius));
+            labels.emplace_back(true);
+        }
+
+        sor(points, labels, 30,3, 0.3);
+        voronoi_vertices_.clear();
+        for(int i = 0; i < tmp.size(); i++) {
+            if(labels[i])
+                voronoi_vertices_.emplace_back(tmp[i]);
+            else
+                ++num_denisty;
+        }
+        std::cout << "Filtered out by density trick: " << num_denisty <<std::endl;
+
+
+        tmp.clear();
+
+        //Rule_2 & Rule_3: osculation condition----connected, non-tangented, genus = 1
+        float eps = parameters_.epsilon;
+        int num_connected = 0, num_tangented = 0, num_genus = 0;
+
+#pragma omp parallel for
+        for(int i = 0; i < voronoi_vertices_.size(); i++) {
+
+            float thickness = voronoi_vertices_[i].radius * eps;
+            int state_code = check_osculation_condition(voronoi_vertices_[i], thickness);
+            omp_set_lock(&lock);
+            if(state_code == 0) {
+                tmp.emplace_back(voronoi_vertices_[i]);
+            }
+            else if(state_code == 1) {
+                ++num_connected;
+            }
+            else if(state_code == 2 || state_code == 4) {
+                ++num_tangented;
+            }
+            else if(state_code == 3) {
+                ++num_genus;
+            }
+            omp_unset_lock(&lock);
+        }
+
+        std::cout << "Filtered out by connected condition: " << num_connected <<std::endl;
+        std::cout << "Filtered out by tangented condition: " << num_tangented <<std::endl;
+        std::cout << "Filtered out by genus condition: " << num_genus <<std::endl;
+
+
+        num_denisty = 0;
+        points.clear();
+        labels.clear();
+        for(int i = 0; i < tmp.size(); i++) {
+            points.emplace_back(vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius));
+            labels.emplace_back(true);
+        }
+
+        sor(points, labels, 30,1, 0.3);
+        voronoi_vertices_.clear();
+        for(int i = 0; i < tmp.size(); i++) {
+            if(labels[i])
+                voronoi_vertices_.emplace_back(tmp[i]);
+            else
+                ++num_denisty;
+        }
+        std::cout << "Filtered out by density trick: " << num_denisty <<std::endl;
+        // voronoi_vertices_ = tmp;
+
+
+        std::cout << "Remaining Voronoi vertices: " << voronoi_vertices_.size() <<std::endl;
+        std::cout << "The consumption time of filtering Voronoi vertices: " << sw.elapsed_seconds(5) << std::endl;
 
     }
 
@@ -213,7 +326,7 @@ namespace DeFillet {
 
         float max_value = 0, min_value = box_.diagonal_length();
 
-#pragma omp parallel for
+// #pragma omp parallel for
         for(int i = 0; i < num; i++) {
             std::vector<size_t> indices;
             std::vector<double> dist;
@@ -235,7 +348,6 @@ namespace DeFillet {
 
             voronoi_vertices_[i].axis = axis_direction(points);
 
-
         }
 
         std::cout << "max_value: " << max_value << std::endl;
@@ -243,83 +355,6 @@ namespace DeFillet {
 
         std::cout << "The consumption time of computing Voronoi vertices density field: " << sw.elapsed_seconds(5) << std::endl;
     }
-
-    void FilletDetector::filter_voronoi_vertices() {
-
-        std::cout << "Start filtering Voronoi_vertices..." <<std::endl;
-
-        easy3d::StopWatch sw;
-
-        std::vector<VoronoiVertices> tmp;
-
-        int num_radius = 0;
-
-        //Rule_1: radius threshold
-        float radius_thr = parameters_.radius_thr * box_.diagonal_length();
-
-        for(size_t i = 0; i < voronoi_vertices_.size(); i++) {
-
-            float radius = voronoi_vertices_[i].radius;
-
-            if(radius < radius_thr) {
-                tmp.emplace_back(voronoi_vertices_[i]);
-            }
-            else
-                ++num_radius;
-
-        }
-
-        voronoi_vertices_ = tmp;
-
-        tmp.clear();
-
-        //Rule_2 & Rule_3: osculation condition----connected, non-tangented, genus = 1
-        float eps = parameters_.epsilon;
-        int num_connected = 0, num_tangented = 0, num_genus = 0;
-        for(size_t i = 0; i < voronoi_vertices_.size(); i++) {
-
-            float thickness = voronoi_vertices_[i].radius * eps;
-            int state_code = check_osculation_condition(voronoi_vertices_[i], thickness);
-
-            if(state_code == 0) {
-                tmp.emplace_back(voronoi_vertices_[i]);
-            }
-            else if(state_code == 1) {
-                ++num_connected;
-            }
-            else if(state_code == 2 || state_code == 4) {
-                ++num_tangented;
-            }
-            else if(state_code == 3) {
-                ++num_genus;
-            }
-        }
-
-        std::cout << "Filtered out by radius threshold: " << num_radius <<std::endl;
-        std::cout << "Filtered out by connected condition: " << num_connected <<std::endl;
-        std::cout << "Filtered out by tangented condition: " << num_tangented <<std::endl;
-        std::cout << "Filtered out by genus condition: " << num_genus <<std::endl;
-
-        // voronoi_vertices_ = tmp;
-        std::vector<vec4> points;
-        std::vector<bool>labels;
-
-        for(int i = 0; i < tmp.size(); i++) {
-            points.emplace_back(vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius));
-            labels.emplace_back(true);
-        }
-        sor(points, labels, 30,3, 0.3);
-        voronoi_vertices_.clear();
-        for(int i = 0; i < tmp.size(); i++) {
-            if(labels[i])
-                voronoi_vertices_.emplace_back(tmp[i]);
-        }
-
-        std::cout << "Remaining Voronoi vertices: " << voronoi_vertices_.size() <<std::endl;
-        std::cout << "The consumption time of filtering Voronoi vertices: " << sw.elapsed_seconds(5) << std::endl;
-
-    }
-
 
     void FilletDetector::rolling_ball_trajectory_transform() {
 
@@ -353,7 +388,7 @@ namespace DeFillet {
                     if(min_value > voronoi_vertices_[idx].density) {
                         min_value = voronoi_vertices_[idx].density;
                         sites[i].center = voronoi_vertices_[idx].pos;
-                        sites[i].vvid = idx;
+                        // sites[i].vvid = idx;
                         sites[i].radius = (sites_[i].pos - voronoi_vertices_[idx].pos).norm();
                     }
                 }
@@ -375,8 +410,8 @@ namespace DeFillet {
 
                     if(!sites_[cur.idx()].corr_vv.empty()) {
                         vec3 p1 = sites_[cur.idx()].center;
-                        vec3 d = voronoi_vertices_[sites_[cur.idx()].vvid].axis;
-                        sites[i].center = p1 + dot((p0 - p1), d) * d;
+                        // vec3 d = voronoi_vertices_[sites_[cur.idx()].vvid].axis;
+                        // sites[i].center = p1 + dot((p0 - p1), d) * d;
                         sites[i].radius = (p0 - sites[i].center).norm();
                         sites[i].flag = true;
                         break;
@@ -579,18 +614,13 @@ namespace DeFillet {
             std::priority_queue<std::pair<float, SurfaceMesh::Face>> que;
             SurfaceMesh::Face sface;
             if(i == 0) {
-//                sface = SurfaceMesh::Face(distribution(gen));
-                for(auto face : mesh_->faces()) {
-                    if(labels_[face]) {
-                        sface = face; break;
-                    }
-                }
+                sface = SurfaceMesh::Face(distribution(gen));
             } else {
                 float maxx = 0.0;
                 int idx = 0;
                 for(int j = 0; j < num; j++) {
                     SurfaceMesh::Face f(j);
-                    if(labels_[f] && dis[j] > maxx) {
+                    if(dis[j] > maxx) {
                         maxx = dis[j]; idx = j;
                     }
                 }
@@ -622,7 +652,7 @@ namespace DeFillet {
                     auto opp_face = mesh_->face(mesh_->opposite(halfedge));
                     auto edge = mesh_->edge(halfedge);
 
-                    if(labels_[opp_face] && vis.find(opp_face) == vis.end()) {
+                    if(vis.find(opp_face) == vis.end()) {
                         float val = centroid_distance_[edge];
                         if(dis[opp_face.idx()] > -cur_dis + val) {
                             que.push(std::make_pair(cur_dis - val, opp_face));
@@ -636,7 +666,7 @@ namespace DeFillet {
         float max_gap = 0.0;
         for(int i = 0; i < num; i++) {
             SurfaceMesh::Face f(i);
-            if(labels_[f] && dis[i] > max_gap) {
+            if(dis[i] > max_gap) {
                 max_gap = dis[i];
             }
         }
@@ -744,7 +774,7 @@ namespace DeFillet {
 
                 auto opp_face = mesh_->face(mesh_->opposite(halfedge));
 
-                if(labels_[opp_face]  && opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
+                if(opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
 
                     SurfaceMesh::Edge edge  = mesh_->edge(halfedge);
                     boundaries.emplace_back(edge);
@@ -757,19 +787,6 @@ namespace DeFillet {
             return 3;
         }
 
-
-//         float maxx = 0;
-//         for(int i = 0; i < neigh_sites.size(); i++) {
-//             for(int j = i + 1; j < neigh_sites.size(); j++) {
-//                 vec3 n1 = face_normals_[neigh_sites[i]];
-//                 vec3 n2 = face_normals_[neigh_sites[j]];
-//                 maxx = max(maxx, angle_between(n1, n2));
-//             }
-//         }
-//
-//         if(maxx < 50) {
-// //            return 4;
-//         }
 
         corr_sites = tmp;
 
@@ -837,8 +854,5 @@ namespace DeFillet {
         return centroids;
     }
 
-    SurfaceMesh::FaceProperty<int> FilletDetector::labels() const {
-        return labels_;
-    }
 
 }

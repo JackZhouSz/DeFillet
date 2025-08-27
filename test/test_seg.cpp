@@ -43,10 +43,10 @@ int main() {
     parameters.radius_thr = 0.05;
     parameters.angle_thr = 30;
     parameters.sigma = 1.0;
-    parameters.lamdba = 0.5;
+    parameters.lamdba = 10000;
     parameters.num_patches = 2000;
     parameters.num_neighbors = 300;
-    parameters.num_smooth_iter = 5;
+    parameters.num_smooth_iter = 10;
 
     parameters.num_sor_iter = 3;
     parameters.num_sor_neighbors = 10;

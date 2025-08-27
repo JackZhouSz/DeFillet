@@ -649,10 +649,60 @@ namespace DeFillet {
 
     void FilletDetector::graph_cut() {
 
-        std::cout << "Start runing graph cut..." <<std::endl;
+        std::cout << "Start running graph cut..." <<std::endl;
         easy3d::StopWatch sw;
 
         int num_node = sites_.size();
+        double lamdba = parameters_.lamdba;
+        float angle_thr = parameters_.angle_thr;
+        std::vector<double> data_cost(2 * num_node);
+        std::vector<std::pair<int,int>> edges;
+        std::vector<double> edge_weights;
+
+        for(int i = 0; i < num_node; i++) {
+            double rate = sites_[i].rate;
+            data_cost[i] = (1.0 - rate) / num_node;
+            data_cost[i + num_node] = rate / num_node;
+        }
+
+
+        double edge_sum = 0;
+        for(auto edge : mesh_->edges()) {
+            auto face0 = mesh_->face(edge, 0);
+            auto face1 = mesh_->face(edge, 1);
+            if(face0.is_valid() && face1.is_valid()) {
+                int id0 = face0.idx(), id1 = face1.idx();
+                edges.emplace_back(std::make_pair(id0, id1));
+//                if(dihedral_angle_[edge] < angle_thr) {
+                double w1 = 1.0 - fabs(sites_[id0].rate - sites_[id1].rate);
+                double w2 = mesh_->edge_length(edge);
+                double w = (w1 + w2) * lamdba;
+//                double w = 1.0 * lamdba;
+                edge_sum += w;
+                edge_weights.emplace_back(w);
+            }
+        }
+
+        for(int i = 0; i < edge_weights.size(); i++) {
+            edge_weights[i] /= edge_sum;
+        }
+
+        GCoptimizationGeneralGraph gc(num_node, 2);
+        GCP::DataCost data_item(data_cost, num_node, 2);
+        GCP::SmoothCost smooth_item(edges, edge_weights);
+        gc.setDataCostFunctor(&data_item);
+        gc.setSmoothCostFunctor(&smooth_item);
+        std::cout << "Before optimization energy is " << gc.compute_energy() << std::endl;
+        gc.expansion(1000);
+        std::cout << "After optimization energy is " << gc.compute_energy() << std::endl;
+
+#pragma omp parallel for
+        for(int i = 0; i < num_node; i++) {
+            int label = gc.whatLabel(i);
+            sites_[i].label = label;
+        }
+
+        std::cout << "The consumption time of running graph cut: " << sw.elapsed_seconds(5) << std::endl;
 
     }
 

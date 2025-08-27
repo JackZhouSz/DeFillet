@@ -73,6 +73,13 @@ namespace DeFillet {
 
     }
 
+
+    easy3d::vec3 project_to_line(easy3d::vec3 pos, easy3d::vec3 point, easy3d::vec3 dir) {
+        easy3d::vec3 vdir = pos - point;
+        float t = easy3d::dot(vdir, dir) / dir.norm();
+        return point + t * dir;
+    }
+
     easy3d::SurfaceMesh* split_component(const easy3d::SurfaceMesh* mesh,
                          easy3d::SurfaceMesh::FaceProperty<int>& component_labels,
                          int label) {
@@ -243,7 +250,7 @@ namespace DeFillet {
         SurfaceMeshIO::save(path, out_mesh);
     }
 
-    void save_rate_field(const easy3d::SurfaceMesh* mesh,
+    void save_field(const easy3d::SurfaceMesh* mesh,
                      const std::vector<float>& field,
                      const std::string path) {
         SurfaceMesh* out_mesh = new easy3d::SurfaceMesh(*mesh);
@@ -271,9 +278,9 @@ namespace DeFillet {
         easy3d::SurfaceMeshIO::save(path, out_mesh);
     }
 
-    void save_fillet_regions(const SurfaceMesh* mesh,
-                         const SurfaceMesh::FaceProperty<int>& fillet_label,
-                         const string path) {
+    void save_fillet_segmentation(const SurfaceMesh* mesh,
+                             const std::vector<int>& fillet_label,
+                             const string path) {
         SurfaceMesh* out_mesh = new easy3d::SurfaceMesh(*mesh);
 
         auto color_prop = out_mesh->face_property<easy3d::vec3>("f:color");
@@ -281,7 +288,7 @@ namespace DeFillet {
         vec3 non_fillet_color = easy3d::vec3(0, 0,1.0);
 
         for(auto face : out_mesh->faces()) {
-            int label = fillet_label[face];
+            int label = fillet_label[face.idx()];
             color_prop[face] = label != 0 ? fillet_color : non_fillet_color;
         }
         SurfaceMeshIO::save(path, out_mesh);

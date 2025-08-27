@@ -37,6 +37,8 @@ namespace DeFillet {
 
     easy3d::vec3 axis_direction(std::vector<easy3d::vec4> points);
 
+    easy3d::vec3 project_to_line(easy3d::vec3 pos, easy3d::vec3 point, easy3d::vec3 dir);
+
     void save_components(const easy3d::SurfaceMesh* mesh,
                                 const std::vector<easy3d::SurfaceMesh*>components,
                                 const std::string path);
@@ -46,13 +48,14 @@ namespace DeFillet {
                          easy3d::SurfaceMesh::FaceProperty<int>& component_labels,
                          int label);
 
-    void save_rate_field(const easy3d::SurfaceMesh* mesh,
+    void save_field(const easy3d::SurfaceMesh* mesh,
                          const std::vector<float>& field,
                          const std::string path);
 
-    void save_fillet_regions(const easy3d::SurfaceMesh* mesh,
-                             const easy3d::SurfaceMesh::FaceProperty<int>& fillet_label,
+    void save_fillet_segmentation(const easy3d::SurfaceMesh* mesh,
+                             const std::vector<int>& fillet_label,
                              const std::string path);
+
 
 
 }

@@ -21,6 +21,10 @@ namespace DeFillet {
         float epsilon, radius_thr, angle_thr, sigma, lamdba;
 
         int num_patches, num_neighbors, num_smooth_iter;
+        // sor method
+        int num_sor_neighbors, num_sor_iter;
+        float num_sor_std_ratio;
+
     };
 
     class VoronoiVertices {
@@ -54,9 +58,9 @@ namespace DeFillet {
 
         vec3 axis;
 
-        int count;
-
         bool flag;
+
+        int label;
     };
 
 
@@ -75,20 +79,27 @@ namespace DeFillet {
 
         void filter_voronoi_vertices();
 
-
         void rolling_ball_trajectory_transform();
+
+        void compute_fillet_radius_field();
 
         void compute_fillet_radius_rate_field();
 
         void rate_field_smoothing();
-        //
-        // void graph_cut();
+
+        void graph_cut();
 
     public: // setor or getor functions
 
         PointCloud* voronoi_vertices() const;
 
+        PointCloud* rolling_ball_centers() const;
+
         std::vector<float> radius_rate_field() const;
+
+        std::vector<float> radius_field() const;
+
+        std::vector<int> fillet_labels() const;
 
 
     private: //utils functions

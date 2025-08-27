@@ -5,10 +5,10 @@
 #include <random>
 
 #include <fillet_detector.h>
-#include <axis_optimizer.h>
 #include <voronoi3d.h>
 #include <utils.h>
 #include <knn4d.h>
+#include <gcp.h>
 
 #include <easy3d/util/stop_watch.h>
 #include <easy3d/algo/surface_mesh_geometry.h>
@@ -69,6 +69,7 @@ namespace DeFillet {
             site.center = easy3d::vec3(0,0,0);
             site.rate = -1.0;
             site.flag = false;
+            site.label = 0;
             sites_.emplace_back(site);
         }
 
@@ -189,8 +190,6 @@ namespace DeFillet {
 
     }
 
-
-
     void FilletDetector::filter_voronoi_vertices() {
 
         std::cout << "Start filtering Voronoi_vertices..." <<std::endl;
@@ -204,53 +203,61 @@ namespace DeFillet {
         //Rule_1: radius threshold
         float radius_thr = parameters_.radius_thr * box_.diagonal_length();
 
-        omp_lock_t lock;
-        omp_init_lock(&lock);
 
 
-
-#pragma omp parallel for
         for(int i = 0; i < voronoi_vertices_.size(); i++) {
 
             float radius = voronoi_vertices_[i].radius;
-            omp_set_lock(&lock);
             if(radius < radius_thr) {
                 tmp.emplace_back(voronoi_vertices_[i]);
             }
             else
                 ++num_radius;
-            omp_unset_lock(&lock);
 
         }
         std::cout << "Filtered out by radius threshold: " << num_radius <<std::endl;
 
-        std::vector<vec4> points;
-        std::vector<bool>labels;
+        std::vector<vec4> points(tmp.size());
+        std::vector<bool>labels(tmp.size());
 
         int num_denisty = 0;
 
         for(int i = 0; i < tmp.size(); i++) {
-            points.emplace_back(vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius));
-            labels.emplace_back(true);
+
+            points[i] = vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius);
+            labels[i] = true;
+
         }
 
-        sor(points, labels, 30,3, 0.3);
+        int num_sor_neighbors = parameters_.num_sor_neighbors;
+        int num_sor_iter = parameters_.num_sor_iter;
+        float num_sor_ratio = parameters_.num_sor_std_ratio;
+
+        sor(points, labels, num_sor_neighbors,num_sor_iter, num_sor_ratio);
+
         voronoi_vertices_.clear();
+        voronoi_vertices_.reserve(tmp.size() / 2);
+
         for(int i = 0; i < tmp.size(); i++) {
+
             if(labels[i])
                 voronoi_vertices_.emplace_back(tmp[i]);
             else
                 ++num_denisty;
+
         }
-        std::cout << "Filtered out by density trick: " << num_denisty <<std::endl;
+        voronoi_vertices_.shrink_to_fit();
+        std::cout << "Filtered out by first density trick: " << num_denisty <<std::endl;
 
 
         tmp.clear();
-
+        tmp.reserve(voronoi_vertices_.size() / 2);
         //Rule_2 & Rule_3: osculation condition----connected, non-tangented, genus = 1
         float eps = parameters_.epsilon;
         int num_connected = 0, num_tangented = 0, num_genus = 0;
 
+        omp_lock_t lock;
+        omp_init_lock(&lock);
 #pragma omp parallel for
         for(int i = 0; i < voronoi_vertices_.size(); i++) {
 
@@ -271,6 +278,7 @@ namespace DeFillet {
             }
             omp_unset_lock(&lock);
         }
+        tmp.shrink_to_fit();
 
         std::cout << "Filtered out by connected condition: " << num_connected <<std::endl;
         std::cout << "Filtered out by tangented condition: " << num_tangented <<std::endl;
@@ -278,23 +286,27 @@ namespace DeFillet {
 
 
         num_denisty = 0;
-        points.clear();
-        labels.clear();
+        points.resize(tmp.size());
+        labels.resize(tmp.size());
+
         for(int i = 0; i < tmp.size(); i++) {
-            points.emplace_back(vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius));
-            labels.emplace_back(true);
+            points[i] = vec4(tmp[i].pos.x,tmp[i].pos.y, tmp[i].pos.z, tmp[i].radius);
+            labels[i] = true;
         }
 
-        sor(points, labels, 30,1, 0.3);
+        int num = std::max((int)(num_sor_iter / 3), 1);
+        sor(points, labels, num_sor_neighbors, num, num_sor_ratio);
+
         voronoi_vertices_.clear();
+        voronoi_vertices_.reserve(tmp.size());
         for(int i = 0; i < tmp.size(); i++) {
             if(labels[i])
                 voronoi_vertices_.emplace_back(tmp[i]);
             else
                 ++num_denisty;
         }
-        std::cout << "Filtered out by density trick: " << num_denisty <<std::endl;
-        // voronoi_vertices_ = tmp;
+        voronoi_vertices_.shrink_to_fit();
+        std::cout << "Filtered out by second density trick: " << num_denisty <<std::endl;
 
 
         std::cout << "Remaining Voronoi vertices: " << voronoi_vertices_.size() <<std::endl;
@@ -324,9 +336,7 @@ namespace DeFillet {
         int num_neighbors = parameters_.num_neighbors;
         int sigma = parameters_.sigma;
 
-        float max_value = 0, min_value = box_.diagonal_length();
-
-// #pragma omp parallel for
+#pragma omp parallel for
         for(int i = 0; i < num; i++) {
             std::vector<size_t> indices;
             std::vector<double> dist;
@@ -343,13 +353,16 @@ namespace DeFillet {
                 points.emplace_back(data[idx]);
             }
             voronoi_vertices_[i].density =  density / w;
-            max_value = max(max_value, voronoi_vertices_[i].density);
-            min_value = min(min_value, voronoi_vertices_[i].density);
 
             voronoi_vertices_[i].axis = axis_direction(points);
-
         }
 
+        float max_value = 0, min_value = box_.diagonal_length();
+
+        for(int i = 0; i < num; i++) {
+            max_value = max(max_value, voronoi_vertices_[i].density);
+            min_value = min(min_value, voronoi_vertices_[i].density);
+        }
         std::cout << "max_value: " << max_value << std::endl;
         std::cout << "min_value: " << min_value << std::endl;
 
@@ -361,91 +374,205 @@ namespace DeFillet {
         std::cout << "Start rolling-ball trajectory transform..." <<std::endl;
 
         easy3d::StopWatch sw;
+        omp_lock_t lock;
+        omp_init_lock(&lock);
 
-
-        for(size_t i = 0; i < voronoi_vertices_.size(); i++) {
+#pragma omp parallel for
+        for(int i = 0; i < voronoi_vertices_.size(); i++) {
 
             auto& corr_sites = voronoi_vertices_[i].corr_sites;
 
             for(int j = 0; j < corr_sites.size(); j++) {
                 auto idx = corr_sites[j].idx();
+                omp_set_lock(&lock);
                 sites_[idx].corr_vv.emplace_back(i);
+                omp_unset_lock(&lock);
             }
         }
 
-        std::vector<Sites> sites = sites_;
+        float eps = parameters_.epsilon;
 
-        for(size_t i = 0; i < sites_.size(); i++) {
-
+#pragma omp parallel for
+        for(int i = 0; i < sites_.size(); i++) {
             auto& corr_vv = sites_[i].corr_vv;
+            int count = corr_vv.size();
 
-            if(!corr_vv.empty()) {
-                sites[i].flag = true;
-                float min_value = 1e9;
-                for(int j = 0; j < corr_vv.size(); j++) {
-                    int idx = corr_vv[j];
+            if(count < 3) { // trick
+                continue;
+            }
 
-                    if(min_value > voronoi_vertices_[idx].density) {
-                        min_value = voronoi_vertices_[idx].density;
-                        sites[i].center = voronoi_vertices_[idx].pos;
-                        // sites[i].vvid = idx;
-                        sites[i].radius = (sites_[i].pos - voronoi_vertices_[idx].pos).norm();
+
+            float min_value = 1e9;
+            int min_id = 0;
+            for(int j = 0; j < corr_vv.size(); j++) {
+
+                int idx = corr_vv[j];
+                if(min_value > voronoi_vertices_[idx].density) {
+                    min_value = voronoi_vertices_[idx].density;
+                    min_id = idx;
+                }
+            }
+
+            easy3d::vec3 center = project_to_line(sites_[i].pos, voronoi_vertices_[min_id].pos, voronoi_vertices_[min_id].axis);
+            double err = fabs((sites_[i].pos - center).norm() - voronoi_vertices_[min_id].radius);
+            if(err < voronoi_vertices_[min_id].radius * eps / 2) {
+                sites_[i].center = center;
+                sites_[i].axis = voronoi_vertices_[min_id].axis;
+                sites_[i].radius = (sites_[i].pos - sites_[i].center).norm();
+                sites_[i].flag = true;
+            }
+            else {
+                sites_[i].center = voronoi_vertices_[min_id].pos;
+                sites_[i].radius = voronoi_vertices_[min_id].radius;
+                sites_[i].axis = voronoi_vertices_[min_id].axis;
+                sites_[i].flag = true;
+            }
+
+        }
+
+
+        std::vector<Sites> sites = sites_;
+        float angle_thr = parameters_.angle_thr;
+
+#pragma omp parallel for
+        for(int i = 0; i < sites_.size(); i++) {
+
+            if(sites_[i].flag)
+                continue;
+
+            std::priority_queue<pair<int,SurfaceMesh::Face>>que;
+            std::set<int> neigh;
+            std::set<SurfaceMesh::Face> vis;
+
+            que.push(make_pair(0, SurfaceMesh::Face(i)));
+            vis.insert(SurfaceMesh::Face(i));
+            while(!que.empty()) {
+                int step = que.top().first;
+                SurfaceMesh::Face cur = que.top().second; que.pop();
+
+                if(-step > 3) continue;
+                if(sites_[i].flag)
+                    neigh.insert(cur.idx());
+
+                if(neigh.size() > 2)
+                    break;
+
+                for(auto halfedge : mesh_->halfedges(cur)) {
+                    auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                    auto edge = mesh_->edge(halfedge);
+
+                    if(opp_face.is_valid() && vis.find(opp_face) == vis.end() && dihedral_angle_[edge] < angle_thr) {
+                        que.push(make_pair(step-1, opp_face));
+                        vis.insert(opp_face);
                     }
                 }
             }
+
+            if(!neigh.empty() &&neigh.size() <= 3) {
+                easy3d::vec3 center1(0, 0, 0);
+                easy3d::vec3 center2(0, 0, 0);
+                easy3d::vec3 axis(0, 0, 0);
+                float radius = 0;
+
+                for(auto idx : neigh) {
+                    center1 += project_to_line(sites_[i].pos, sites_[idx].center, sites_[idx].axis);
+                    center2 += sites_[idx].center;
+                    axis += sites_[idx].axis;
+                    radius += sites_[idx].radius;
+                }
+
+                center1 /= neigh.size();
+                center2 /= neigh.size();
+                radius /= neigh.size();
+                axis.normalize();
+
+                float err1 = fabs((sites_[i].pos -  center1).norm() - radius);
+                float err2 = fabs((sites_[i].pos -  center2).norm() - radius);
+
+                if(err1 < err2) {
+                    sites[i].center = center1;
+                    sites[i].radius = (sites_[i].pos -  center1).norm();
+                }
+                else {
+                    sites[i].center = center2;
+                    sites[i].radius = (sites_[i].pos -  center2).norm();
+                }
+                sites[i].axis = axis;
+                sites[i].flag = true;
+            }
         }
+
         sites_ = sites;
+
+        std::cout << "The consumption time of rolling-ball trajectory transform: " << sw.elapsed_seconds(5) << std::endl;
+
+
+    }
+
+    void FilletDetector::compute_fillet_radius_field() {
+        std::cout << "Start computing  fillet radius field..." <<std::endl;
+
+        easy3d::StopWatch sw;
+        int num = sites_.size();
+        std::vector<float> field(num, 0);
+        std::vector<float> count(num, 0);
+
         float angle_thr = parameters_.angle_thr;
-        for(size_t i = 0; i < sites_.size(); i++) {
-            auto& corr_vv = sites_[i].corr_vv;
-            vec3 p0 = sites_[i].pos;
-            if(corr_vv.empty()) {
-                std::priority_queue<pair<int,SurfaceMesh::Face>>que;
-                que.push(make_pair(0, SurfaceMesh::Face(i)));
-                while(!que.empty()) {
-                    int step = que.top().first;
-                    SurfaceMesh::Face cur = que.top().second; que.pop();
+        float eps = parameters_.epsilon;
+        omp_lock_t lock;
+        omp_init_lock(&lock);
 
-                    if(-step > 5) continue;
+#pragma omp parallel for
+        for(int i = 0; i < sites_.size(); i++) {
 
-                    if(!sites_[cur.idx()].corr_vv.empty()) {
-                        vec3 p1 = sites_[cur.idx()].center;
-                        // vec3 d = voronoi_vertices_[sites_[cur.idx()].vvid].axis;
-                        // sites[i].center = p1 + dot((p0 - p1), d) * d;
-                        sites[i].radius = (p0 - sites[i].center).norm();
-                        sites[i].flag = true;
-                        break;
-                    }
+            if(!sites_[i].flag)
+                continue;
 
+            std::set<SurfaceMesh::Face> vis;
 
-                    for(auto halfedge : mesh_->halfedges(cur)) {
-                        auto opp_face = mesh_->face(mesh_->opposite(halfedge));
-                        auto edge = mesh_->edge(halfedge);
+            std::queue<SurfaceMesh::Face> que;
+            easy3d::vec3 center = sites_[i].center;
+            float r = sites_[i].radius;
+            float thr = r * eps;
 
-                        if(opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
-                            que.push(make_pair(step-1, opp_face));
+            que.push(sites_[i].face);
+            while(!que.empty()) {
+
+                SurfaceMesh::Face cur = que.front(); que.pop();
+
+                for(auto halfedge : mesh_->halfedges(cur)) {
+                    auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                    auto edge = mesh_->edge(halfedge);
+
+                    if(opp_face.is_valid() && vis.find(opp_face) == vis.end() && dihedral_angle_[edge] < angle_thr) {
+                        float err =  fabs((sites_[opp_face.idx()].pos - center).norm() -  r);
+                        if(err < thr) {
+                            que.push(opp_face);
+                            vis.insert(opp_face);
                         }
                     }
+                }
+            }
 
-                 }
-
+            for(auto face : vis) {
+                omp_set_lock(&lock);
+                field[face.idx()] += (sites_[face.idx()].pos - center).norm();
+                ++count[face.idx()];
+                omp_unset_lock(&lock);
             }
         }
 
-        sites_ = sites;
-        std::cout << "The consumption time of rolling-ball trajectorytransform: " << sw.elapsed_seconds(5) << std::endl;
-
-
-        PointCloud* cloud = new PointCloud;
-        for(int i = 0; i < sites_.size(); i++) {
-            if(sites_[i].flag) {
-                cloud->add_vertex(sites_[i].center);
-                // std::cout << sites_[i].center.x << ' ' << sites_[i].center.y << ' ' << sites_[i].center.y << std::endl;
+        for(int i = 0; i < num; i++) {
+            if(count[i] > 0) {
+                field[i] /= count[i];
+                sites_[i].radius = field[i];
+            }
+            else {
+                sites_[i].radius = 0;
             }
         }
-        easy3d::PointCloudIO::save("../out3/center.ply", cloud);
 
-
+        std::cout << "The consumption time of computing  fillet radius field: " << sw.elapsed_seconds(5) << std::endl;
     }
 
     void FilletDetector::compute_fillet_radius_rate_field() {
@@ -454,14 +581,10 @@ namespace DeFillet {
         easy3d::StopWatch sw;
         float angle_thr = parameters_.angle_thr;
         for(auto face : mesh_->faces()) {
-            if(sites_[face.idx()].flag == false) {
+            if(sites_[face.idx()].radius < 1e-6) {
                 sites_[face.idx()].rate = 1.0;
                 continue;
             }
-            // if(sites_[face.idx()].corr_vv.empty()) {
-            //     sites_[face.idx()].rate = 1.0;
-            //     continue;
-            // }
 
             float rate = 0;
             int count = 0;
@@ -492,80 +615,46 @@ namespace DeFillet {
     }
 
     void FilletDetector::rate_field_smoothing() {
+        std::cout << "Start smoothing rate field..." <<std::endl;
+        easy3d::StopWatch sw;
+        float angle_thr = parameters_.angle_thr;
+        int num_iter = parameters_.num_smooth_iter;
+        for(int iter = 0; iter < num_iter; iter++) {
+            std::vector<Sites> tmp = sites_;
+            for(int i = 0; i < sites_.size(); i++) {
 
-        Eigen::MatrixXd V;
-        Eigen::MatrixXi F;
-        Eigen::VectorXd noisy;
-        int num_vertices = mesh_->n_vertices();
-        V.resize(num_vertices, 3);
-        noisy.resize(num_vertices);
+                auto face = sites_[i].face;
+                float val = 0;
+                int count = 0;
+                for(auto halfedge : mesh_->halfedges(face)) {
 
-        for(auto vertex : mesh_->vertices()) {
-            int vid = vertex.idx();
-            auto& pos = mesh_->position(vertex);
-            V(vid , 0) = pos.x;
-            V(vid , 1) = pos.y;
-            V(vid , 2) = pos.x;
+                    auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                    auto edge = mesh_->edge(halfedge);
 
-            noisy[vid] = 0.0;
-            int ct = 0;
-            for(auto face : mesh_->faces(vertex)) {
-                int idx = face.idx();
-                noisy[vid] += sites_[idx].rate;
-                ++ct;
+                    if(opp_face.is_valid() && dihedral_angle_[edge] < angle_thr) {
+                        val += sites_[opp_face.idx()].rate;
+                        ++count;
+                    }
+                }
+                if(count)
+                    tmp[i].rate = val / count;
+
             }
-            if(ct)
-                noisy[vid] /= ct;
+            sites_ = tmp;
         }
 
-        int num_faces = mesh_->n_faces();
-        F.resize(num_faces, 3);
-        for(auto face : mesh_->faces()) {
-
-            int fid = face.idx();
-
-            std::vector<int> indices;
-            for(auto vertex : mesh_->vertices(face)) {
-                indices.emplace_back(vertex.idx());
-            }
-            F(fid , 0) = indices[0];
-            F(fid , 1) = indices[1];
-            F(fid , 2) = indices[2];
-        }
-
-        SparseMat L, M;
-        igl::cotmatrix(V, F, L);
-        igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
-        Eigen::SimplicialLDLT<SparseMat> solver(M);
-        SparseMat MinvL = solver.solve(L);
-        SparseMat QL = L.transpose()*MinvL;
-        SparseMat QH;
-        igl::hessian_energy(V, F, QH);
-        SparseMat QcH;
-        igl::curved_hessian_energy(V, F, QcH);
-
-        const double al = 0.5;
-        SparseMat A = al*QL + (1.-al)*M;
-        SparseMat I(A.rows(), A.cols()); I.setIdentity();
-        Eigen::SparseLU<SparseMat> lapSolver(A + I);
-        Eigen::VectorXd denoisy = lapSolver.solve(al*M*noisy);
-
-
-        for(auto face : mesh_->faces()) {
-            float val = 0;
-            int ct = 0;
-            for(auto vertex : mesh_->vertices(face)) {
-                int idx = vertex.idx();
-                val += denoisy[idx];
-                ++ct;
-            }
-            if(ct)
-                val /= ct;
-            sites_[face.idx()].rate = val;
-        }
+        std::cout << "The consumption time of smoothing rate field: " << sw.elapsed_seconds(5) << std::endl;
 
     }
 
+    void FilletDetector::graph_cut() {
+
+        std::cout << "Start runing graph cut..." <<std::endl;
+        easy3d::StopWatch sw;
+
+        int num_node = sites_.size();
+
+    }
 
     PointCloud* FilletDetector::voronoi_vertices() const {
 
@@ -586,6 +675,21 @@ namespace DeFillet {
         return cloud;
     }
 
+    PointCloud* FilletDetector::rolling_ball_centers() const {
+        PointCloud* cloud = new PointCloud;
+        auto nor = cloud->add_vertex_property<vec3>("v:normal");
+        int num = sites_.size();
+
+        for(int i = 0; i < num; i++) {
+            if(sites_[i].flag) {
+                auto v = cloud->add_vertex(sites_[i].center);
+                nor[v] = sites_[i].axis;
+            }
+        }
+
+        return cloud;
+    }
+
     std::vector<float> FilletDetector::radius_rate_field() const {
 
         std::vector<float> field;
@@ -594,6 +698,27 @@ namespace DeFillet {
         }
 
         return field;
+    }
+
+
+    std::vector<float> FilletDetector::radius_field() const {
+        std::vector<float> field;
+        for(int i = 0; i < sites_.size(); i++) {
+            // if(sites_[i].flag)
+                field.emplace_back(sites_[i].radius);
+        }
+
+        return field;
+    }
+
+    std::vector<int> FilletDetector::fillet_labels() const {
+        std::vector<int> labels;
+
+        for(int i = 0; i < sites_.size(); i++) {
+            labels.emplace_back(sites_[i].label);
+        }
+
+        return labels;
     }
 
 
@@ -633,6 +758,7 @@ namespace DeFillet {
             que.push(std::make_pair(0.0, sface));
 
             std::set<SurfaceMesh::Face> vis;
+            float angle_thr = parameters_.angle_thr;
             while(!que.empty()) {
 
                 auto cur_dis = que.top().first;
@@ -654,7 +780,7 @@ namespace DeFillet {
 
                     if(vis.find(opp_face) == vis.end()) {
                         float val = centroid_distance_[edge];
-                        if(dis[opp_face.idx()] > -cur_dis + val) {
+                        if(dis[opp_face.idx()] > -cur_dis + val && dihedral_angle_[edge] < angle_thr) {
                             que.push(std::make_pair(cur_dis - val, opp_face));
                             vis.insert(opp_face);
                         }
@@ -720,7 +846,7 @@ namespace DeFillet {
         std::queue<SurfaceMesh::Face> que;
 
         que.push(neigh_sites[0]);
-
+        float angle_thr = parameters_.angle_thr;
         while(!que.empty()) {
 
             SurfaceMesh::Face cur_face = que.front(); que.pop();
@@ -730,10 +856,10 @@ namespace DeFillet {
 
             vis.insert(cur_face);
 
-            for(auto halfdege : mesh_->halfedges(cur_face)) {
-                auto opp_face = mesh_->face(mesh_->opposite(halfdege));
-
-                if(opp_face.is_valid() && vis.find(opp_face) == vis.end()) {
+            for(auto halfedge : mesh_->halfedges(cur_face)) {
+                auto opp_face = mesh_->face(mesh_->opposite(halfedge));
+                auto edge = mesh_->edge(halfedge);
+                if(opp_face.is_valid() && vis.find(opp_face) == vis.end() && dihedral_angle_[edge] < angle_thr) {
                     vec3 opp_pos = sites_[opp_face.idx()].pos;
                     float err = fabs((pos - opp_pos).norm() - radius);
                     if(err < thr) {

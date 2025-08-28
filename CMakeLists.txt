@@ -31,15 +31,26 @@ add_subdirectory(gcp)
 add_subdirectory(geodesic)
 
 
+set(DETECTOR_SRCS src/fillet_detector.cpp src/utils.cpp src/knn4d.cpp)
+
+# cli
+add_executable(detector_cli cli/detector_cli.cpp ${DETECTOR_SRCS})
+target_include_directories(detector_cli PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(detector_cli PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
+target_link_libraries(detector_cli PUBLIC easy3d::algo easy3d::core easy3d::fileio easy3d::util)
+target_link_libraries(detector_cli PUBLIC OpenMP::OpenMP_CXX CLI11::CLI11 nlohmann_json::nlohmann_json)
+target_link_libraries(detector_cli PUBLIC gcp)
 
 
 
-set(SEG_SRCS src/fillet_detector.cpp src/utils.cpp src/knn4d.cpp)
-
-
-add_executable(test_seg test/test_seg.cpp ${SEG_SRCS})
+# test
+add_executable(test_seg test/test_seg.cpp ${DETECTOR_SRCS})
 target_include_directories(test_seg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_seg PRIVATE CGAL::CGAL Eigen3::Eigen igl::igl_core)
 target_link_libraries(test_seg PUBLIC easy3d::algo easy3d::core easy3d::fileio)
 target_link_libraries(test_seg PUBLIC OpenMP::OpenMP_CXX CLI11::CLI11 nlohmann_json::nlohmann_json)
 target_link_libraries(test_seg PUBLIC gcp)
+
+
+
+

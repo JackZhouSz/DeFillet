@@ -17,14 +17,15 @@ namespace DeFillet {
     class FilletDetectorParameters {
 
     public:
-
+        std::string input_path;
+        std::string out_dir;
         float epsilon, radius_thr, angle_thr, sigma, lamdba;
 
         int num_patches, num_neighbors, num_smooth_iter;
         // sor method
         int num_sor_neighbors, num_sor_iter;
         float num_sor_std_ratio;
-
+        int num_threads;
     };
 
     class VoronoiVertices {

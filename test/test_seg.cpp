@@ -58,7 +58,6 @@ int main() {
     detector.generate_voronoi_vertices();
     detector.filter_voronoi_vertices();
 
-
     detector.compute_voronoi_vertices_density_field();
 
     detector.rolling_ball_trajectory_transform();

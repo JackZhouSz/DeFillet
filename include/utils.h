@@ -8,11 +8,19 @@
 #include <easy3d/core/point_cloud.h>
 #include <easy3d/core/surface_mesh.h>
 
-
+#include <fillet_detector.h>
 
 
 namespace DeFillet {
 
+
+    FilletDetectorParameters load_detector_config(const std::string &filename);
+
+    void normalize_model(easy3d::SurfaceMesh* mesh, easy3d::vec3& centroids, double& scale);
+
+    void inverse_normalize_model(easy3d::SurfaceMesh* model, easy3d::vec3& centroids, double& scale);
+
+    std::string get_time_stamp(bool for_filename = false);
 
     /**
     * @brief Compute the (unsigned) angle between two 3D vectors in degrees.

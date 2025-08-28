@@ -23,15 +23,8 @@
 
 
 #include <Eigen/Core>
-#include <Eigen/Sparse>
-#include <Eigen/SparseCholesky>
 
 
-
-
-
-using namespace Eigen;
-typedef Eigen::SparseMatrix<double> SparseMat;
 
 namespace DeFillet {
 
@@ -103,6 +96,25 @@ namespace DeFillet {
             }
         }
 
+    }
+
+    void FilletDetector::apply() {
+
+        generate_voronoi_vertices();
+
+        filter_voronoi_vertices();
+
+        compute_voronoi_vertices_density_field();
+
+        rolling_ball_trajectory_transform();
+
+        compute_fillet_radius_field();
+
+        compute_fillet_radius_rate_field();
+
+        rate_field_smoothing();
+
+        graph_cut();
     }
 
     void FilletDetector::generate_voronoi_vertices() {
@@ -661,39 +673,46 @@ namespace DeFillet {
 
         for(int i = 0; i < num_node; i++) {
             double rate = sites_[i].rate;
-            data_cost[i] = (1.0 - rate) / num_node;
-            data_cost[i + num_node] = rate / num_node;
+            data_cost[i] = (1.0 - rate) / num_node / 2;
+            data_cost[i + num_node] = rate / num_node / 2;
         }
 
-
-        double edge_sum = 0;
+        float edge_sum = 0;
         for(auto edge : mesh_->edges()) {
             auto face0 = mesh_->face(edge, 0);
             auto face1 = mesh_->face(edge, 1);
-            if(face0.is_valid() && face1.is_valid()) {
-                int id0 = face0.idx(), id1 = face1.idx();
-                edges.emplace_back(std::make_pair(id0, id1));
-//                if(dihedral_angle_[edge] < angle_thr) {
-                double w1 = 1.0 - fabs(sites_[id0].rate - sites_[id1].rate);
-                double w2 = mesh_->edge_length(edge);
-                double w = (w1 + w2) * lamdba;
-//                double w = 1.0 * lamdba;
-                edge_sum += w;
+            float edge_len = mesh_->edge_length(edge);
+            int id0 = face0.idx(), id1 = face1.idx();
+            edges.emplace_back(std::make_pair(id0, id1));
+            edge_sum += edge_len;
+        }
+
+
+        for(auto edge : mesh_->edges()) {
+            auto face0 = mesh_->face(edge, 0);
+            auto face1 = mesh_->face(edge, 1);
+            if(face0.is_valid() && face1.is_valid() && dihedral_angle_[edge] < angle_thr) {
+                float edge_len = mesh_->edge_length(edge);
+                double w = edge_len * lamdba / edge_sum;
                 edge_weights.emplace_back(w);
+            }
+            else {
+                edge_weights.emplace_back(0);
             }
         }
 
-        for(int i = 0; i < edge_weights.size(); i++) {
-            edge_weights[i] /= edge_sum;
+        GCoptimizationGeneralGraph gc(num_node, 2);
+        for(int i = 0; i < edges.size(); i++) {
+            gc.setNeighbors(edges[i].first, edges[i].second);
+            // gc.setNeighbors(edges[i].second, edges[i].first);
         }
 
-        GCoptimizationGeneralGraph gc(num_node, 2);
         GCP::DataCost data_item(data_cost, num_node, 2);
         GCP::SmoothCost smooth_item(edges, edge_weights);
         gc.setDataCostFunctor(&data_item);
         gc.setSmoothCostFunctor(&smooth_item);
         std::cout << "Before optimization energy is " << gc.compute_energy() << std::endl;
-        gc.expansion(1000);
+        gc.expansion(10000);
         std::cout << "After optimization energy is " << gc.compute_energy() << std::endl;
 
 #pragma omp parallel for

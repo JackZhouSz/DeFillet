@@ -15,12 +15,114 @@
 #include <Eigen/Dense>
 
 #include <igl/jet.h>
+#include <nlohmann/json.hpp>
 
 using namespace easy3d;
 using namespace std;
 
 namespace DeFillet {
 
+
+
+    FilletDetectorParameters load_detector_config(const std::string &filename) {
+        FilletDetectorParameters params;
+
+        std::ifstream f(filename);
+        if (!f.is_open()) {
+            throw std::runtime_error("Failed to open JSON file: " + filename);
+        }
+        using json = nlohmann::json;
+        json j;
+        f >> j;
+
+        // 映射 JSON → 类成员
+        params.input_path       = j.value("path", "");
+        params.out_dir          = j.value("out_dir", "");
+
+        params.epsilon          = j.value("epsilon", 0.0f);
+        params.radius_thr       = j.value("radius_thr", 0.0f);
+        params.lamdba           = j.value("lamdba", 0.0f);
+        params.angle_thr        = j.value("angle_thr", 0.0f);
+        params.sigma            = j.value("sigma", 0.0f);
+
+        params.num_patches      = j.value("num_patches", 0);
+        params.num_neighbors    = j.value("num_neighbors", 0);
+        // 注意 JSON 里是 num_smmoth_iter（拼写错了），这里兼容处理
+        params.num_smooth_iter  = j.value("num_smmoth_iter", 0);
+
+        params.num_sor_iter     = j.value("num_sor_iter", 0);
+        params.num_sor_neighbors= j.value("num_sor_neighbors", 0);
+        params.num_sor_std_ratio= j.value("num_sor_std_ratio", 0.0f);
+        params.num_threads = j.value("num_threads", 4);
+
+        return params;
+    }
+
+
+    void normalize_model(easy3d::SurfaceMesh* mesh, easy3d::vec3& centroids, double& scale) {
+        if (!mesh || mesh->n_vertices() == 0)
+            return;
+
+        // 1. 计算质心
+        centroids = vec3(0, 0, 0);
+        for (auto v : mesh->vertices())
+            centroids += mesh->position(v);
+        centroids /= static_cast<float>(mesh->n_vertices());
+
+        // 2. 平移到原点
+        for (auto v : mesh->vertices())
+            mesh->position(v) -= centroids;
+
+        // 3. 计算最大半径
+        float max_len = 0.0f;
+        for (auto v : mesh->vertices()) {
+            float len = mesh->position(v).norm();
+            max_len = std::max(len, max_len);
+        }
+
+        if (max_len < 1e-8f)
+            return;
+
+        scale =  max_len;
+
+        for (auto v : mesh->vertices())
+            mesh->position(v) /= scale;
+    }
+
+    void inverse_normalize_model(easy3d::SurfaceMesh* mesh, easy3d::vec3& centroids, double& scale) {
+        if (!mesh || mesh->n_vertices() == 0 || scale < 1e-8)
+            return;
+
+        for (auto v : mesh->vertices())
+            mesh->position(v) *= scale;
+
+        for (auto v : mesh->vertices())
+            mesh->position(v) += centroids;
+    }
+
+
+    std::string get_time_stamp(bool for_filename) {
+        // 获取当前时间
+        auto now = std::chrono::system_clock::now();
+        std::time_t t = std::chrono::system_clock::to_time_t(now);
+
+        std::tm tm{};
+#ifdef _WIN32
+        localtime_s(&tm, &t);   // Windows
+#else
+        localtime_r(&tm, &t);   // Linux / macOS
+#endif
+
+        std::ostringstream oss;
+        if (for_filename) {
+            // 文件名友好：去掉空格和冒号
+            oss << std::put_time(&tm, "%Y%m%d_%H%M%S");
+        } else {
+            // 常规格式
+            oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        }
+        return oss.str();
+    }
 
     /**
     * @brief Compute the (unsigned) angle between two 3D vectors in degrees.
@@ -266,8 +368,8 @@ namespace DeFillet {
             max_value = max(field[i], max_value);
             min_value = min(field[i], min_value);
         }
-        std::cout << "max_value: " << max_value << std::endl;
-        std::cout << "min_value: " << min_value << std::endl;
+        // std::cout << "max_value: " << max_value << std::endl;
+        // std::cout << "min_value: " << min_value << std::endl;
         // Z.conservativeResize(ct);
         Eigen::MatrixXd Ct;
         igl::jet(Z, true, Ct);

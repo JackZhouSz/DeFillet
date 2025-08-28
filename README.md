@@ -64,33 +64,73 @@ This repository contains the official implementation of our SIGGRAPH 2025 paper 
 ## Dependence
 
 The dependent libraries of our code includes:
-- Eigen3 (3.4.0 or later)
-- libigl (2.5.0 or later)
-- CGAL (5.6 or later)
-- Easy3D (2.5.2 or later), Please visit the [Prof.Nan's repository](https://github.com/LiangliangNan/Easy3D) to obtain it and follow the instructions for installation.
+- Eigen3 (3.4.0 or later): Solving linear equations.
+- libigl (2.5.0 or later): Solving linear equations.
+- Easy3D (2.5.2 or later): IO operation and data structure for mesh.
+- CGAL (5.6 or later): Voronoi diagram computation.
+- CLI11 (2.4.0 or later): Command line.
+- nlohmann_json (3.11.3 or later): Read json file.
+
+For Eigen3, libigl, CGAL, CLI11 and nlohmann_json, we recommend using [vcpkg](https://github.com/microsoft/vcpkg) to install them.
+```shell
+# Eigen3
+vcpkg install Eigen3:x64-windwos
+# libigl
+vcpkg install libigl:x64-windwos
+# CGAL
+vcpkg install cgal:x64-windwos
+# cli11
+vcpkg install cli11:x64-windows
+# nlohmann_json
+vcpkg install nlohmann_json:x64-windows
+```
+
+For Easy3D, please visit the [Prof.Nan's repository](https://github.com/LiangliangNan/Easy3D) to obtain it and follow the instructions for installation. You need to set the `${Easy3D_DIR}` environment variable to the directory that contains the `Easy3DConfig.cmake` file.
 
 
+## How to Build
 
-## Build & Usage
+Building our code in CLion:
+```
+# File -> Setting -> Build, Execution, Deployment -> CMake -> CMake Option :
+-DCMAKE_TOOLCHAIN_FILE=${YOUR_VCPKG_INSTALL_PATH}/scripts/buildsystems/vcpkg.cmake
+```
+Making sure that your following settings are correct:
+- Toolchains : `Visual Stdio`
+- Architecture : `amd64`
+- Build Type : `release`
 
-Coming Soon! 
+## Usage
+
+### 1.detector_cli
+
+```shell
+detector_cli.exe -c detector_config.json
+```
+
+The executable target `detector_cli.exe` takes a `.ply` mesh file as input and outputs the fillet segmentation results and intermediate results to a specified output folder.
+You can modify the `detector_config.json` file to change the input and output folder paths as well as algorithm parameters (configured based on the details in the paper).
+
+### 2.removal_cli
+
+Coming soon!
 
 ## Citation
 If you make use of our work, please cite our paper:
 
 ```bibtex
 @article{jiang2025defillet,
-      title={DeFillet: Detection and Removal of Fillet Regions in Polygonal CAD Models}, 
-      author={Jing-En Jiang and Hanxiao Wang and Mingyang Zhao and Dong-Ming Yan and Chen, Shuangmin and Xin, Shiqing and Tu, Changhe and Wang, Wenping },
-      journal={ACM Transactions on Graphics (TOG)},
-      publisher={ACM New York, NY, USA},
-      year={2025},
-      address = {New York, NY, USA},
-      volume = {44},
-      number = {4},
-      issn = {0730-0301},
-      url = {https://doi.org/10.1145/3731166},
-      doi = {10.1145/3731166},
+    author = {Jiang, Jing-En and Wang, Hanxiao and Zhao, Mingyang and Yan, Dong-Ming and Chen, Shuangmin and Xin, Shiqing and Tu, Changhe and Wang, Wenping},
+    title = {DeFillet: Detection and Removal of Fillet Regions in Polygonal CAD Models},
+    journal={ACM Transactions on Graphics (TOG)},
+    publisher = {Association for Computing Machinery},
+    year = {2025},
+    address = {New York, NY, USA},
+    volume = {44},
+    number = {4},
+    issn = {0730-0301},
+    url = {https://doi.org/10.1145/3731166},
+    doi = {10.1145/3731166} 
 }
 ```
 
@@ -98,6 +138,10 @@ If you make use of our work, please cite our paper:
 ## Maintaince
 
 If any problem, please contact me via <xiaowuga@gmail.com>.
+
+
+## License
+DeFillet is under AGPL-3.0, so any downstream solution and products (including cloud services) that include DeFillet code inside it should be open-sourced to comply with the AGPL conditions. For learning purposes only and not for commercial use. If you want to use it for commercial purposes, please contact us first.
 
 
 

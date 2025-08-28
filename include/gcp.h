@@ -30,6 +30,7 @@ namespace GCP {
 
         SmoothCost(const std::vector<std::pair<int,int>> & edges,
                    const std::vector<double>& edges_weight) {
+            data_.clear();
             int nb_data = edges.size();
             for(int i = 0; i < nb_data; i++) {
                 int x = edges[i].first, y = edges[i].second;
@@ -43,7 +44,7 @@ namespace GCP {
         virtual GCoptimization::EnergyTermType compute(GCoptimization::SiteID s1, GCoptimization::SiteID s2,
                                                        GCoptimization::LabelID l1, GCoptimization::LabelID l2) override {
             if(l1 == l2) {
-                return 0;
+                return 0.0;
             }
             else {
                 int id1 = s1, id2 = s2;

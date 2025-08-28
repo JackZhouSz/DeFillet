@@ -1,0 +1,16 @@
+{
+  "path": "D:\\code\\defillet1\\data\\seal.ply",
+  "out_dir": "../out/",
+  "epsilon": 0.03,
+  "radius_thr" : 0.05,
+  "lamdba" : 0.8,
+  "angle_thr" : 40,
+  "sigma" : 1.0,
+  "num_patches" : 2000,
+  "num_neighbors" : 300,
+  "num_smmoth_iter": 50,
+  "num_sor_iter" : 3,
+  "num_sor_neighbors" : 10,
+  "num_sor_std_ratio" : 0.6,
+  "num_threads" : -1
+}
